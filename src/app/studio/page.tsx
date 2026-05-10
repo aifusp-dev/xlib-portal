@@ -71,6 +71,23 @@ export default function StudioPage() {
     setSelectedItem(newId);
   };
 
+  const renameSelectedItem = (newId: string) => {
+    if (!projectState || !selectedItem || !newId || newId === selectedItem) return;
+    const newState = { ...projectState };
+    const targetMap = activeView === 'xfoods' ? newState.foods : newState.crops;
+    
+    if (targetMap[newId]) {
+      alert("Este ID ya existe.");
+      return;
+    }
+
+    targetMap[newId] = { ...targetMap[selectedItem] };
+    delete targetMap[selectedItem];
+    
+    setProjectState(newState);
+    setSelectedItem(newId);
+  };
+
   const updateItemField = (path: string, value: any) => {
     if (!projectState || !selectedItem) return;
     const newState = { ...projectState };
@@ -208,9 +225,17 @@ export default function StudioPage() {
            {selectedItem && currentItemData ? (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-8 pb-10">
                 <div className="flex justify-between items-start border-b border-[#374151] pb-6">
-                   <div>
-                      <h3 className="text-2xl font-bold text-white tracking-tight">{selectedItem}</h3>
-                      <p className="text-gray-500 text-sm mt-1">Configuración Maestro v2</p>
+                   <div className="space-y-4 flex-1">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">ID Único (Nombre del archivo)</label>
+                        <input 
+                            type="text" 
+                            value={selectedItem}
+                            onChange={(e) => renameSelectedItem(e.target.value)}
+                            className="bg-transparent text-2xl font-bold text-yellow-400 tracking-tight focus:outline-none border-b border-transparent focus:border-yellow-400/30 w-full"
+                        />
+                      </div>
+                      <p className="text-gray-500 text-sm">Configuración Maestro v2</p>
                    </div>
                    <div className="bg-yellow-400/10 border border-yellow-400/20 px-3 py-1.5 rounded-lg text-[10px] font-bold text-yellow-400 uppercase tracking-widest flex items-center gap-2">
                       <FileCode className="w-3.3 h-3.3" /> Editando
