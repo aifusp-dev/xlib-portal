@@ -121,16 +121,15 @@ export default function StudioPage() {
     if (!projectState || !selectedItem) return;
     const newState = { ...projectState };
     
-    if (path === 'folder') {
-        if (activeView === 'xfoods') newState.foods[selectedItem].folder = value;
-        else if (activeView === 'xcrops') newState.crops[selectedItem].folder = value;
-        else newState.machines[selectedItem].folder = value;
-        setProjectState(newState);
-        return;
-    }
+    // Determine target map
+    const targetMap = activeView === 'xfoods' ? newState.foods : 
+                     (activeView === 'xcrops' ? newState.crops : newState.machines);
+    
+    const entry = targetMap[selectedItem];
+    if (!entry) return;
 
     if (path === 'ia-toggle') {
-        const item = activeView === 'xfoods' ? newState.foods[selectedItem].config : newState.crops[selectedItem].config;
+        const item = entry.config;
         if (value) {
             if (!item.item && activeView === 'xfoods') item.item = {};
             if (!item.seed && activeView === 'xcrops') item.seed = {};
@@ -156,19 +155,22 @@ export default function StudioPage() {
         return;
     }
 
-    const item = activeView === 'xfoods' ? newState.foods[selectedItem].config : 
-                 (activeView === 'xcrops' ? newState.crops[selectedItem].config : newState.machines[selectedItem].config);
-    
+    // Standard nested path update
     const keys = path.split('.');
-    let current = item;
+    let current: any = entry;
+    
     for (let i = 0; i < keys.length - 1; i++) {
-        if (!current[keys[i]]) current[keys[i]] = {};
-        current = current[keys[i]];
+        const key = keys[i];
+        if (!current[key]) current[key] = {};
+        current = current[key];
     }
-    current[keys[keys.length - 1]] = value;
+    
+    const lastKey = keys[keys.length - 1];
+    current[lastKey] = value;
 
+    // Handle lore as list
     if (path.endsWith('.lore') && typeof value === 'string') {
-        current[keys[keys.length - 1]] = value.split('\n').map((l: string) => l.trim());
+        current[lastKey] = value.split('\n').map((l: string) => l.trim());
     }
 
     setProjectState(newState);
