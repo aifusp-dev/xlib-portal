@@ -31,9 +31,9 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
     zip.file(`plugins/xFoodsCrops/species/${id}.yml`, stringifyYaml(data));
   });
 
-  // 3. Pack Machines
+  // 3. Pack Machines (xFoods Core)
   Object.entries(state.machines).forEach(([id, data]) => {
-    zip.file(`plugins/xFoodsCrops/machines/${id}.yml`, stringifyYaml(data));
+    zip.file(`plugins/xFoods/machines/${id}.yml`, stringifyYaml(data));
   });
 
   // 4. Pack ItemsAdder (Content Folder Structure)
@@ -76,6 +76,8 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
 
       if (path.includes('xFoods/foods/')) {
         state.foods[id] = yaml.load(content);
+      } else if (path.includes('xFoods/machines/')) {
+        state.machines[id] = yaml.load(content);
       } else if (path.includes('xFoodsCrops/species/')) {
         state.crops[id] = yaml.load(content);
       } else if (path.includes('configs/')) {
