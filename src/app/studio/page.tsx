@@ -202,6 +202,27 @@ export default function StudioPage() {
     const entry = targetMap[selectedItem];
     if (!entry) return;
 
+    if (path === 'config.item.custom-model-data' || path === 'config.seed.custom-model-data') {
+        const val = parseInt(value) || 0;
+        const item = activeView === 'xfoods' ? newState.foods[selectedItem].config : newState.crops[selectedItem].config;
+        if (activeView === 'xfoods') {
+            if (!item.item) item.item = {};
+            item.item['custom-model-data'] = val;
+        } else {
+            if (!item.seed) item.seed = {};
+            item.seed['custom-model-data'] = val;
+        }
+        
+        // Sync to IA if exists
+        if (newState.iaItems[selectedItem]) {
+            const iaItem = newState.iaItems[selectedItem].items[selectedItem];
+            if (!iaItem.specific_properties) iaItem.specific_properties = {};
+            iaItem.specific_properties.custom_model_data = val;
+        }
+        setProjectState(newState);
+        return;
+    }
+
     if (path === 'ia-toggle') {
         const item = entry.config;
         if (value) {
@@ -210,13 +231,15 @@ export default function StudioPage() {
             
             const target = activeView === 'xfoods' ? item.item : item.seed;
             target['itemsadder-id'] = `xLib:${selectedItem}`;
+            const currentCMD = target['custom-model-data'] || 0;
             
             newState.iaItems[selectedItem] = {
                 items: {
                     [selectedItem]: {
                         display_name: item['display-name'] || "Nuevo Ítem",
                         permission: `xlib.${selectedItem}`,
-                        resource: { generate: true, textures: [`xLib:items/${activeView === 'xfoods' ? 'food' : 'crops'}/${selectedItem}`] }
+                        resource: { generate: true, textures: [`xLib:items/${activeView === 'xfoods' ? 'food' : 'crops'}/${selectedItem}`] },
+                        ...(currentCMD > 0 ? { specific_properties: { custom_model_data: currentCMD } } : {})
                     }
                 }
             };
@@ -380,16 +403,22 @@ export default function StudioPage() {
                 {/* --- RENDER EDITOR CONTENT --- */}
                 <div className="space-y-6">
                     <div className="flex items-center gap-2 text-yellow-400"><Info className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Ajustes Base</h4></div>
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className={cn("grid gap-6", activeView !== 'xmachines' ? "grid-cols-3" : "grid-cols-2")}>
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Nombre Display</label>
                             <input type="text" value={currentItem.config['display-name'] || ''} onChange={(e) => updateItemField('config.display-name', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                         </div>
                         {activeView !== 'xmachines' && (
+                            <>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Material</label>
                                 <input type="text" value={(activeView === 'xfoods' ? currentItem.config.item?.material : currentItem.config.seed?.material) || ''} onChange={(e) => updateItemField(activeView === 'xfoods' ? 'config.item.material' : 'config.seed.material', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                             </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Custom Model Data</label>
+                                <input type="number" value={(activeView === 'xfoods' ? currentItem.config.item?.['custom-model-data'] : currentItem.config.seed?.['custom-model-data']) || 0} onChange={(e) => updateItemField(activeView === 'xfoods' ? 'config.item.custom-model-data' : 'config.seed.custom-model-data', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                            </div>
+                            </>
                         )}
                     </div>
                     {activeView === 'xfoods' && (
