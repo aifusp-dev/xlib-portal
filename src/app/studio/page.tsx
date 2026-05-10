@@ -11,7 +11,8 @@ import {
   Package,
   ChefHat,
   Sprout,
-  Binary
+  Binary,
+  Settings2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseUploadedFiles, EcosystemState, stringifyYaml } from "@/lib/studio";
@@ -69,16 +70,32 @@ export default function StudioPage() {
     const newState = { ...projectState };
     
     if (activeView === 'xfoods') {
-      if (field === 'display-name') newState.foods[selectedItem]['display-name'] = value;
+      const item = newState.foods[selectedItem];
+      if (field === 'display-name') item['display-name'] = value;
       else if (field === 'material') {
-        if (!newState.foods[selectedItem].item) newState.foods[selectedItem].item = {};
-        newState.foods[selectedItem].item.material = value;
+        if (!item.item) item.item = {};
+        item.item.material = value;
+      } else if (field === 'ia-toggle') {
+        if (value) {
+            if (!item.item) item.item = {};
+            item.item['itemsadder-id'] = `xLib:${selectedItem}`;
+        } else {
+            if (item.item) delete item.item['itemsadder-id'];
+        }
       }
     } else {
-      if (field === 'display-name') newState.crops[selectedItem]['display-name'] = value;
+      const crop = newState.crops[selectedItem];
+      if (field === 'display-name') crop['display-name'] = value;
       else if (field === 'material') {
-        if (!newState.crops[selectedItem].seed) newState.crops[selectedItem].seed = {};
-        newState.crops[selectedItem].seed.material = value;
+        if (!crop.seed) crop.seed = {};
+        crop.seed.material = value;
+      } else if (field === 'ia-toggle') {
+        if (value) {
+            if (!crop.seed) crop.seed = {};
+            crop.seed['itemsadder-id'] = `xLib:${selectedItem}`;
+        } else {
+            if (crop.seed) delete crop.seed['itemsadder-id'];
+        }
       }
     }
     setProjectState(newState);
@@ -129,6 +146,7 @@ export default function StudioPage() {
 
   const itemsList = activeView === 'xfoods' ? Object.keys(projectState.foods) : Object.keys(projectState.crops);
   const currentItemData = selectedItem ? (activeView === 'xfoods' ? projectState.foods[selectedItem] : projectState.crops[selectedItem]) : null;
+  const isIAEnabled = currentItemData ? (activeView === 'xfoods' ? !!currentItemData.item?.['itemsadder-id'] : !!currentItemData.seed?.['itemsadder-id']) : false;
 
   return (
     <div className="h-full flex flex-col space-y-6 animate-in slide-in-from-bottom-4 duration-500">
@@ -229,11 +247,35 @@ export default function StudioPage() {
                    </div>
                 </div>
 
-                <div className="bg-[#0b0f19] border border-[#374151] p-10 rounded-2xl text-center space-y-4">
-                    <div className="bg-white/5 p-4 rounded-full w-fit mx-auto">
-                       <Upload className="w-8 h-8 text-gray-500" />
+                {/* ItemsAdder Toggle */}
+                <div className={cn("p-6 rounded-2xl border transition-all", isIAEnabled ? "bg-yellow-400/5 border-yellow-400/20" : "bg-white/2 border-white/5")}>
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <Settings2 className={cn("w-5 h-5", isIAEnabled ? "text-yellow-400" : "text-gray-600")} />
+                            <div>
+                                <h4 className="text-sm font-bold text-white">Integración ItemsAdder</h4>
+                                <p className="text-[11px] text-gray-500 uppercase font-medium">Texturas y Modelos Custom</p>
+                            </div>
+                        </div>
+                        <label className="switch">
+                            <input type="checkbox" checked={isIAEnabled} onChange={(e) => updateItemField('ia-toggle', e.target.checked)} />
+                            <span className="slider"></span>
+                        </label>
                     </div>
-                    <p className="text-gray-400 text-sm italic">Arrastra una nueva textura o modelo para actualizar ItemsAdder</p>
+
+                    {isIAEnabled && (
+                        <div className="mt-6 pt-6 border-t border-yellow-400/10 animate-in slide-in-from-top-2 duration-300">
+                            <div className="border-2 border-dashed border-yellow-400/20 rounded-2xl p-10 text-center hover:border-yellow-400/40 hover:bg-yellow-400/5 transition-all group cursor-pointer">
+                                <div className="bg-yellow-400/10 p-4 rounded-full w-fit mx-auto mb-4 group-hover:scale-110 transition-transform">
+                                    <Upload className="w-8 h-8 text-yellow-400" />
+                                </div>
+                                <h4 className="text-white font-bold text-sm">Drop Zone</h4>
+                                <p className="text-gray-500 text-xs mt-2 max-w-[200px] mx-auto leading-relaxed">
+                                    Suelta tu .png o .json para vincularlo a este ítem.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
              </div>
            ) : (
