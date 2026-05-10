@@ -22,7 +22,9 @@ import {
   Layers,
   Trash2,
   Clock,
-  Dices
+  Dices,
+  ChevronRight,
+  Maximize2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseUploadedFiles, EcosystemState, stringifyYaml } from "@/lib/studio";
@@ -144,6 +146,23 @@ export default function StudioPage() {
     if (!projectState || !selectedItem || activeView !== 'xmachines') return;
     const newState = { ...projectState };
     delete newState.machines[selectedItem].recipes[recipeId];
+    setProjectState(newState);
+  };
+
+  const handleAddStage = () => {
+    if (!projectState || !selectedItem || activeView !== 'xcrops') return;
+    const newState = { ...projectState };
+    const crop = newState.crops[selectedItem];
+    if (!crop.growth) crop.growth = {};
+    if (!crop.growth.stages) crop.growth.stages = {};
+    
+    const stageIndex = Object.keys(crop.growth.stages).length;
+    crop.growth.stages[`stage${stageIndex}`] = {
+        material: "FERN",
+        scale: 1.0,
+        "y-offset": 0.1,
+        duration: 60
+    };
     setProjectState(newState);
   };
 
@@ -453,6 +472,39 @@ export default function StudioPage() {
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-1">Material Semilla</label>
                                     <input type="text" value={currentItemData.seed?.material || ''} onChange={(e) => updateItemField('seed.material', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                 </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2 text-yellow-400">
+                                    <Maximize2 className="w-4 h-4" />
+                                    <h4 className="text-xs font-black uppercase tracking-widest">Fases de Crecimiento</h4>
+                                </div>
+                                <button onClick={handleAddStage} className="text-[10px] font-black uppercase bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg border border-yellow-400/20 hover:bg-yellow-400/20 transition-all flex items-center gap-2">
+                                    <Plus className="w-3 h-3"/> Nueva Fase
+                                </button>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                {Object.entries(currentItemData.growth?.stages || {}).map(([sid, sData]: [string, any], index) => (
+                                    <div key={sid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] p-5 space-y-4">
+                                        <div className="flex justify-between items-center border-b border-[#374151] pb-3">
+                                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Fase {index}</span>
+                                            <Trash2 className="w-3.5 h-3.5 text-gray-700 hover:text-red-500 cursor-pointer transition-colors" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-bold text-gray-600 uppercase">Material</label>
+                                                <input type="text" value={sData.material} onChange={(e) => updateItemField(`growth.stages.${sid}.material`, e.target.value)} className="w-full bg-[#111827] border border-[#374151] rounded-lg px-2 py-1.5 text-[11px] text-white outline-none" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[9px] font-bold text-gray-600 uppercase">Duración (s)</label>
+                                                <input type="number" value={sData.duration} onChange={(e) => updateItemField(`growth.stages.${sid}.duration`, parseInt(e.target.value))} className="w-full bg-[#111827] border border-[#374151] rounded-lg px-2 py-1.5 text-[11px] text-white outline-none" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
                     </div>
