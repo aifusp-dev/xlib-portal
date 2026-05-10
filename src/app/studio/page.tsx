@@ -8,7 +8,6 @@ import {
   Plus, 
   FolderSearch,
   CheckCircle2,
-  AlertCircle,
   Package,
   ChefHat,
   Sprout,
@@ -21,7 +20,7 @@ import { exportEcosystem } from "@/lib/export";
 export default function StudioPage() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [activeView, setActiveTab] = useState("xfoods");
+  const [activeView, setActiveView] = useState<'xfoods' | 'xcrops'>("xfoods");
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -36,6 +35,53 @@ export default function StudioPage() {
     } finally {
       setIsImporting(false);
     }
+  };
+
+  const handleCreateNew = () => {
+    if (!projectState) return;
+    const timestamp = Date.now();
+    const newId = activeView === 'xfoods' ? `nueva_comida_${timestamp}` : `nuevo_cultivo_${timestamp}`;
+    
+    const newState = { ...projectState };
+    if (activeView === 'xfoods') {
+      newState.foods[newId] = {
+        "display-name": "&eNueva Comida",
+        "lore": ["&7Descripción de la comida."],
+        "item": { "material": "PORKCHOP", "custom-model-data": 0 },
+        "stats": { "food-level": 4, "saturation": 2.0, "bites": 1, "consumable": true }
+      };
+    } else {
+      newState.crops[newId] = {
+        "display-name": "Nuevo Cultivo",
+        "seed": { "material": "WHEAT_SEEDS", "display-name": "&aSemilla", "lore": ["&7Semilla de cultivo."], "custom-model-data": 0 },
+        "growth": { "wither-time": 2400, "stages": { "stage0": { "material": "FERN", "scale": 1.0, "y-offset": 0.1, "duration": 60 } } },
+        "harvest": { "xfoods-id": "apple", "amount": 1, "message": "&a¡Has cosechado!" },
+        "visuals": { "hologram-title": "&fCultivo" }
+      };
+    }
+    
+    setProjectState(newState);
+    setSelectedItem(newId);
+  };
+
+  const updateItemField = (field: string, value: any) => {
+    if (!projectState || !selectedItem) return;
+    const newState = { ...projectState };
+    
+    if (activeView === 'xfoods') {
+      if (field === 'display-name') newState.foods[selectedItem]['display-name'] = value;
+      else if (field === 'material') {
+        if (!newState.foods[selectedItem].item) newState.foods[selectedItem].item = {};
+        newState.foods[selectedItem].item.material = value;
+      }
+    } else {
+      if (field === 'display-name') newState.crops[selectedItem]['display-name'] = value;
+      else if (field === 'material') {
+        if (!newState.crops[selectedItem].seed) newState.crops[selectedItem].seed = {};
+        newState.crops[selectedItem].seed.material = value;
+      }
+    }
+    setProjectState(newState);
   };
 
   const handleExport = async () => {
@@ -77,17 +123,12 @@ export default function StudioPage() {
             </div>
           </div>
         </div>
-
-        <div className="flex justify-center gap-8 text-[11px] font-bold text-gray-600 uppercase tracking-widest pt-10">
-          <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500" /> Auto-Parsea YAML</div>
-          <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500" /> Gestiona Texturas</div>
-          <div className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-green-500" /> Exporta ZIP</div>
-        </div>
       </div>
     );
   }
 
   const itemsList = activeView === 'xfoods' ? Object.keys(projectState.foods) : Object.keys(projectState.crops);
+  const currentItemData = selectedItem ? (activeView === 'xfoods' ? projectState.foods[selectedItem] : projectState.crops[selectedItem]) : null;
 
   return (
     <div className="h-full flex flex-col space-y-6 animate-in slide-in-from-bottom-4 duration-500">
@@ -95,7 +136,7 @@ export default function StudioPage() {
         <div className="flex items-center gap-6">
           <div className="bg-yellow-400 p-2 rounded-lg text-black font-black text-xs">PRO</div>
           <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">Ecosistema Activo</h2>
+            <h2 className="text-xl font-bold text-white tracking-tight">Ecosistema: <span className="text-yellow-400">{projectState.projectName}</span></h2>
             <div className="flex gap-4 mt-1">
                <span className="text-[10px] text-gray-500 font-bold uppercase flex items-center gap-1.5"><ChefHat className="w-3 h-3"/> {Object.keys(projectState.foods).length} Comidas</span>
                <span className="text-[10px] text-gray-500 font-bold uppercase flex items-center gap-1.5"><Sprout className="w-3 h-3"/> {Object.keys(projectState.crops).length} Cultivos</span>
@@ -104,7 +145,7 @@ export default function StudioPage() {
         </div>
         <div className="flex gap-3">
           <button 
-            onClick={() => setProjectState(null)}
+            onClick={() => { setProjectState(null); setSelectedItem(null); }}
             className="px-6 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-colors"
           >
             Cerrar Proyecto
@@ -123,17 +164,20 @@ export default function StudioPage() {
         <aside className="col-span-3 bg-[#111827] border border-[#374151] rounded-2xl flex flex-col overflow-hidden shadow-xl">
            <div className="p-4 border-b border-[#374151] flex gap-2">
               <button 
-                onClick={() => setActiveTab('xfoods')}
+                onClick={() => { setActiveView('xfoods'); setSelectedItem(null); }}
                 className={cn("flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all", activeView === 'xfoods' ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300")}
               >xFoods</button>
               <button 
-                onClick={() => setActiveTab('xcrops')}
+                onClick={() => { setActiveView('xcrops'); setSelectedItem(null); }}
                 className={cn("flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all", activeView === 'xcrops' ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300")}
               >xCrops</button>
            </div>
            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              <button className="w-full flex items-center gap-3 px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold text-yellow-400 hover:bg-white/10 transition-all mb-4">
-                 <Plus className="w-4 h-4" /> Crear Nuevo
+              <button 
+                onClick={handleCreateNew}
+                className="w-full flex items-center gap-3 px-4 py-3 bg-yellow-400/5 border border-yellow-400/20 rounded-xl text-xs font-bold text-yellow-400 hover:bg-yellow-400/10 transition-all mb-4"
+              >
+                 <Plus className="w-4 h-4" /> Crear {activeView === 'xfoods' ? 'Comida' : 'Cultivo'}
               </button>
               {itemsList.map(id => (
                 <div 
@@ -152,7 +196,7 @@ export default function StudioPage() {
 
         {/* Editor Area */}
         <main className="col-span-6 bg-[#111827] border border-[#374151] rounded-2xl overflow-y-auto p-8 shadow-2xl">
-           {selectedItem ? (
+           {selectedItem && currentItemData ? (
              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="flex justify-between items-start border-b border-[#374151] pb-6">
                    <div>
@@ -169,7 +213,8 @@ export default function StudioPage() {
                       <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-1">Nombre Display</label>
                       <input 
                         type="text" 
-                        value={activeView === 'xfoods' ? projectState.foods[selectedItem]['display-name'] : projectState.crops[selectedItem]['display-name']}
+                        value={currentItemData['display-name'] || ''}
+                        onChange={(e) => updateItemField('display-name', e.target.value)}
                         className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white focus:border-yellow-400 outline-none transition-colors"
                       />
                    </div>
@@ -177,13 +222,13 @@ export default function StudioPage() {
                       <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-1">Material</label>
                       <input 
                         type="text" 
-                        value={activeView === 'xfoods' ? projectState.foods[selectedItem].item?.material : projectState.crops[selectedItem].seed?.material}
+                        value={(activeView === 'xfoods' ? currentItemData.item?.material : currentItemData.seed?.material) || ''}
+                        onChange={(e) => updateItemField('material', e.target.value)}
                         className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white focus:border-yellow-400 outline-none transition-colors"
                       />
                    </div>
                 </div>
 
-                {/* Simplified visual editor */}
                 <div className="bg-[#0b0f19] border border-[#374151] p-10 rounded-2xl text-center space-y-4">
                     <div className="bg-white/5 p-4 rounded-full w-fit mx-auto">
                        <Upload className="w-8 h-8 text-gray-500" />
@@ -209,8 +254,8 @@ export default function StudioPage() {
            </div>
            <div className="flex-1 p-6 overflow-auto font-mono text-[12px] text-blue-200 leading-relaxed">
               <pre>
-                {selectedItem ? (
-                  activeView === 'xfoods' ? stringifyYaml(projectState.foods[selectedItem]) : stringifyYaml(projectState.crops[selectedItem])
+                {selectedItem && currentItemData ? (
+                  stringifyYaml(currentItemData)
                 ) : "# Selecciona un ítem..."}
               </pre>
            </div>
