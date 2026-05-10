@@ -6,14 +6,15 @@ export interface StudioFile {
   content: any;
   type: 'texture' | 'model' | 'config' | 'raw';
   inferredPath: string;
+  folderPath?: string; // New: preserves hierarchical organization
 }
 
 export interface EcosystemState {
   projectName: string;
-  foods: Record<string, any>;
-  crops: Record<string, any>;
+  foods: Record<string, { config: any, folder?: string }>;
+  crops: Record<string, { config: any, folder?: string }>;
   iaItems: Record<string, any>;
-  machines: Record<string, any>;
+  machines: Record<string, { config: any, folder?: string }>;
   rawFiles: StudioFile[];
 }
 
@@ -23,28 +24,29 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   
   // 1. Pack xFoods
   Object.entries(state.foods).forEach(([id, data]) => {
-    zip.file(`plugins/xFoods/foods/${id}.yml`, stringifyYaml(data));
+    const folder = data.folder ? `${data.folder}/` : '';
+    zip.file(`plugins/xFoods/foods/${folder}${id}.yml`, stringifyYaml(data.config));
   });
 
   // 2. Pack xCrops
   Object.entries(state.crops).forEach(([id, data]) => {
-    zip.file(`plugins/xFoodsCrops/species/${id}.yml`, stringifyYaml(data));
+    const folder = data.folder ? `${data.folder}/` : '';
+    zip.file(`plugins/xFoodsCrops/species/${folder}${id}.yml`, stringifyYaml(data.config));
   });
 
   // 3. Pack Machines (xFoods Core)
   Object.entries(state.machines).forEach(([id, data]) => {
-    zip.file(`plugins/xFoods/machines/${id}.yml`, stringifyYaml(data));
+    const folder = data.folder ? `${data.folder}/` : '';
+    zip.file(`plugins/xFoods/machines/${folder}${id}.yml`, stringifyYaml(data.config));
   });
 
   // 4. Pack ItemsAdder (Content Folder Structure)
-  // We recreate the 'contents/namespace' structure
   Object.entries(state.iaItems).forEach(([id, data]) => {
     zip.file(`plugins/ItemsAdder/contents/${ns}/configs/${id}.yml`, stringifyYaml(data));
   });
 
   // 5. Pack original raw files (textures/models)
   state.rawFiles.forEach(file => {
-    // If it's from the uploaded content, we keep it in the same relative spot
     zip.file(file.inferredPath, file.content);
   });
   
@@ -75,17 +77,18 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
       const id = file.name.replace(/\.ya?ml$/, '');
 
       if (path.includes('xFoods/foods/')) {
-        state.foods[id] = yaml.load(content);
+        const folderPath = path.split('xFoods/foods/')[1].split('/').slice(0, -1).join('/');
+        state.foods[id] = { config: yaml.load(content), folder: folderPath };
       } else if (path.includes('xFoods/machines/')) {
-        state.machines[id] = yaml.load(content);
+        const folderPath = path.split('xFoods/machines/')[1].split('/').slice(0, -1).join('/');
+        state.machines[id] = { config: yaml.load(content), folder: folderPath };
       } else if (path.includes('xFoodsCrops/species/')) {
-        state.crops[id] = yaml.load(content);
+        const folderPath = path.split('xFoodsCrops/species/')[1].split('/').slice(0, -1).join('/');
+        state.crops[id] = { config: yaml.load(content), folder: folderPath };
       } else if (path.includes('configs/')) {
-        // Assume it's an ItemsAdder config inside the content folder
         state.iaItems[id] = yaml.load(content);
       }
     } else if (path.match(/\.(png|json|ogg)$/i)) {
-      // Store raw assets to preserve them in the ZIP
       const buffer = await file.arrayBuffer();
       state.rawFiles.push({
         name: file.name,
