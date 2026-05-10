@@ -1,15 +1,18 @@
 "use client";
 
-import { generateZIP, stringifyYaml, StudioFile } from "@/lib/studio";
-
-// Extending the StudioPage with actual ZIP generation
-// This will be called from the handleDownload in the previous step (integrated mentally)
+import { generateZIP, EcosystemState, StudioFile } from "@/lib/studio";
 
 export async function exportEcosystem(foodData: any, iaEnabled: boolean, iaType: string, iaInferredPath: string, namespace: string) {
-  const files: StudioFile[] = [];
+  const state: EcosystemState = {
+    foods: {},
+    crops: {},
+    iaItems: {},
+    machines: {},
+    rawFiles: []
+  };
 
   // 1. Add xFoods Config
-  const xFoodsYaml = {
+  state.foods[foodData.id] = {
     "display-name": foodData.name,
     "lore": foodData.lore.split("\n").map((l: string) => l.trim()),
     "item": {
@@ -25,36 +28,25 @@ export async function exportEcosystem(foodData: any, iaEnabled: boolean, iaType:
     }
   };
 
-  files.push({
-    name: `${foodData.id}.yml`,
-    content: stringifyYaml(xFoodsYaml),
-    type: 'config',
-    inferredPath: `plugins/xFoods/foods/${foodData.id}.yml`
-  });
-
   // 2. Add ItemsAdder Config if enabled
   if (iaEnabled) {
-    const iaYaml = {
-      items: {
-        [foodData.id]: {
-          display_name: foodData.name,
-          permission: `${namespace.toLowerCase()}.${foodData.id}`,
-          resource: iaType === 'texture' 
-            ? { generate: true, textures: [`${namespace}:${iaInferredPath}`] }
-            : { generate: false, model_path: `${namespace}:${iaInferredPath}` }
+    state.iaItems[foodData.id] = {
+      namespace: namespace,
+      config: {
+        items: {
+          [foodData.id]: {
+            display_name: foodData.name,
+            permission: `${namespace.toLowerCase()}.${foodData.id}`,
+            resource: iaType === 'texture' 
+              ? { generate: true, textures: [`${namespace}:${iaInferredPath}`] }
+              : { generate: false, model_path: `${namespace}:${iaInferredPath}` }
+          }
         }
       }
     };
-
-    files.push({
-      name: `${foodData.id}_ia.yml`,
-      content: stringifyYaml(iaYaml),
-      type: 'config',
-      inferredPath: `plugins/ItemsAdder/data/resource_pack/${namespace}/items/${foodData.id}.yml`
-    });
   }
 
-  const zipBlob = await generateZIP(files);
+  const zipBlob = await generateZIP(state);
   const link = document.createElement('a');
   link.href = URL.createObjectURL(zipBlob);
   link.download = `xLib_Studio_Export_${foodData.id}.zip`;
