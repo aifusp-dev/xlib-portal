@@ -41,6 +41,58 @@ export default function StudioPage() {
   const [activePreview, setActivePreview] = useState<'plugin' | 'ia'>('plugin');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const iaFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleIAFileUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
+    let files: FileList | null = null;
+    if ('dataTransfer' in e) {
+      e.preventDefault();
+      files = e.dataTransfer.files;
+    } else {
+      files = (e.target as HTMLInputElement).files;
+    }
+
+    if (!files || files.length === 0 || !projectState || !selectedItem) return;
+    
+    const file = files[0];
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext !== 'png' && ext !== 'json') {
+      alert("Solo se admiten archivos .png o .json");
+      return;
+    }
+
+    const type = ext === 'png' ? 'texture' : 'model';
+    const buffer = await file.arrayBuffer();
+    const newState = { ...projectState };
+    
+    // Determine path based on active view
+    const subfolder = activeView === 'xfoods' ? 'food' : 'crops';
+    const fileName = file.name.replace(`.${ext}`, "");
+    const inferredPath = `textures/items/${subfolder}/${fileName}${type === 'model' ? '.json' : '.png'}`;
+    const iaPath = `items/${subfolder}/${fileName}`;
+
+    // 1. Update IA Config
+    if (newState.iaItems[selectedItem]) {
+      const iaItem = newState.iaItems[selectedItem].items[selectedItem];
+      if (type === 'texture') {
+        iaItem.resource = { generate: true, textures: [`xLib:${iaPath}`] };
+      } else {
+        iaItem.resource = { generate: false, model_path: `xLib:${iaPath}` };
+      }
+    }
+
+    // 2. Store raw file for ZIP
+    newState.rawFiles.push({
+      name: file.name,
+      content: buffer,
+      type: 'raw',
+      inferredPath: `plugins/ItemsAdder/contents/${projectState.projectName}/resourcepack/assets/xlib/${inferredPath}`
+    });
+
+    setProjectState(newState);
+    alert(`¡${file.name} vinculado con éxito!`);
+  };
+
   const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     setIsImporting(true);
@@ -362,9 +414,27 @@ export default function StudioPage() {
                     </div>
                     {isIAEnabled && (
                         <div className="mt-6 pt-6 border-t border-yellow-400/10 animate-in slide-in-from-top-2 duration-300">
-                            <div className="border-2 border-dashed border-yellow-400/20 rounded-2xl p-10 text-center hover:border-yellow-400/40 hover:bg-yellow-400/5 transition-all group cursor-pointer">
-                                <div className="bg-yellow-400/10 p-4 rounded-full w-fit mx-auto mb-4 group-hover:scale-110 transition-transform"><Upload className="w-8 h-8 text-yellow-400" /></div>
-                                <h4 className="text-white font-bold text-sm">Drop Zone</h4>
+                            <div 
+                                onClick={() => iaFileInputRef.current?.click()}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={handleIAFileUpload}
+                                className="border-2 border-dashed border-yellow-400/20 rounded-2xl p-10 text-center hover:border-yellow-400/40 hover:bg-yellow-400/5 transition-all group cursor-pointer relative"
+                            >
+                                <input 
+                                    type="file" 
+                                    ref={iaFileInputRef} 
+                                    onChange={handleIAFileUpload} 
+                                    className="hidden" 
+                                    accept=".png,.json"
+                                />
+                                <div className="bg-yellow-400/10 p-4 rounded-full w-fit mx-auto mb-4 group-hover:scale-110 transition-transform">
+                                    <Upload className="w-8 h-8 text-yellow-400" />
+                                </div>
+                                <h4 className="text-white font-bold text-sm">Cargar Activo (Drop Zone)</h4>
+                                <p className="text-[10px] text-gray-500 mt-2 uppercase font-black tracking-widest leading-relaxed">
+                                    Sube tu .png o .json <br/>
+                                    <span className="text-yellow-400/50">para auto-configurar ItemsAdder</span>
+                                </p>
                             </div>
                         </div>
                     )}
