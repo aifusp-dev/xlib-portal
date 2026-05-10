@@ -146,7 +146,10 @@ export default function StudioPage() {
   };
 
   const toggleFolder = (folderName: string) => {
-    setOpenFolders(prev => ({ ...prev, [folderName]: !prev[folderName] }));
+    setOpenFolders(prev => ({ 
+      ...prev, 
+      [folderName]: prev[folderName] === false ? true : false 
+    }));
   };
 
   const handleExport = async () => {
@@ -274,8 +277,8 @@ export default function StudioPage() {
                      <FolderOpen className="w-3 h-3" />
                      {folder}
                    </button>
-                   {(!openFolders[folder] || openFolders[folder]) && (
-                     <div className="space-y-1 pl-4">
+                   {openFolders[folder] !== false && (
+                     <div className="space-y-1 pl-4 animate-in slide-in-from-top-1 duration-200">
                         {items.map(id => (
                             <div 
                                 key={id}
