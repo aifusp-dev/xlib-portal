@@ -87,13 +87,17 @@ export default function StudioPage() {
     // Update IA Config based on what was uploaded
     if (newState.iaItems[selectedItem]) {
       const iaItem = newState.iaItems[selectedItem].items[selectedItem];
+      const currentResource = iaItem.resource || {};
+      const alreadyHasModel = !!currentResource.model_path;
+
       if (hasModel) {
+        // If this batch has a model, we definitely want to use it
         iaItem.resource = { 
           generate: false, 
           model_path: `xLib:items/${subfolder}/${modelName}` 
         };
-      } else {
-        // Use the first png found as main texture if no model
+      } else if (!alreadyHasModel) {
+        // Only switch to texture-based if there isn't a model already configured
         const firstPng = filesList.find(f => f.name.endsWith('.png'));
         if (firstPng) {
           const texName = firstPng.name.replace(".png", "");
@@ -103,6 +107,8 @@ export default function StudioPage() {
           };
         }
       }
+      // If alreadyHasModel is true and no model was in this batch, 
+      // we keep the model_path but the textures were still added to rawFiles.
     }
 
     setProjectState(newState);
