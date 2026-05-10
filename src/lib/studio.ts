@@ -6,7 +6,6 @@ export interface StudioFile {
   content: any;
   type: 'texture' | 'model' | 'config' | 'raw';
   inferredPath: string;
-  folderPath?: string; // New: preserves hierarchical organization
 }
 
 export interface EcosystemState {
@@ -34,19 +33,21 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
     zip.file(`plugins/xFoodsCrops/species/${folder}${id}.yml`, stringifyYaml(data.config));
   });
 
-  // 3. Pack Machines (xFoods Core)
+  // 3. Pack Machines
   Object.entries(state.machines).forEach(([id, data]) => {
     const folder = data.folder ? `${data.folder}/` : '';
     zip.file(`plugins/xFoods/machines/${folder}${id}.yml`, stringifyYaml(data.config));
   });
 
-  // 4. Pack ItemsAdder (Content Folder Structure)
+  // 4. Pack ItemsAdder (MODULAR STRUCTURE)
+  // Everything goes under plugins/ItemsAdder/contents/[projectName]/
   Object.entries(state.iaItems).forEach(([id, data]) => {
     zip.file(`plugins/ItemsAdder/contents/${ns}/configs/${id}.yml`, stringifyYaml(data));
   });
 
   // 5. Pack original raw files (textures/models)
   state.rawFiles.forEach(file => {
+    // These paths are already prepared to be under contents/[projectName]/
     zip.file(file.inferredPath, file.content);
   });
   
@@ -63,15 +64,32 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
     rawFiles: []
   };
 
-  for (const file of Array.from(files)) {
+  const fileList = Array.from(files);
+
+  // First pass: Detect project name (Namespace)
+  // We look for a folder that isn't xFoods or xFoodsCrops and has 'configs' or 'resourcepack'
+  for (const file of fileList) {
+    const path = (file as any).webkitRelativePath || file.name;
+    const parts = path.split('/');
+    if (parts.length > 1) {
+      const topFolder = parts[0];
+      if (topFolder !== 'xFoods' && topFolder !== 'xFoodsCrops' && topFolder !== 'plugins') {
+        state.projectName = topFolder;
+        break;
+      }
+    }
+  }
+
+  // Second pass: Parse files
+  for (const file of fileList) {
     const path = (file as any).webkitRelativePath || file.name;
     const parts = path.split('/');
     
-    // Attempt to infer project name from the top-level folder if it's an IA content folder
-    if (state.projectName === 'xLib' && parts.length > 1) {
-       state.projectName = parts[0];
-    }
-
+    // Normalize path to exclude the very first wrapper folder if browser includes it
+    // Example: "MyProject/xFoods/foods/item.yml" -> we need "xFoods/foods/item.yml"
+    // However, if they drag 'xFoods' directly, it might be different.
+    // Logic: find where xFoods, xFoodsCrops or [projectName] starts.
+    
     if (path.endsWith('.yml') || path.endsWith('.yaml')) {
       const content = await file.text();
       const id = file.name.replace(/\.ya?ml$/, '');
@@ -85,17 +103,22 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
       } else if (path.includes('xFoodsCrops/species/')) {
         const folderPath = path.split('xFoodsCrops/species/')[1].split('/').slice(0, -1).join('/');
         state.crops[id] = { config: yaml.load(content), folder: folderPath };
-      } else if (path.includes('configs/')) {
+      } else if (path.includes(`${state.projectName}/configs/`)) {
         state.iaItems[id] = yaml.load(content);
       }
     } else if (path.match(/\.(png|json|ogg)$/i)) {
-      const buffer = await file.arrayBuffer();
-      state.rawFiles.push({
-        name: file.name,
-        content: buffer,
-        type: 'raw',
-        inferredPath: `plugins/ItemsAdder/contents/${state.projectName}/${parts.slice(1).join('/')}`
-      });
+      // Preserve assets from the IA content folder
+      if (path.includes(`${state.projectName}/resourcepack/`)) {
+        const buffer = await file.arrayBuffer();
+        // Extract relative path inside the namespace folder
+        const relativeToNamespace = path.split(`${state.projectName}/`)[1];
+        state.rawFiles.push({
+          name: file.name,
+          content: buffer,
+          type: 'raw',
+          inferredPath: `plugins/ItemsAdder/contents/${state.projectName}/${relativeToNamespace}`
+        });
+      }
     }
   }
 
