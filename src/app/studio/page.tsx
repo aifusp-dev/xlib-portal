@@ -15,7 +15,8 @@ import {
   Binary
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { parseUploadedFiles, generateZIP, EcosystemState, stringifyYaml } from "@/lib/studio";
+import { parseUploadedFiles, EcosystemState, stringifyYaml } from "@/lib/studio";
+import { exportEcosystem } from "@/lib/export";
 
 export default function StudioPage() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
@@ -39,11 +40,7 @@ export default function StudioPage() {
 
   const handleExport = async () => {
     if (!projectState) return;
-    const blob = await generateZIP(projectState);
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `xLib_Studio_Project.zip`;
-    link.click();
+    await exportEcosystem(projectState);
   };
 
   if (!projectState) {
@@ -55,7 +52,7 @@ export default function StudioPage() {
           </div>
           <h1 className="text-4xl font-extrabold text-white tracking-tight">Studio Pro Engine</h1>
           <p className="text-gray-400 text-lg max-w-md mx-auto">
-            Sube tu carpeta <code className="bg-[#1f2937] px-2 py-1 rounded text-yellow-400">plugins/</code> para empezar a gestionar todo tu ecosistema.
+            Sube tu carpeta de proyecto de <code className="bg-[#1f2937] px-2 py-1 rounded text-yellow-400">ItemsAdder/contents/</code> para empezar a gestionar todo tu ecosistema.
           </p>
         </div>
 
@@ -75,8 +72,8 @@ export default function StudioPage() {
               <Upload className="w-10 h-10 text-gray-400 group-hover:text-yellow-400" />
             </div>
             <div>
-              <p className="text-white font-bold text-xl">Seleccionar Carpeta</p>
-              <p className="text-gray-500 mt-2">Compatible con xFoods, xCrops e ItemsAdder</p>
+              <p className="text-white font-bold text-xl">Seleccionar Carpeta de Proyecto</p>
+              <p className="text-gray-500 mt-2">Sube la carpeta de tu namespace dentro de contents/</p>
             </div>
           </div>
         </div>
