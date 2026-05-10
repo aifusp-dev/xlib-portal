@@ -44,53 +44,69 @@ export default function StudioPage() {
   const iaFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleIAFileUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
-    let files: FileList | null = null;
+    let filesList: File[] = [];
     if ('dataTransfer' in e) {
       e.preventDefault();
-      files = e.dataTransfer.files;
+      filesList = Array.from(e.dataTransfer.files);
     } else {
-      files = (e.target as HTMLInputElement).files;
+      filesList = Array.from((e.target as HTMLInputElement).files || []);
     }
 
-    if (!files || files.length === 0 || !projectState || !selectedItem) return;
+    if (filesList.length === 0 || !projectState || !selectedItem) return;
     
-    const file = files[0];
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext !== 'png' && ext !== 'json') {
-      alert("Solo se admiten archivos .png o .json");
-      return;
-    }
-
-    const type = ext === 'png' ? 'texture' : 'model';
-    const buffer = await file.arrayBuffer();
     const newState = { ...projectState };
-    
-    // Determine path based on active view
+    const ns = projectState.projectName;
     const subfolder = activeView === 'xfoods' ? 'food' : 'crops';
-    const fileName = file.name.replace(`.${ext}`, "");
-    const inferredPath = `textures/items/${subfolder}/${fileName}${type === 'model' ? '.json' : '.png'}`;
-    const iaPath = `items/${subfolder}/${fileName}`;
+    
+    let hasModel = false;
+    let modelName = "";
 
-    // 1. Update IA Config
+    for (const file of filesList) {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (ext !== 'png' && ext !== 'json') continue;
+
+      const buffer = await file.arrayBuffer();
+      const isJson = ext === 'json';
+      if (isJson) {
+        hasModel = true;
+        modelName = file.name.replace(".json", "");
+      }
+
+      // Determine where to put it in the resource pack
+      const assetType = isJson ? 'models' : 'textures';
+      const inferredPath = `${assetType}/items/${subfolder}/${file.name}`;
+
+      newState.rawFiles.push({
+        name: file.name,
+        content: buffer,
+        type: 'raw',
+        inferredPath: `plugins/ItemsAdder/contents/${ns}/resourcepack/assets/xlib/${inferredPath}`
+      });
+    }
+
+    // Update IA Config based on what was uploaded
     if (newState.iaItems[selectedItem]) {
       const iaItem = newState.iaItems[selectedItem].items[selectedItem];
-      if (type === 'texture') {
-        iaItem.resource = { generate: true, textures: [`xLib:${iaPath}`] };
+      if (hasModel) {
+        iaItem.resource = { 
+          generate: false, 
+          model_path: `xLib:items/${subfolder}/${modelName}` 
+        };
       } else {
-        iaItem.resource = { generate: false, model_path: `xLib:${iaPath}` };
+        // Use the first png found as main texture if no model
+        const firstPng = filesList.find(f => f.name.endsWith('.png'));
+        if (firstPng) {
+          const texName = firstPng.name.replace(".png", "");
+          iaItem.resource = { 
+            generate: true, 
+            textures: [`xLib:items/${subfolder}/${texName}`] 
+          };
+        }
       }
     }
 
-    // 2. Store raw file for ZIP
-    newState.rawFiles.push({
-      name: file.name,
-      content: buffer,
-      type: 'raw',
-      inferredPath: `plugins/ItemsAdder/contents/${projectState.projectName}/resourcepack/assets/xlib/${inferredPath}`
-    });
-
     setProjectState(newState);
-    alert(`¡${file.name} vinculado con éxito!`);
+    alert(`¡${filesList.length} archivos vinculados con éxito!`);
   };
 
   const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,7 +238,7 @@ export default function StudioPage() {
 
     // Handle lore as list
     if (path.endsWith('.lore') && typeof value === 'string') {
-        current[lastKey] = value.split('\n').map((l: string) => l.trim());
+        current[lastKey] = value.split('\n');
     }
 
     setProjectState(newState);
@@ -426,6 +442,7 @@ export default function StudioPage() {
                                     onChange={handleIAFileUpload} 
                                     className="hidden" 
                                     accept=".png,.json"
+                                    multiple
                                 />
                                 <div className="bg-yellow-400/10 p-4 rounded-full w-fit mx-auto mb-4 group-hover:scale-110 transition-transform">
                                     <Upload className="w-8 h-8 text-yellow-400" />
