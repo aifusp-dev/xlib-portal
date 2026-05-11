@@ -437,12 +437,106 @@ export default function StudioPage() {
                     )}
                     {activeView === 'xmachines' && (
                         <div className="space-y-6">
-                            <div className="flex justify-between items-center"><div className="flex items-center gap-2 text-yellow-400"><Flame className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Recetas</h4></div><button onClick={handleAddRecipe} className="text-[10px] font-black uppercase bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg border border-yellow-400/20 hover:bg-yellow-400/20 transition-all flex items-center gap-2"><Plus className="w-3 h-3"/> Añadir</button></div>
-                            <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2 text-yellow-400">
+                                    <Flame className="w-4 h-4" />
+                                    <h4 className="text-xs font-black uppercase tracking-widest">Recetas de la Estación</h4>
+                                </div>
+                                <button onClick={handleAddRecipe} className="text-[10px] font-black uppercase bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg border border-yellow-400/20 hover:bg-yellow-400/20 transition-all flex items-center gap-2">
+                                    <Plus className="w-3 h-3"/> Añadir Receta
+                                </button>
+                            </div>
+                            
+                            <div className="grid gap-6">
                                 {Object.entries(currentItem.config.recipes || {}).map(([rid, rData]: [string, any]) => (
-                                    <div key={rid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] p-6 relative group/recipe">
-                                        <button onClick={() => handleRemoveRecipe(rid)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 opacity-0 group-hover/recipe:opacity-100 transition-all"><Trash2 className="w-4 h-4"/></button>
-                                        <div className="flex gap-4 items-center"><UtensilsCrossed className="w-4 h-4 text-gray-600"/><input type="text" value={rData.output?.id || ''} onChange={(e) => updateItemField(`config.recipes.${rid}.output.id`, e.target.value)} className="bg-transparent text-white font-bold outline-none border-b border-white/10" placeholder="Resultado (xFoods ID)"/></div>
+                                    <div key={rid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] p-6 relative group/recipe space-y-4">
+                                        <button onClick={() => handleRemoveRecipe(rid)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 opacity-0 group-hover/recipe:opacity-100 transition-all">
+                                            <Trash2 className="w-4 h-4"/>
+                                        </button>
+                                        
+                                        <div className="grid grid-cols-2 gap-6">
+                                            {/* Inputs Section */}
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center">
+                                                    <label className="text-[9px] font-bold text-gray-500 uppercase">Entradas (Inputs)</label>
+                                                    <button 
+                                                        onClick={() => {
+                                                            const newState = { ...projectState };
+                                                            const recipe = newState.machines[selectedItem].config.recipes[rid];
+                                                            const inputId = `i${Object.keys(recipe.inputs || {}).length + 1}`;
+                                                            if (!recipe.inputs) recipe.inputs = {};
+                                                            recipe.inputs[inputId] = { id: "item_id", amount: 1 };
+                                                            setProjectState(newState);
+                                                        }}
+                                                        className="text-[8px] font-bold bg-white/5 hover:bg-white/10 px-2 py-1 rounded"
+                                                    >
+                                                        + Item
+                                                    </button>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {Object.entries(rData.inputs || {}).map(([inputId, input]: [string, any]) => (
+                                                        <div key={inputId} className="flex gap-2 items-center bg-black/20 p-2 rounded-lg border border-white/5">
+                                                            <input 
+                                                                type="text" 
+                                                                value={input.id} 
+                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.inputs.${inputId}.id`, e.target.value)}
+                                                                className="flex-1 bg-transparent text-[11px] text-white outline-none" 
+                                                                placeholder="ID Item"
+                                                            />
+                                                            <input 
+                                                                type="number" 
+                                                                value={input.amount} 
+                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.inputs.${inputId}.amount`, parseInt(e.target.value))}
+                                                                className="w-12 bg-transparent text-[11px] text-yellow-400 font-bold outline-none text-right"
+                                                            />
+                                                            <button 
+                                                                onClick={() => {
+                                                                    const newState = { ...projectState };
+                                                                    delete newState.machines[selectedItem].config.recipes[rid].inputs[inputId];
+                                                                    setProjectState(newState);
+                                                                }}
+                                                                className="text-gray-600 hover:text-red-400"
+                                                            >
+                                                                <Trash2 className="w-3 h-3"/>
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Output & Time Section */}
+                                            <div className="space-y-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-[9px] font-bold text-gray-500 uppercase">Resultado (Output)</label>
+                                                    <div className="flex gap-2 items-center bg-yellow-400/5 p-2 rounded-lg border border-yellow-400/10">
+                                                        <input 
+                                                            type="text" 
+                                                            value={rData.output?.id || ''} 
+                                                            onChange={(e) => updateItemField(`config.recipes.${rid}.output.id`, e.target.value)}
+                                                            className="flex-1 bg-transparent text-[11px] text-white font-bold outline-none" 
+                                                            placeholder="Resultado ID"
+                                                        />
+                                                        <input 
+                                                            type="number" 
+                                                            value={rData.output?.amount || 1} 
+                                                            onChange={(e) => updateItemField(`config.recipes.${rid}.output.amount`, parseInt(e.target.value))}
+                                                            className="w-12 bg-transparent text-[11px] text-yellow-400 font-bold outline-none text-right"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-2">
+                                                        <Clock className="w-3 h-3" /> Tiempo (Ticks)
+                                                    </label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={rData.time || 200} 
+                                                        onChange={(e) => updateItemField(`config.recipes.${rid}.time`, parseInt(e.target.value))}
+                                                        className="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-yellow-400/30"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
