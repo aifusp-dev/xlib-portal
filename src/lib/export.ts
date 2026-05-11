@@ -1,6 +1,6 @@
 "use client";
 
-import { generateZIP, EcosystemState, stringifyYaml } from "@/lib/studio";
+import { generateZIP, EcosystemState } from "@/lib/studio";
 
 export async function exportEcosystem(projectState: EcosystemState) {
   const zipBlob = await generateZIP(projectState);

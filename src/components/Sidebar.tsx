@@ -5,12 +5,10 @@ import { usePathname } from "next/navigation";
 import { 
   Home, 
   Book, 
-  Layers, 
   Zap, 
   Settings, 
   ChefHat, 
   Sprout, 
-  TrendingUp,
   Shield,
   HeartPulse,
   Coins,

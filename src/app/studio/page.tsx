@@ -7,34 +7,33 @@ import {
   Download, 
   Plus, 
   FolderSearch,
-  CheckCircle2,
   Package,
-  ChefHat,
-  Sprout,
   Binary,
   Settings2,
-  TrendingUp,
-  Apple,
-  Zap,
   Info,
   Flame,
-  UtensilsCrossed,
-  Layers,
   Trash2,
   Clock,
-  Dices,
   FolderOpen,
   ChevronDown,
   ChevronRight,
-  Maximize2
+  Maximize2,
+  Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseUploadedFiles, EcosystemState, stringifyYaml } from "@/lib/studio";
 import { exportEcosystem } from "@/lib/export";
 
+interface IAItemConfig {
+  resource?: {
+    generate?: boolean;
+    model_path?: string;
+    textures?: string[];
+  };
+}
+
 export default function StudioPage() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
   const [activeView, setActiveView] = useState<'xfoods' | 'xcrops' | 'xmachines'>("xfoods");
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
@@ -86,7 +85,7 @@ export default function StudioPage() {
 
     // Update IA Config based on what was uploaded
     if (newState.iaItems[selectedItem]) {
-      const iaItem = newState.iaItems[selectedItem].items[selectedItem];
+      const iaItem = (newState.iaItems[selectedItem].items as Record<string, IAItemConfig>)[selectedItem];
       const currentResource = iaItem.resource || {};
       const alreadyHasModel = !!currentResource.model_path;
 
@@ -117,14 +116,11 @@ export default function StudioPage() {
 
   const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    setIsImporting(true);
     try {
       const state = await parseUploadedFiles(e.target.files);
       setProjectState(state);
     } catch (err) {
       console.error("Import failed", err);
-    } finally {
-      setIsImporting(false);
     }
   };
 
@@ -178,7 +174,7 @@ export default function StudioPage() {
   const renameSelectedItem = (newId: string) => {
     if (!projectState || !selectedItem || !newId || newId === selectedItem) return;
     const newState = { ...projectState };
-    let targetMap: any;
+    let targetMap: Record<string, { config: Record<string, unknown>, folder?: string }>;
     if (activeView === 'xfoods') targetMap = newState.foods;
     else if (activeView === 'xcrops') targetMap = newState.crops;
     else targetMap = newState.machines;
@@ -192,7 +188,7 @@ export default function StudioPage() {
     setSelectedItem(newId);
   };
 
-  const updateItemField = (path: string, value: any) => {
+  const updateItemField = (path: string, value: unknown) => {
     if (!projectState || !selectedItem) return;
     const newState = { ...projectState };
     
@@ -204,21 +200,21 @@ export default function StudioPage() {
     if (!entry) return;
 
     if (path === 'config.item.custom-model-data' || path === 'config.seed.custom-model-data') {
-        const val = parseInt(value) || 0;
+        const val = parseInt(value as string) || 0;
         const item = activeView === 'xfoods' ? newState.foods[selectedItem].config : newState.crops[selectedItem].config;
         if (activeView === 'xfoods') {
             if (!item.item) item.item = {};
-            item.item['custom-model-data'] = val;
+            (item.item as Record<string, unknown>)['custom-model-data'] = val;
         } else {
             if (!item.seed) item.seed = {};
-            item.seed['custom-model-data'] = val;
+            (item.seed as Record<string, unknown>)['custom-model-data'] = val;
         }
         
         // Sync to IA if exists
         if (newState.iaItems[selectedItem]) {
-            const iaItem = newState.iaItems[selectedItem].items[selectedItem];
+            const iaItem = (newState.iaItems[selectedItem].items as Record<string, Record<string, unknown>>)[selectedItem];
             if (!iaItem.specific_properties) iaItem.specific_properties = {};
-            iaItem.specific_properties.custom_model_data = val;
+            (iaItem.specific_properties as Record<string, unknown>).custom_model_data = val;
         }
         setProjectState(newState);
         return;
@@ -232,8 +228,8 @@ export default function StudioPage() {
             
             const target = activeView === 'xfoods' ? item.item : item.seed;
             const subfolder = activeView === 'xfoods' ? 'food' : 'crops';
-            target['itemsadder-id'] = `${newState.projectName}:${selectedItem}`;
-            const currentCMD = target['custom-model-data'] || 0;
+            (target as Record<string, unknown>)['itemsadder-id'] = `${newState.projectName}:${selectedItem}`;
+            const currentCMD = (target as Record<string, unknown>)['custom-model-data'] as number || 0;
             
             newState.iaItems[selectedItem] = {
                 items: {
@@ -249,8 +245,8 @@ export default function StudioPage() {
                 }
             };
         } else {
-            if (activeView === 'xfoods' && item.item) delete item.item['itemsadder-id'];
-            if (activeView === 'xcrops' && item.seed) delete item.seed['itemsadder-id'];
+            if (activeView === 'xfoods' && item.item) delete (item.item as Record<string, unknown>)['itemsadder-id'];
+            if (activeView === 'xcrops' && item.seed) delete (item.seed as Record<string, unknown>)['itemsadder-id'];
             delete newState.iaItems[selectedItem];
         }
         setProjectState(newState);
@@ -259,12 +255,12 @@ export default function StudioPage() {
 
     // Standard nested path update
     const keys = path.split('.');
-    let current: any = entry;
+    let current: Record<string, unknown> = entry as unknown as Record<string, unknown>;
     
     for (let i = 0; i < keys.length - 1; i++) {
         const key = keys[i];
         if (!current[key]) current[key] = {};
-        current = current[key];
+        current = current[key] as Record<string, unknown>;
     }
     
     const lastKey = keys[keys.length - 1];
@@ -291,18 +287,8 @@ export default function StudioPage() {
   const handleRemoveRecipe = (recipeId: string) => {
     if (!projectState || !selectedItem || activeView !== 'xmachines') return;
     const newState = { ...projectState };
-    delete newState.machines[selectedItem].config.recipes[recipeId];
-    setProjectState(newState);
-  };
-
-  const handleAddStage = () => {
-    if (!projectState || !selectedItem || activeView !== 'xcrops') return;
-    const newState = { ...projectState };
-    const crop = newState.crops[selectedItem].config;
-    if (!crop.growth) crop.growth = {};
-    if (!crop.growth.stages) crop.growth.stages = {};
-    const sid = `stage${Object.keys(crop.growth.stages).length}`;
-    crop.growth.stages[sid] = { material: "FERN", scale: 1.0, "y-offset": 0.1, duration: 60 };
+    const machineConfig = newState.machines[selectedItem].config as { recipes: Record<string, unknown> };
+    delete machineConfig.recipes[recipeId];
     setProjectState(newState);
   };
 
@@ -326,7 +312,7 @@ export default function StudioPage() {
           <p className="text-gray-400 text-lg max-w-md mx-auto">Sube tu carpeta de proyecto para gestionar la jerarquía.</p>
         </div>
         <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-[#374151] rounded-3xl p-20 hover:border-yellow-400/5 hover:bg-yellow-400/5 transition-all cursor-pointer group">
-          <input type="file" ref={fileInputRef} onChange={handleFolderUpload} className="hidden" {...({ webkitdirectory: "", directory: "" } as any)} />
+          <input type="file" ref={fileInputRef} onChange={handleFolderUpload} className="hidden" {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
           <div className="space-y-6">
             <div className="bg-white/5 p-5 rounded-2xl w-fit mx-auto group-hover:scale-110 transition-transform duration-300">
               <Upload className="w-10 h-10 text-gray-400 group-hover:text-yellow-400" />
@@ -482,7 +468,7 @@ export default function StudioPage() {
                                 </button>
                             </div>
                             <div className="space-y-2">
-                                {(currentItem.config.commands || []).map((cmd: string, idx: number) => (
+                                {(currentItem.config.commands as string[] || []).map((cmd, idx) => (
                                     <div key={idx} className="flex gap-2 items-center bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-2">
                                         <input 
                                             type="text" 
@@ -526,7 +512,7 @@ export default function StudioPage() {
                             </div>
                             
                             <div className="grid gap-6">
-                                {Object.entries(currentItem.config.recipes || {}).map(([rid, rData]: [string, any]) => (
+                                {Object.entries(currentItem.config.recipes as Record<string, { inputs: Record<string, { id: string, amount: number }>, output: { id: string, amount: number }, time: number }> || {}).map(([rid, rData]) => (
                                     <div key={rid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] p-6 relative group/recipe space-y-4">
                                         <button onClick={() => handleRemoveRecipe(rid)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 opacity-0 group-hover/recipe:opacity-100 transition-all">
                                             <Trash2 className="w-4 h-4"/>
@@ -552,7 +538,7 @@ export default function StudioPage() {
                                                     </button>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    {Object.entries(rData.inputs || {}).map(([inputId, input]: [string, any]) => (
+                                                    {Object.entries(rData.inputs || {}).map(([inputId, input]) => (
                                                         <div key={inputId} className="flex gap-2 items-center bg-black/20 p-2 rounded-lg border border-white/5">
                                                             <input 
                                                                 type="text" 

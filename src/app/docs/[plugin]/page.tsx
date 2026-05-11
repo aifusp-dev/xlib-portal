@@ -4,7 +4,6 @@ import { use } from "react";
 import { 
   FileText, 
   Terminal, 
-  ShieldCheck, 
   PlayCircle,
   Database,
   Coins,
@@ -12,13 +11,26 @@ import {
   Clock,
   Shield,
   Library,
-  UserCircle
+  UserCircle,
+  LucideIcon
 } from "lucide-react";
+
+interface DocSection {
+  title: string;
+  icon: LucideIcon;
+  content: string;
+}
+
+interface DocContent {
+  title: string;
+  desc: string;
+  sections: DocSection[];
+}
 
 export default function DocPage({ params }: { params: Promise<{ plugin: string }> }) {
   const { plugin } = use(params);
 
-  const docsContent: Record<string, any> = {
+  const docsContent: Record<string, DocContent> = {
     "xlib": {
       title: "xLib Shared",
       desc: "Librería base y proveedora de dependencias para todo el ecosistema aifusp.dev.",
@@ -108,7 +120,7 @@ export default function DocPage({ params }: { params: Promise<{ plugin: string }
       </header>
 
       <div className="grid md:grid-cols-2 gap-8">
-        {doc.sections.map((section: any) => (
+        {doc.sections.map((section) => (
           <section key={section.title} className="bg-[#111827] border border-[#374151] p-8 rounded-2xl space-y-4 hover:border-yellow-400/30 transition-all group">
             <div className="flex items-center gap-3 text-yellow-400 group-hover:scale-105 transition-transform origin-left">
               <section.icon className="w-5 h-5" />

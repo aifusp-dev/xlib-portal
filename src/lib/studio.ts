@@ -3,17 +3,17 @@ import JSZip from 'jszip';
 
 export interface StudioFile {
   name: string;
-  content: any;
+  content: string | ArrayBuffer | Blob;
   type: 'texture' | 'model' | 'config' | 'raw';
   inferredPath: string;
 }
 
 export interface EcosystemState {
   projectName: string;
-  foods: Record<string, { config: any, folder?: string }>;
-  crops: Record<string, { config: any, folder?: string }>;
-  iaItems: Record<string, any>;
-  machines: Record<string, { config: any, folder?: string }>;
+  foods: Record<string, { config: Record<string, unknown>, folder?: string }>;
+  crops: Record<string, { config: Record<string, unknown>, folder?: string }>;
+  iaItems: Record<string, Record<string, unknown>>;
+  machines: Record<string, { config: Record<string, unknown>, folder?: string }>;
   rawFiles: StudioFile[];
 }
 
@@ -48,7 +48,7 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   // 5. Pack original raw files (textures/models)
   state.rawFiles.forEach(file => {
     // These paths are already prepared to be under contents/[projectName]/
-    zip.file(file.inferredPath, file.content);
+    zip.file(file.inferredPath, file.content as string | ArrayBuffer | Blob);
   });
   
   return await zip.generateAsync({ type: 'blob' });
@@ -68,7 +68,7 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
 
   // First pass: Detect project name (Namespace)
   for (const file of fileList) {
-    const path = (file as any).webkitRelativePath || file.name;
+    const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
     const parts = path.split('/');
     
     // Priority: Find ItemsAdder namespace
@@ -90,7 +90,7 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
 
   // Second pass: Parse files
   for (const file of fileList) {
-    const path = (file as any).webkitRelativePath || file.name;
+    const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
     
     if (path.endsWith('.yml') || path.endsWith('.yaml')) {
       const content = await file.text();
@@ -98,21 +98,21 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
 
       if (path.includes('xFoods/foods/')) {
         const folderPath = path.split('xFoods/foods/')[1].split('/').slice(0, -1).join('/');
-        state.foods[id] = { config: yaml.load(content), folder: folderPath };
+        state.foods[id] = { config: yaml.load(content) as Record<string, unknown>, folder: folderPath };
       } else if (path.includes('xFoods/machines/')) {
         const folderPath = path.split('xFoods/machines/')[1].split('/').slice(0, -1).join('/');
-        state.machines[id] = { config: yaml.load(content), folder: folderPath };
+        state.machines[id] = { config: yaml.load(content) as Record<string, unknown>, folder: folderPath };
       } else if (path.includes('xFoodsCrops/species/')) {
         const folderPath = path.split('xFoodsCrops/species/')[1].split('/').slice(0, -1).join('/');
-        state.crops[id] = { config: yaml.load(content), folder: folderPath };
+        state.crops[id] = { config: yaml.load(content) as Record<string, unknown>, folder: folderPath };
       } else if (path.includes('ItemsAdder/contents/')) {
         const iaPath = path.split('ItemsAdder/contents/')[1];
         const iaParts = iaPath.split('/');
         if (iaParts.length > 1 && iaParts[1] === 'configs') {
-          state.iaItems[id] = yaml.load(content);
+          state.iaItems[id] = yaml.load(content) as Record<string, unknown>;
         }
       } else if (path.includes(`${state.projectName}/configs/`)) {
-        state.iaItems[id] = yaml.load(content);
+        state.iaItems[id] = yaml.load(content) as Record<string, unknown>;
       }
     } else if (path.match(/\.(png|json|ogg)$/i)) {
       // Preserve assets from the IA content folder
@@ -145,6 +145,6 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
   return state;
 };
 
-export const stringifyYaml = (obj: any) => {
+export const stringifyYaml = (obj: Record<string, unknown> | unknown) => {
   return yaml.dump(obj, { indent: 2, lineWidth: -1, noRefs: true });
 };
