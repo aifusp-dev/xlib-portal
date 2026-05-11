@@ -67,15 +67,23 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
   const fileList = Array.from(files);
 
   // First pass: Detect project name (Namespace)
-  // We look for a folder that isn't xFoods or xFoodsCrops and has 'configs' or 'resourcepack'
   for (const file of fileList) {
     const path = (file as any).webkitRelativePath || file.name;
     const parts = path.split('/');
+    
+    // Priority: Find ItemsAdder namespace
+    const iaIdx = parts.indexOf('ItemsAdder');
+    if (iaIdx !== -1 && parts[iaIdx + 1] === 'contents' && parts[iaIdx + 2]) {
+      state.projectName = parts[iaIdx + 2];
+      break;
+    }
+
+    // Fallback: Look for a folder that isn't xFoods, xFoodsCrops or plugins
     if (parts.length > 1) {
       const topFolder = parts[0];
-      if (topFolder !== 'xFoods' && topFolder !== 'xFoodsCrops' && topFolder !== 'plugins') {
+      if (!['xFoods', 'xFoodsCrops', 'plugins', 'ItemsAdder'].includes(topFolder)) {
         state.projectName = topFolder;
-        break;
+        // Don't break yet, ItemsAdder might be found later and is more reliable
       }
     }
   }
@@ -83,12 +91,6 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
   // Second pass: Parse files
   for (const file of fileList) {
     const path = (file as any).webkitRelativePath || file.name;
-    const parts = path.split('/');
-    
-    // Normalize path to exclude the very first wrapper folder if browser includes it
-    // Example: "MyProject/xFoods/foods/item.yml" -> we need "xFoods/foods/item.yml"
-    // However, if they drag 'xFoods' directly, it might be different.
-    // Logic: find where xFoods, xFoodsCrops or [projectName] starts.
     
     if (path.endsWith('.yml') || path.endsWith('.yaml')) {
       const content = await file.text();
@@ -103,14 +105,32 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
       } else if (path.includes('xFoodsCrops/species/')) {
         const folderPath = path.split('xFoodsCrops/species/')[1].split('/').slice(0, -1).join('/');
         state.crops[id] = { config: yaml.load(content), folder: folderPath };
+      } else if (path.includes('ItemsAdder/contents/')) {
+        const iaPath = path.split('ItemsAdder/contents/')[1];
+        const iaParts = iaPath.split('/');
+        if (iaParts.length > 1 && iaParts[1] === 'configs') {
+          state.iaItems[id] = yaml.load(content);
+        }
       } else if (path.includes(`${state.projectName}/configs/`)) {
         state.iaItems[id] = yaml.load(content);
       }
     } else if (path.match(/\.(png|json|ogg)$/i)) {
       // Preserve assets from the IA content folder
-      if (path.includes(`${state.projectName}/resourcepack/`)) {
+      if (path.includes('ItemsAdder/contents/')) {
         const buffer = await file.arrayBuffer();
-        // Extract relative path inside the namespace folder
+        const iaPath = path.split('ItemsAdder/contents/')[1];
+        const iaParts = iaPath.split('/');
+        const ns = iaParts[0];
+        const relativeToNamespace = iaParts.slice(1).join('/');
+
+        state.rawFiles.push({
+          name: file.name,
+          content: buffer,
+          type: 'raw',
+          inferredPath: `plugins/ItemsAdder/contents/${ns}/${relativeToNamespace}`
+        });
+      } else if (path.includes(`${state.projectName}/resourcepack/`)) {
+        const buffer = await file.arrayBuffer();
         const relativeToNamespace = path.split(`${state.projectName}/`)[1];
         state.rawFiles.push({
           name: file.name,
