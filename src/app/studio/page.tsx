@@ -562,12 +562,41 @@ export default function StudioPage() {
                         </label>
                     </div>
                     {isIAEnabled && (
-                        <div className="mt-6 pt-6 border-t border-yellow-400/10 animate-in slide-in-from-top-2 duration-300">
+                        <div className="mt-6 pt-6 border-t border-yellow-400/10 animate-in slide-in-from-top-2 duration-300 space-y-6">
+                            {/* Mode Indicator */}
+                            <div className="flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5">
+                                <div className="flex items-center gap-3">
+                                    <div className={cn("p-2 rounded-lg", projectState.iaItems[selectedItem]?.items[selectedItem]?.resource?.generate ? "bg-green-400/10 text-green-400" : "bg-blue-400/10 text-blue-400")}>
+                                        {projectState.iaItems[selectedItem]?.items[selectedItem]?.resource?.generate ? <Zap className="w-4 h-4"/> : <Maximize2 className="w-4 h-4"/>}
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black uppercase text-gray-500">Modo de Renderizado</p>
+                                        <h5 className="text-xs font-bold text-white">
+                                            {projectState.iaItems[selectedItem]?.items[selectedItem]?.resource?.generate ? "Imagen 2D (Auto-generada)" : "Modelo 3D (Custom JSON)"}
+                                        </h5>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        const newState = { ...projectState };
+                                        const iaItem = newState.iaItems[selectedItem].items[selectedItem];
+                                        iaItem.resource.generate = !iaItem.resource.generate;
+                                        if (iaItem.resource.generate) delete iaItem.resource.model_path;
+                                        else iaItem.resource.model_path = `${newState.projectName}:items/${activeView === 'xfoods' ? 'food' : 'crops'}/${selectedItem}`;
+                                        setProjectState(newState);
+                                    }}
+                                    className="text-[9px] font-black uppercase bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-all"
+                                >
+                                    Cambiar Modo
+                                </button>
+                            </div>
+
+                            {/* Drop Zone */}
                             <div 
                                 onClick={() => iaFileInputRef.current?.click()}
                                 onDragOver={(e) => e.preventDefault()}
                                 onDrop={handleIAFileUpload}
-                                className="border-2 border-dashed border-yellow-400/20 rounded-2xl p-10 text-center hover:border-yellow-400/40 hover:bg-yellow-400/5 transition-all group cursor-pointer relative"
+                                className="border-2 border-dashed border-yellow-400/20 rounded-2xl p-8 text-center hover:border-yellow-400/40 hover:bg-yellow-400/5 transition-all group cursor-pointer relative"
                             >
                                 <input 
                                     type="file" 
@@ -577,14 +606,44 @@ export default function StudioPage() {
                                     accept=".png,.json"
                                     multiple
                                 />
-                                <div className="bg-yellow-400/10 p-4 rounded-full w-fit mx-auto mb-4 group-hover:scale-110 transition-transform">
-                                    <Upload className="w-8 h-8 text-yellow-400" />
+                                <div className="bg-yellow-400/10 p-3 rounded-full w-fit mx-auto mb-3 group-hover:scale-110 transition-transform">
+                                    <Upload className="w-6 h-6 text-yellow-400" />
                                 </div>
-                                <h4 className="text-white font-bold text-sm">Cargar Activo (Drop Zone)</h4>
-                                <p className="text-[10px] text-gray-500 mt-2 uppercase font-black tracking-widest leading-relaxed">
-                                    Sube tu .png o .json <br/>
-                                    <span className="text-yellow-400/50">para auto-configurar ItemsAdder</span>
-                                </p>
+                                <h4 className="text-white font-bold text-sm">Actualizar Activos</h4>
+                                <p className="text-[9px] text-gray-500 mt-1 uppercase font-black tracking-widest">Sube .png o .json</p>
+                            </div>
+
+                            {/* Linked Files List */}
+                            <div className="space-y-2">
+                                <label className="text-[9px] font-bold text-gray-500 uppercase px-1">Archivos Vinculados</label>
+                                <div className="grid gap-2">
+                                    {projectState.rawFiles
+                                        .filter(f => f.inferredPath.includes(`/${selectedItem}.`) || f.inferredPath.includes(`/${activeView === 'xfoods' ? 'food' : 'crops'}/`))
+                                        .slice(-5) // Show last 5 relevant files
+                                        .map((file, idx) => (
+                                            <div key={idx} className="flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5">
+                                                <div className="flex items-center gap-2">
+                                                    <FileCode className={cn("w-3 h-3", file.name.endsWith('.json') ? "text-blue-400" : "text-green-400")} />
+                                                    <span className="text-[10px] text-gray-300 font-medium truncate max-w-[150px]">{file.name}</span>
+                                                </div>
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const newState = { ...projectState };
+                                                        newState.rawFiles = newState.rawFiles.filter(f => f !== file);
+                                                        setProjectState(newState);
+                                                    }}
+                                                    className="text-gray-600 hover:text-red-400 transition-colors"
+                                                >
+                                                    <Trash2 className="w-3 h-3"/>
+                                                </button>
+                                            </div>
+                                        ))
+                                    }
+                                    {projectState.rawFiles.filter(f => f.inferredPath.includes(`/${selectedItem}.`) || f.inferredPath.includes(`/${activeView === 'xfoods' ? 'food' : 'crops'}/`)).length === 0 && (
+                                        <p className="text-[10px] text-gray-600 italic px-1">No hay archivos específicos cargados.</p>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
