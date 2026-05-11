@@ -277,7 +277,7 @@ export default function StudioPage() {
   const handleAddRecipe = () => {
     if (!projectState || !selectedItem || activeView !== 'xmachines') return;
     const newState = { ...projectState };
-    const machine = newState.machines[selectedItem].config;
+    const machine = newState.machines[selectedItem].config as { recipes: Record<string, unknown> };
     if (!machine.recipes) machine.recipes = {};
     const rid = `recipe_${Date.now()}`;
     machine.recipes[rid] = { inputs: { i1: { id: "item", amount: 1 } }, output: { id: "result", amount: 1 }, time: 200 };
