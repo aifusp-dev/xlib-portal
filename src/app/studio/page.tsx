@@ -140,9 +140,10 @@ export default function StudioPage() {
         config: {
             "display-name": "&eNueva Comida",
             "lore": ["&7Descripción de la comida."],
-            "item": { "material": "PORKCHOP", "custom-model-data": 0 },
-            "stats": { "food-level": 4, "saturation": 2.0, "bites": 1, "consumable": true, "max-stack": 64, "expiry-minutes": 0 },
-            "nutrition": { "proteins": 0, "carbs": 0, "sugars": 0, "vitamins": 0 }
+            "item": { "material": "PORKCHOP", "custom-model-data": 0, "max-stack": 64 },
+            "stats": { "food-level": 4, "saturation": 2.0, "bites": 1, "consumable": true, "expiry-minutes": 0, "consumption-ticks": 30 },
+            "nutrition": { "proteins": 0, "carbs": 0, "sugars": 0, "vitamins": 0 },
+            "effects": { "sound": "ENTITY_GENERIC_EAT", "particle": "VILLAGER_HAPPY" }
         },
         folder: ""
       };
@@ -422,11 +423,23 @@ export default function StudioPage() {
                                 <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Custom Model Data</label>
                                 <input type="number" value={(activeView === 'xfoods' ? currentItem.config.item?.['custom-model-data'] : currentItem.config.seed?.['custom-model-data']) || 0} onChange={(e) => updateItemField(activeView === 'xfoods' ? 'config.item.custom-model-data' : 'config.seed.custom-model-data', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                             </div>
+                            {activeView === 'xfoods' && (
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Stack Máximo</label>
+                                    <input type="number" value={currentItem.config.item?.['max-stack'] || 64} onChange={(e) => updateItemField('config.item.max-stack', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                </div>
+                            )}
                             </>
                         )}
                     </div>
                     {activeView === 'xfoods' && (
                         <>
+                        <div className="grid grid-cols-4 gap-4">
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Nivel Comida</label><input type="number" value={currentItem.config.stats?.['food-level'] || 0} onChange={(e) => updateItemField('config.stats.food-level', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Saturación</label><input type="number" step="0.1" value={currentItem.config.stats?.saturation || 0} onChange={(e) => updateItemField('config.stats.saturation', parseFloat(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Mordiscos</label><input type="number" value={currentItem.config.stats?.bites || 1} onChange={(e) => updateItemField('config.stats.bites', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Ticks Consumo</label><input type="number" value={currentItem.config.stats?.['consumption-ticks'] || 30} onChange={(e) => updateItemField('config.stats.consumption-ticks', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                        </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Lore</label>
                             <textarea rows={3} value={Array.isArray(currentItem.config.lore) ? currentItem.config.lore.join('\n') : ''} onChange={(e) => updateItemField('config.lore', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none resize-none text-sm" />
