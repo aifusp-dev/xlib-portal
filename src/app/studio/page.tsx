@@ -212,9 +212,11 @@ export default function StudioPage() {
         
         // Sync to IA if exists
         if (newState.iaItems[selectedItem]) {
-            const iaItem = (newState.iaItems[selectedItem].items as Record<string, Record<string, unknown>>)[selectedItem];
-            if (!iaItem.specific_properties) iaItem.specific_properties = {};
-            (iaItem.specific_properties as Record<string, unknown>).custom_model_data = val;
+            const iaItem = (newState.iaItems[selectedItem].items as Record<string, Record<string, unknown>>)?.[selectedItem];
+            if (iaItem) {
+                if (!iaItem.specific_properties) iaItem.specific_properties = {};
+                (iaItem.specific_properties as Record<string, unknown>).custom_model_data = val;
+            }
         }
         setProjectState(newState);
         return;
@@ -277,7 +279,7 @@ export default function StudioPage() {
   const handleAddRecipe = () => {
     if (!projectState || !selectedItem || activeView !== 'xmachines') return;
     const newState = { ...projectState };
-    const machine = newState.machines[selectedItem].config as { recipes: Record<string, unknown> };
+    const machine = newState.machines[selectedItem].config as { recipes: Record<string, Record<string, unknown>> };
     if (!machine.recipes) machine.recipes = {};
     const rid = `recipe_${Date.now()}`;
     machine.recipes[rid] = { inputs: { i1: { id: "item", amount: 1 } }, output: { id: "result", amount: 1 }, time: 200 };
@@ -287,7 +289,7 @@ export default function StudioPage() {
   const handleRemoveRecipe = (recipeId: string) => {
     if (!projectState || !selectedItem || activeView !== 'xmachines') return;
     const newState = { ...projectState };
-    const machineConfig = newState.machines[selectedItem].config as { recipes: Record<string, unknown> };
+    const machineConfig = newState.machines[selectedItem].config as { recipes: Record<string, Record<string, unknown>> };
     delete machineConfig.recipes[recipeId];
     setProjectState(newState);
   };
@@ -388,7 +390,7 @@ export default function StudioPage() {
 
                 <div className="space-y-6">
                     <div className="flex items-center gap-2 text-blue-400"><FolderOpen className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Organización</h4></div>
-                    <input type="text" value={currentItem.folder || ''} onChange={(e) => updateItemField('folder', e.target.value)} placeholder="ej: macdonalds/burgers" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white focus:border-yellow-400 outline-none transition-colors" />
+                    <input type="text" value={(currentItem.folder as string) || ''} onChange={(e) => updateItemField('folder', e.target.value)} placeholder="ej: macdonalds/burgers" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white focus:border-yellow-400 outline-none transition-colors" />
                 </div>
 
                 {/* --- RENDER EDITOR CONTENT --- */}
@@ -397,22 +399,22 @@ export default function StudioPage() {
                     <div className={cn("grid gap-6", activeView !== 'xmachines' ? "grid-cols-3" : "grid-cols-2")}>
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Nombre Display</label>
-                            <input type="text" value={currentItem.config['display-name'] || ''} onChange={(e) => updateItemField('config.display-name', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                            <input type="text" value={(currentItem.config['display-name'] as string) || ''} onChange={(e) => updateItemField('config.display-name', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                         </div>
                         {activeView !== 'xmachines' && (
                             <>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Material</label>
-                                <input type="text" value={(activeView === 'xfoods' ? currentItem.config.item?.material : currentItem.config.seed?.material) || ''} onChange={(e) => updateItemField(activeView === 'xfoods' ? 'config.item.material' : 'config.seed.material', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                <input type="text" value={(activeView === 'xfoods' ? (currentItem.config.item as Record<string, string>)?.material : (currentItem.config.seed as Record<string, string>)?.material) || ''} onChange={(e) => updateItemField(activeView === 'xfoods' ? 'config.item.material' : 'config.seed.material', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Custom Model Data</label>
-                                <input type="number" value={(activeView === 'xfoods' ? currentItem.config.item?.['custom-model-data'] : currentItem.config.seed?.['custom-model-data']) || 0} onChange={(e) => updateItemField(activeView === 'xfoods' ? 'config.item.custom-model-data' : 'config.seed.custom-model-data', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                <input type="number" value={(activeView === 'xfoods' ? (currentItem.config.item as Record<string, number>)?.['custom-model-data'] : (currentItem.config.seed as Record<string, number>)?.['custom-model-data']) || 0} onChange={(e) => updateItemField(activeView === 'xfoods' ? 'config.item.custom-model-data' : 'config.seed.custom-model-data', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                             </div>
                             {activeView === 'xfoods' && (
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Stack Máximo</label>
-                                    <input type="number" value={currentItem.config.item?.['max-stack'] || 64} onChange={(e) => updateItemField('config.item.max-stack', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <input type="number" value={(currentItem.config.item as Record<string, number>)?.['max-stack'] || 64} onChange={(e) => updateItemField('config.item.max-stack', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                 </div>
                             )}
                             </>
@@ -421,20 +423,20 @@ export default function StudioPage() {
                     {activeView === 'xfoods' && (
                         <>
                         <div className="grid grid-cols-4 gap-4">
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Nivel Comida</label><input type="number" value={currentItem.config.stats?.['food-level'] || 0} onChange={(e) => updateItemField('config.stats.food-level', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Saturación</label><input type="number" step="0.1" value={currentItem.config.stats?.saturation || 0} onChange={(e) => updateItemField('config.stats.saturation', parseFloat(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Mordiscos</label><input type="number" value={currentItem.config.stats?.bites || 1} onChange={(e) => updateItemField('config.stats.bites', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Ticks Consumo</label><input type="number" value={currentItem.config.stats?.['consumption-ticks'] || 30} onChange={(e) => updateItemField('config.stats.consumption-ticks', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Nivel Comida</label><input type="number" value={(currentItem.config.stats as Record<string, number>)?.['food-level'] || 0} onChange={(e) => updateItemField('config.stats.food-level', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Saturación</label><input type="number" step="0.1" value={(currentItem.config.stats as Record<string, number>)?.saturation || 0} onChange={(e) => updateItemField('config.stats.saturation', parseFloat(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Mordiscos</label><input type="number" value={(currentItem.config.stats as Record<string, number>)?.bites || 1} onChange={(e) => updateItemField('config.stats.bites', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Ticks Consumo</label><input type="number" value={(currentItem.config.stats as Record<string, number>)?.['consumption-ticks'] || 30} onChange={(e) => updateItemField('config.stats.consumption-ticks', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Lore</label>
-                            <textarea rows={3} value={Array.isArray(currentItem.config.lore) ? currentItem.config.lore.join('\n') : ''} onChange={(e) => updateItemField('config.lore', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none resize-none text-sm" />
+                            <textarea rows={3} value={Array.isArray(currentItem.config.lore) ? (currentItem.config.lore as string[]).join('\n') : ''} onChange={(e) => updateItemField('config.lore', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none resize-none text-sm" />
                         </div>
                         <div className="grid grid-cols-4 gap-4">
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Proteínas</label><input type="number" value={currentItem.config.nutrition?.proteins || 0} onChange={(e) => updateItemField('config.nutrition.proteins', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Carbos</label><input type="number" value={currentItem.config.nutrition?.carbs || 0} onChange={(e) => updateItemField('config.nutrition.carbs', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Azúcares</label><input type="number" value={currentItem.config.nutrition?.sugars || 0} onChange={(e) => updateItemField('config.nutrition.sugars', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Vitaminas</label><input type="number" value={currentItem.config.nutrition?.vitamins || 0} onChange={(e) => updateItemField('config.nutrition.vitamins', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Proteínas</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.proteins || 0} onChange={(e) => updateItemField('config.nutrition.proteins', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Carbos</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.carbs || 0} onChange={(e) => updateItemField('config.nutrition.carbs', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Azúcares</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.sugars || 0} onChange={(e) => updateItemField('config.nutrition.sugars', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Vitaminas</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.vitamins || 0} onChange={(e) => updateItemField('config.nutrition.vitamins', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
                         </div>
 
                         <div className="space-y-6 pt-4 border-t border-[#374151]">
@@ -442,11 +444,11 @@ export default function StudioPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Sonido al Comer</label>
-                                    <input type="text" value={currentItem.config.effects?.sound || 'ENTITY_GENERIC_EAT'} onChange={(e) => updateItemField('config.effects.sound', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="ENTITY_GENERIC_EAT" />
+                                    <input type="text" value={(currentItem.config.effects as Record<string, string>)?.sound || 'ENTITY_GENERIC_EAT'} onChange={(e) => updateItemField('config.effects.sound', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="ENTITY_GENERIC_EAT" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Partícula</label>
-                                    <input type="text" value={currentItem.config.effects?.particle || 'VILLAGER_HAPPY'} onChange={(e) => updateItemField('config.effects.particle', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="VILLAGER_HAPPY" />
+                                    <input type="text" value={(currentItem.config.effects as Record<string, string>)?.particle || 'VILLAGER_HAPPY'} onChange={(e) => updateItemField('config.effects.particle', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="VILLAGER_HAPPY" />
                                 </div>
                             </div>
                         </div>
@@ -458,8 +460,8 @@ export default function StudioPage() {
                                     onClick={() => {
                                         const newState = { ...projectState };
                                         const food = newState.foods[selectedItem].config;
-                                        if (!food.commands) food.commands = [];
-                                        food.commands.push("me disfruta de una comida");
+                                        if (!food.commands) food.commands = [] as string[];
+                                        (food.commands as string[]).push("me disfruta de una comida");
                                         setProjectState(newState);
                                     }}
                                     className="text-[9px] font-black uppercase bg-green-400/10 text-green-400 px-3 py-1.5 rounded-lg border border-green-400/20 hover:bg-green-400/20 transition-all"
@@ -475,7 +477,7 @@ export default function StudioPage() {
                                             value={cmd} 
                                             onChange={(e) => {
                                                 const newState = { ...projectState };
-                                                newState.foods[selectedItem].config.commands[idx] = e.target.value;
+                                                (newState.foods[selectedItem].config.commands as string[])[idx] = e.target.value;
                                                 setProjectState(newState);
                                             }}
                                             className="flex-1 bg-transparent text-sm text-white outline-none"
@@ -483,7 +485,7 @@ export default function StudioPage() {
                                         <button 
                                             onClick={() => {
                                                 const newState = { ...projectState };
-                                                newState.foods[selectedItem].config.commands.splice(idx, 1);
+                                                (newState.foods[selectedItem].config.commands as string[]).splice(idx, 1);
                                                 setProjectState(newState);
                                             }}
                                             className="text-gray-600 hover:text-red-400"
@@ -492,7 +494,7 @@ export default function StudioPage() {
                                         </button>
                                     </div>
                                 ))}
-                                {(currentItem.config.commands || []).length === 0 && (
+                                {(currentItem.config.commands as string[] || []).length === 0 && (
                                     <p className="text-[10px] text-gray-600 italic px-1 text-center py-2">No hay comandos configurados.</p>
                                 )}
                             </div>
@@ -526,10 +528,10 @@ export default function StudioPage() {
                                                     <button 
                                                         onClick={() => {
                                                             const newState = { ...projectState };
-                                                            const recipe = newState.machines[selectedItem].config.recipes[rid];
-                                                            const inputId = `i${Object.keys(recipe.inputs || {}).length + 1}`;
+                                                            const recipe = (newState.machines[selectedItem].config.recipes as Record<string, Record<string, unknown>>)[rid];
+                                                            const inputId = `i${Object.keys((recipe.inputs as Record<string, unknown>) || {}).length + 1}`;
                                                             if (!recipe.inputs) recipe.inputs = {};
-                                                            recipe.inputs[inputId] = { id: "item_id", amount: 1 };
+                                                            (recipe.inputs as Record<string, unknown>)[inputId] = { id: "item_id", amount: 1 };
                                                             setProjectState(newState);
                                                         }}
                                                         className="text-[8px] font-bold bg-white/5 hover:bg-white/10 px-2 py-1 rounded"
@@ -538,7 +540,7 @@ export default function StudioPage() {
                                                     </button>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    {Object.entries(rData.inputs || {}).map(([inputId, input]) => (
+                                                    {Object.entries((rData.inputs as Record<string, { id: string, amount: number }>) || {}).map(([inputId, input]) => (
                                                         <div key={inputId} className="flex gap-2 items-center bg-black/20 p-2 rounded-lg border border-white/5">
                                                             <input 
                                                                 type="text" 
@@ -556,7 +558,7 @@ export default function StudioPage() {
                                                             <button 
                                                                 onClick={() => {
                                                                     const newState = { ...projectState };
-                                                                    delete newState.machines[selectedItem].config.recipes[rid].inputs[inputId];
+                                                                    delete ((newState.machines[selectedItem].config.recipes as Record<string, Record<string, unknown>>)[rid].inputs as Record<string, unknown>)[inputId];
                                                                     setProjectState(newState);
                                                                 }}
                                                                 className="text-gray-600 hover:text-red-400"
@@ -575,14 +577,14 @@ export default function StudioPage() {
                                                     <div className="flex gap-2 items-center bg-yellow-400/5 p-2 rounded-lg border border-yellow-400/10">
                                                         <input 
                                                             type="text" 
-                                                            value={rData.output?.id || ''} 
+                                                            value={(rData.output as { id: string, amount: number })?.id || ''} 
                                                             onChange={(e) => updateItemField(`config.recipes.${rid}.output.id`, e.target.value)}
                                                             className="flex-1 bg-transparent text-[11px] text-white font-bold outline-none" 
                                                             placeholder="Resultado ID"
                                                         />
                                                         <input 
                                                             type="number" 
-                                                            value={rData.output?.amount || 1} 
+                                                            value={(rData.output as { id: string, amount: number })?.amount || 1} 
                                                             onChange={(e) => updateItemField(`config.recipes.${rid}.output.amount`, parseInt(e.target.value))}
                                                             className="w-12 bg-transparent text-[11px] text-yellow-400 font-bold outline-none text-right"
                                                         />
@@ -626,23 +628,25 @@ export default function StudioPage() {
                             {/* Mode Indicator */}
                             <div className="flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5">
                                 <div className="flex items-center gap-3">
-                                    <div className={cn("p-2 rounded-lg", projectState.iaItems[selectedItem]?.items[selectedItem]?.resource?.generate ? "bg-green-400/10 text-green-400" : "bg-blue-400/10 text-blue-400")}>
-                                        {projectState.iaItems[selectedItem]?.items[selectedItem]?.resource?.generate ? <Zap className="w-4 h-4"/> : <Maximize2 className="w-4 h-4"/>}
+                                    <div className={cn("p-2 rounded-lg", (projectState.iaItems[selectedItem]?.items as Record<string, IAItemConfig>)?.[selectedItem]?.resource?.generate ? "bg-green-400/10 text-green-400" : "bg-blue-400/10 text-blue-400")}>
+                                        {(projectState.iaItems[selectedItem]?.items as Record<string, IAItemConfig>)?.[selectedItem]?.resource?.generate ? <Zap className="w-4 h-4"/> : <Maximize2 className="w-4 h-4"/>}
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-black uppercase text-gray-500">Modo de Renderizado</p>
                                         <h5 className="text-xs font-bold text-white">
-                                            {projectState.iaItems[selectedItem]?.items[selectedItem]?.resource?.generate ? "Imagen 2D (Auto-generada)" : "Modelo 3D (Custom JSON)"}
+                                            {(projectState.iaItems[selectedItem]?.items as Record<string, IAItemConfig>)?.[selectedItem]?.resource?.generate ? "Imagen 2D (Auto-generada)" : "Modelo 3D (Custom JSON)"}
                                         </h5>
                                     </div>
                                 </div>
                                 <button 
                                     onClick={() => {
                                         const newState = { ...projectState };
-                                        const iaItem = newState.iaItems[selectedItem].items[selectedItem];
-                                        iaItem.resource.generate = !iaItem.resource.generate;
-                                        if (iaItem.resource.generate) delete iaItem.resource.model_path;
-                                        else iaItem.resource.model_path = `${newState.projectName}:items/${activeView === 'xfoods' ? 'food' : 'crops'}/${selectedItem}`;
+                                        const iaItem = (newState.iaItems[selectedItem].items as Record<string, IAItemConfig>)[selectedItem];
+                                        if (iaItem.resource) {
+                                            iaItem.resource.generate = !iaItem.resource.generate;
+                                            if (iaItem.resource.generate) delete iaItem.resource.model_path;
+                                            else iaItem.resource.model_path = `${newState.projectName}:items/${activeView === 'xfoods' ? 'food' : 'crops'}/${selectedItem}`;
+                                        }
                                         setProjectState(newState);
                                     }}
                                     className="text-[9px] font-black uppercase bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-all"
