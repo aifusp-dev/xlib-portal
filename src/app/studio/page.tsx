@@ -80,7 +80,7 @@ export default function StudioPage() {
         name: file.name,
         content: buffer,
         type: 'raw',
-        inferredPath: `plugins/ItemsAdder/contents/${ns}/resourcepack/assets/xlib/${inferredPath}`
+        inferredPath: `plugins/ItemsAdder/contents/${ns}/resourcepack/assets/${ns}/${inferredPath}`
       });
     }
 
@@ -94,7 +94,7 @@ export default function StudioPage() {
         // If this batch has a model, we definitely want to use it
         iaItem.resource = { 
           generate: false, 
-          model_path: `xLib:items/${subfolder}/${modelName}` 
+          model_path: `${ns}:items/${subfolder}/${modelName}` 
         };
       } else if (!alreadyHasModel) {
         // Only switch to texture-based if there isn't a model already configured
@@ -103,7 +103,7 @@ export default function StudioPage() {
           const texName = firstPng.name.replace(".png", "");
           iaItem.resource = { 
             generate: true, 
-            textures: [`xLib:items/${subfolder}/${texName}`] 
+            textures: [`${ns}:items/${subfolder}/${texName}`] 
           };
         }
       }
@@ -230,15 +230,19 @@ export default function StudioPage() {
             if (!item.seed && activeView === 'xcrops') item.seed = {};
             
             const target = activeView === 'xfoods' ? item.item : item.seed;
-            target['itemsadder-id'] = `xLib:${selectedItem}`;
+            const subfolder = activeView === 'xfoods' ? 'food' : 'crops';
+            target['itemsadder-id'] = `${newState.projectName}:${selectedItem}`;
             const currentCMD = target['custom-model-data'] || 0;
             
             newState.iaItems[selectedItem] = {
                 items: {
                     [selectedItem]: {
                         display_name: item['display-name'] || "Nuevo Ítem",
-                        permission: `xlib.${selectedItem}`,
-                        resource: { generate: true, textures: [`xLib:items/${activeView === 'xfoods' ? 'food' : 'crops'}/${selectedItem}`] },
+                        permission: `${newState.projectName.toLowerCase()}.${selectedItem}`,
+                        resource: { 
+                            generate: true, 
+                            textures: [`${newState.projectName}:items/${subfolder}/${selectedItem}`] 
+                        },
                         ...(currentCMD > 0 ? { specific_properties: { custom_model_data: currentCMD } } : {})
                     }
                 }
