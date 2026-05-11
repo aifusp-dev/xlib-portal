@@ -333,7 +333,7 @@ export default function StudioPage() {
   });
 
   const currentItem = selectedItem ? currentMap[selectedItem] : null;
-  const isIAEnabled = currentItem ? (activeView === 'xfoods' ? !!currentItem.config.item?.['itemsadder-id'] : !!currentItem.config.seed?.['itemsadder-id']) : false;
+  const isIAEnabled = currentItem ? (activeView === 'xfoods' ? !!(currentItem.config.item as Record<string, unknown>)?.['itemsadder-id'] : !!(currentItem.config.seed as Record<string, unknown>)?.['itemsadder-id']) : false;
 
   return (
     <div className="h-full flex flex-col space-y-6 animate-in slide-in-from-bottom-4 duration-500">
