@@ -450,6 +450,67 @@ export default function StudioPage() {
                             <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Azúcares</label><input type="number" value={currentItem.config.nutrition?.sugars || 0} onChange={(e) => updateItemField('config.nutrition.sugars', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
                             <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Vitaminas</label><input type="number" value={currentItem.config.nutrition?.vitamins || 0} onChange={(e) => updateItemField('config.nutrition.vitamins', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
                         </div>
+
+                        <div className="space-y-6 pt-4 border-t border-[#374151]">
+                            <div className="flex items-center gap-2 text-purple-400"><Zap className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Efectos y Sonidos</h4></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Sonido al Comer</label>
+                                    <input type="text" value={currentItem.config.effects?.sound || 'ENTITY_GENERIC_EAT'} onChange={(e) => updateItemField('config.effects.sound', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="ENTITY_GENERIC_EAT" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Partícula</label>
+                                    <input type="text" value={currentItem.config.effects?.particle || 'VILLAGER_HAPPY'} onChange={(e) => updateItemField('config.effects.particle', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="VILLAGER_HAPPY" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6 pt-4 border-t border-[#374151]">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2 text-green-400"><FileCode className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Comandos al Consumir</h4></div>
+                                <button 
+                                    onClick={() => {
+                                        const newState = { ...projectState };
+                                        const food = newState.foods[selectedItem].config;
+                                        if (!food.commands) food.commands = [];
+                                        food.commands.push("me disfruta de una comida");
+                                        setProjectState(newState);
+                                    }}
+                                    className="text-[9px] font-black uppercase bg-green-400/10 text-green-400 px-3 py-1.5 rounded-lg border border-green-400/20 hover:bg-green-400/20 transition-all"
+                                >
+                                    + Añadir Comando
+                                </button>
+                            </div>
+                            <div className="space-y-2">
+                                {(currentItem.config.commands || []).map((cmd: string, idx: number) => (
+                                    <div key={idx} className="flex gap-2 items-center bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-2">
+                                        <input 
+                                            type="text" 
+                                            value={cmd} 
+                                            onChange={(e) => {
+                                                const newState = { ...projectState };
+                                                newState.foods[selectedItem].config.commands[idx] = e.target.value;
+                                                setProjectState(newState);
+                                            }}
+                                            className="flex-1 bg-transparent text-sm text-white outline-none"
+                                        />
+                                        <button 
+                                            onClick={() => {
+                                                const newState = { ...projectState };
+                                                newState.foods[selectedItem].config.commands.splice(idx, 1);
+                                                setProjectState(newState);
+                                            }}
+                                            className="text-gray-600 hover:text-red-400"
+                                        >
+                                            <Trash2 className="w-4 h-4"/>
+                                        </button>
+                                    </div>
+                                ))}
+                                {(currentItem.config.commands || []).length === 0 && (
+                                    <p className="text-[10px] text-gray-600 italic px-1 text-center py-2">No hay comandos configurados.</p>
+                                )}
+                            </div>
+                        </div>
                         </>
                     )}
                     {activeView === 'xmachines' && (
