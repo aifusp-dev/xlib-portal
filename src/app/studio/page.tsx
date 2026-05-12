@@ -65,11 +65,32 @@ export default function StudioPage() {
       const ext = file.name.split('.').pop()?.toLowerCase();
       if (ext !== 'png' && ext !== 'json') continue;
 
-      const buffer = await file.arrayBuffer();
+      let buffer = await file.arrayBuffer();
       const isJson = ext === 'json';
       if (isJson) {
         hasModel = true;
         modelName = file.name.replace(".json", "");
+        
+        // --- REMAP JSON TEXTURES ---
+        try {
+            const text = new TextDecoder().decode(buffer);
+            const model = JSON.parse(text);
+            if (model.textures) {
+                Object.keys(model.textures).forEach(key => {
+                    let texPath = model.textures[key] as string;
+                    // If it doesn't have a namespace, add it
+                    if (!texPath.includes(':')) {
+                        // Clean path (remove 'item/' prefix if it's already there to avoid duplication)
+                        const cleanName = texPath.split('/').pop() || texPath;
+                        model.textures[key] = `${ns}:item/${subfolder}/${cleanName}`;
+                    }
+                });
+                const updatedJson = JSON.stringify(model, null, 2);
+                buffer = new TextEncoder().encode(updatedJson).buffer;
+            }
+        } catch (err) {
+            console.error("Error processing JSON model", err);
+        }
       }
 
       // Determine where to put it in the resource pack
