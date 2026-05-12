@@ -833,8 +833,8 @@ export default function StudioPage() {
                                 </div>
 
                                 <div className="space-y-6">
-                                    {Object.entries((currentItem.config.growth as Record<string, Record<string, unknown>>)?.stages || {}).map(([sid, sData]) => {
-                                        const stageData = sData as Record<string, unknown>;
+                                    {Object.entries((currentItem.config.growth as any)?.stages || {}).map(([sid, sData]) => {
+                                        const stageData = (sData as any) || {};
                                         return (
                                         <div key={sid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden">
                                             <div className="bg-white/5 px-6 py-3 flex justify-between items-center border-b border-white/5">
@@ -897,7 +897,7 @@ export default function StudioPage() {
                                                         </button>
                                                     </div>
                                                     <div className="grid gap-3">
-                                                        {(stageData.requirements as Record<string, unknown>[] || []).map((req, ridx) => (
+                                                        {((stageData.requirements as any[]) || []).map((req: any, ridx) => (
                                                             <div key={ridx} className="bg-black/20 rounded-xl p-4 border border-white/5 relative group/req">
                                                                 <button 
                                                                     onClick={() => {
@@ -964,20 +964,20 @@ export default function StudioPage() {
                                 <div className="grid grid-cols-3 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">xFoods ID Recompensa</label>
-                                        <input type="text" value={(currentItem.config.harvest as Record<string, string>)?.['xfoods-id'] || ''} onChange={(e) => updateItemField('config.harvest.xfoods-id', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                        <input type="text" value={(currentItem.config.harvest as any)?.['xfoods-id'] || ''} onChange={(e) => updateItemField('config.harvest.xfoods-id', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Cantidad</label>
-                                        <input type="number" value={(currentItem.config.harvest as Record<string, number>)?.amount || 1} onChange={(e) => updateItemField('config.harvest.amount', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                        <input type="number" value={(currentItem.config.harvest as any)?.amount || 1} onChange={(e) => updateItemField('config.harvest.amount', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Tiempo Marchitado (ms)</label>
-                                        <input type="number" value={(currentItem.config.growth as Record<string, number>)?.['wither-time'] || 2400000} onChange={(e) => updateItemField('config.growth.wither-time', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                        <input type="number" value={(currentItem.config.growth as any)?.['wither-time'] || 2400000} onChange={(e) => updateItemField('config.growth.wither-time', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Mensaje de Cosecha</label>
-                                    <input type="text" value={(currentItem.config.harvest as Record<string, string>)?.message || ''} onChange={(e) => updateItemField('config.harvest.message', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <input type="text" value={(currentItem.config.harvest as any)?.message || ''} onChange={(e) => updateItemField('config.harvest.message', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                 </div>
                             </div>
                         </div>
