@@ -161,6 +161,8 @@ export default function StudioPage() {
             "item": { "material": "PORKCHOP", "custom-model-data": 0, "max-stack": 64 },
             "stats": { "food-level": 4, "saturation": 2.0, "bites": 1, "consumable": true, "expiry-minutes": 0, "consumption-ticks": 30 },
             "nutrition": { "proteins": 0, "carbs": 0, "sugars": 0, "vitamins": 0 },
+            "integration": { "disease-id": "", "disease-chance": 0.0 },
+            "leftovers": { "material": "AIR", "custom-model-data": 0 },
             "effects": { "sound": "ENTITY_GENERIC_EAT", "particle": "VILLAGER_HAPPY" }
         },
         folder: ""
@@ -551,11 +553,11 @@ export default function StudioPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">ID Enfermedad</label>
-                                    <input type="text" value={(currentItem.config['disease-id'] as string) || ''} onChange={(e) => updateItemField('config.disease-id', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="ej: salmonella" />
+                                    <input type="text" value={(currentItem.config.integration as Record<string, string>)?.['disease-id'] || ''} onChange={(e) => updateItemField('config.integration.disease-id', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="ej: salmonella" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Probabilidad (0.0 - 1.0)</label>
-                                    <input type="number" step="0.01" value={(currentItem.config['disease-chance'] as number) || 0} onChange={(e) => updateItemField('config.disease-chance', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <input type="number" step="0.01" value={(currentItem.config.integration as Record<string, number>)?.['disease-chance'] || 0} onChange={(e) => updateItemField('config.integration.disease-chance', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                 </div>
                             </div>
                         </div>
@@ -565,11 +567,11 @@ export default function StudioPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Material Residuo</label>
-                                    <input type="text" value={(currentItem.config['leftover-material'] as string) || ''} onChange={(e) => updateItemField('config.leftover-material', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="ej: BOWL" />
+                                    <input type="text" value={(currentItem.config.leftovers as Record<string, string>)?.material || ''} onChange={(e) => updateItemField('config.leftovers.material', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="ej: BOWL" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Custom Model Data Residuo</label>
-                                    <input type="number" value={(currentItem.config['leftover-custom-model-data'] as number) || 0} onChange={(e) => updateItemField('config.leftover-custom-model-data', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <input type="number" value={(currentItem.config.leftovers as Record<string, number>)?.['custom-model-data'] || 0} onChange={(e) => updateItemField('config.leftovers.custom-model-data', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                 </div>
                             </div>
                         </div>
