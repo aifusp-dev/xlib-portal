@@ -55,7 +55,8 @@ export default function StudioPage() {
     
     const newState = { ...projectState };
     const ns = projectState.projectName;
-    const subfolder = activeView === 'xfoods' ? 'food' : 'crops';
+    const itemEntry = activeView === 'xfoods' ? newState.foods[selectedItem] : newState.crops[selectedItem];
+    const subfolder = itemEntry?.folder || (activeView === 'xfoods' ? 'food' : 'crops');
     
     let hasModel = false;
     let modelName = "";
@@ -73,13 +74,13 @@ export default function StudioPage() {
 
       // Determine where to put it in the resource pack
       const assetType = isJson ? 'models' : 'textures';
-      const inferredPath = `${assetType}/items/${subfolder}/${file.name}`;
+      const inferredPath = `${assetType}/item/${subfolder}/${file.name}`;
 
       newState.rawFiles.push({
         name: file.name,
         content: buffer,
         type: 'raw',
-        inferredPath: `plugins/ItemsAdder/contents/${ns}/resourcepack/assets/${ns}/${inferredPath}`
+        inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/${inferredPath}`
       });
     }
 
@@ -93,7 +94,7 @@ export default function StudioPage() {
         // If this batch has a model, we definitely want to use it
         iaItem.resource = { 
           generate: false, 
-          model_path: `${ns}:items/${subfolder}/${modelName}` 
+          model_path: `${ns}:item/${subfolder}/${modelName}` 
         };
       } else if (!alreadyHasModel) {
         // Only switch to texture-based if there isn't a model already configured
@@ -102,7 +103,7 @@ export default function StudioPage() {
           const texName = firstPng.name.replace(".png", "");
           iaItem.resource = { 
             generate: true, 
-            textures: [`${ns}:items/${subfolder}/${texName}`] 
+            textures: [`${ns}:item/${subfolder}/${texName}`] 
           };
         }
       }
@@ -148,10 +149,16 @@ export default function StudioPage() {
       newState.crops[newId] = {
         config: {
             "display-name": "Nuevo Cultivo",
-            "seed": { "material": "WHEAT_SEEDS", "display-name": "&aSemilla", "lore": ["&7Semilla de cultivo."], "custom-model-data": 0 },
-            "growth": { "wither-time": 2400, "stages": { "stage0": { "material": "FERN", "scale": 1.0, "y-offset": 0.1, "duration": 60 } } },
-            "harvest": { "xfoods-id": "apple", "amount": 1, "message": "&a¡Has cosechado!" },
-            "visuals": { "hologram-title": "&fCultivo" },
+            "seed": { "material": "WHEAT_SEEDS", "display-name": "&aSemilla de Cultivo", "lore": ["&7Plántame en un macetero."], "custom-model-data": 0 },
+            "growth": { 
+                "wither-time": 2400000, 
+                "stages": { 
+                    "stage0": { "material": "FERN", "scale": 1.0, "y-offset": 0.0, "duration": 60000 },
+                    "stage1": { "material": "LARGE_FERN", "scale": 1.0, "y-offset": 0.0, "duration": 120000 }
+                } 
+            },
+            "harvest": { "xfoods-id": "apple", "amount": 1, "message": "&a¡Has cosechado con éxito!" },
+            "visuals": { "hologram-title": "&fCultivo en Progreso" },
             "requirements": { "seed-nbt": newId }
         },
         folder: ""
@@ -233,19 +240,35 @@ export default function StudioPage() {
             (target as Record<string, unknown>)['itemsadder-id'] = `${newState.projectName}:${selectedItem}`;
             const currentCMD = (target as Record<string, unknown>)['custom-model-data'] as number || 0;
             
-            newState.iaItems[selectedItem] = {
-                items: {
-                    [selectedItem]: {
-                        display_name: item['display-name'] || "Nuevo Ítem",
-                        permission: `${newState.projectName.toLowerCase()}.${selectedItem}`,
-                        resource: { 
-                            generate: true, 
-                            textures: [`${newState.projectName}:items/${subfolder}/${selectedItem}`] 
-                        },
-                        ...(currentCMD > 0 ? { specific_properties: { custom_model_data: currentCMD } } : {})
-                    }
+            const iaItems: Record<string, unknown> = {
+                [selectedItem]: {
+                    display_name: item['display-name'] || "Nuevo Ítem",
+                    permission: `${newState.projectName.toLowerCase()}.${selectedItem}`,
+                    resource: { 
+                        generate: true, 
+                        textures: [`${newState.projectName}:item/${subfolder}/${selectedItem}`] 
+                    },
+                    ...(currentCMD > 0 ? { specific_properties: { custom_model_data: currentCMD } } : {})
                 }
             };
+
+            // Add stages for crops
+            if (activeView === 'xcrops' && item.growth && (item.growth as Record<string, Record<string, unknown>>).stages) {
+                Object.entries((item.growth as Record<string, Record<string, unknown>>).stages).forEach(([sid, sData]) => {
+                    const iaId = (sData as Record<string, unknown>)['itemsadder-id'] as string;
+                    if (iaId && iaId.includes(':')) {
+                        const [ns, id] = iaId.split(':');
+                        if (ns === newState.projectName) {
+                            iaItems[id] = {
+                                display_name: `${item['display-name']} (${sid})`,
+                                resource: { generate: true, textures: [`${newState.projectName}:item/crops/${id}`] }
+                            };
+                        }
+                    }
+                });
+            }
+
+            newState.iaItems[selectedItem] = { items: iaItems };
         } else {
             if (activeView === 'xfoods' && item.item) delete (item.item as Record<string, unknown>)['itemsadder-id'];
             if (activeView === 'xcrops' && item.seed) delete (item.seed as Record<string, unknown>)['itemsadder-id'];
@@ -267,6 +290,38 @@ export default function StudioPage() {
     
     const lastKey = keys[keys.length - 1];
     current[lastKey] = value;
+
+    // Trigger IA Sync if enabled and relevant fields changed
+    if (newState.iaItems[selectedItem] && (path.includes('itemsadder-id') || path.includes('display-name'))) {
+        const item = entry.config;
+        const subfolder = activeView === 'xfoods' ? 'food' : 'crops';
+        const iaItems: Record<string, unknown> = {
+            [selectedItem]: {
+                display_name: item['display-name'] || "Nuevo Ítem",
+                permission: `${newState.projectName.toLowerCase()}.${selectedItem}`,
+                resource: { 
+                    generate: true, 
+                    textures: [`${newState.projectName}:item/${subfolder}/${selectedItem}`] 
+                }
+            }
+        };
+
+        if (activeView === 'xcrops' && item.growth && (item.growth as Record<string, Record<string, unknown>>).stages) {
+            Object.entries((item.growth as Record<string, Record<string, unknown>>).stages).forEach(([sid, sData]) => {
+                const iaId = (sData as Record<string, unknown>)['itemsadder-id'] as string;
+                if (iaId && iaId.includes(':')) {
+                    const [ns, id] = iaId.split(':');
+                    if (ns === newState.projectName) {
+                        iaItems[id] = {
+                            display_name: `${item['display-name']} (${sid})`,
+                            resource: { generate: true, textures: [`${newState.projectName}:item/crops/${id}`] }
+                        };
+                    }
+                }
+            });
+        }
+        newState.iaItems[selectedItem].items = iaItems;
+    }
 
     // Handle lore as list
     if (path.endsWith('.lore') && typeof value === 'string') {
@@ -454,6 +509,34 @@ export default function StudioPage() {
                         </div>
 
                         <div className="space-y-6 pt-4 border-t border-[#374151]">
+                            <div className="flex items-center gap-2 text-red-400"><Binary className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Integración RPXHealth (Enfermedades)</h4></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">ID Enfermedad</label>
+                                    <input type="text" value={(currentItem.config['disease-id'] as string) || ''} onChange={(e) => updateItemField('config.disease-id', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="ej: salmonella" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Probabilidad (0.0 - 1.0)</label>
+                                    <input type="number" step="0.01" value={(currentItem.config['disease-chance'] as number) || 0} onChange={(e) => updateItemField('config.disease-chance', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6 pt-4 border-t border-[#374151]">
+                            <div className="flex items-center gap-2 text-gray-400"><Trash2 className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Residuos (Leftovers)</h4></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Material Residuo</label>
+                                    <input type="text" value={(currentItem.config['leftover-material'] as string) || ''} onChange={(e) => updateItemField('config.leftover-material', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="ej: BOWL" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Custom Model Data Residuo</label>
+                                    <input type="number" value={(currentItem.config['leftover-custom-model-data'] as number) || 0} onChange={(e) => updateItemField('config.leftover-custom-model-data', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6 pt-4 border-t border-[#374151]">
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center gap-2 text-green-400"><FileCode className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Comandos al Consumir</h4></div>
                                 <button 
@@ -601,10 +684,221 @@ export default function StudioPage() {
                                                         className="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-yellow-400/30"
                                                     />
                                                 </div>
+                                                <div className="pt-2 space-y-3">
+                                                    <label className="flex items-center gap-3 cursor-pointer group/toggle">
+                                                        <div className="relative">
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={(rData as Record<string, unknown>)['use-minigame'] as boolean || false} 
+                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.use-minigame`, e.target.checked)}
+                                                                className="sr-only"
+                                                            />
+                                                            <div className={cn("w-8 h-4 rounded-full transition-colors", (rData as Record<string, unknown>)['use-minigame'] ? "bg-yellow-400" : "bg-gray-700")}></div>
+                                                            <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", (rData as Record<string, unknown>)['use-minigame'] ? "translate-x-4" : "")}></div>
+                                                        </div>
+                                                        <span className="text-[9px] font-bold text-gray-400 uppercase group-hover/toggle:text-yellow-400 transition-colors">Minijuego</span>
+                                                    </label>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div className="space-y-1">
+                                                            <label className="text-[8px] font-bold text-gray-600 uppercase">Tiempo Quemado</label>
+                                                            <input 
+                                                                type="number" 
+                                                                value={(rData as Record<string, unknown>)['burn-time'] as number || 0} 
+                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.burn-time`, parseInt(e.target.value))}
+                                                                className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
+                                                                placeholder="Ticks"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[8px] font-bold text-gray-600 uppercase">ID Quemado</label>
+                                                            <input 
+                                                                type="text" 
+                                                                value={(rData as Record<string, unknown>)['burnt-id'] as string || 'COAL'} 
+                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.burnt-id`, e.target.value)}
+                                                                className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
+                                                                placeholder="ID"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+                    )}
+                    {activeView === 'xcrops' && (
+                        <div className="space-y-8">
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center border-b border-[#374151] pb-4">
+                                    <div className="flex items-center gap-2 text-green-400"><FolderSearch className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Fases de Crecimiento (Stages)</h4></div>
+                                    <button 
+                                        onClick={() => {
+                                            const newState = { ...projectState };
+                                            const crop = newState.crops[selectedItem].config;
+                                            if (!crop.growth) crop.growth = { stages: {} };
+                                            const growth = crop.growth as Record<string, Record<string, unknown>>;
+                                            if (!growth.stages) growth.stages = {};
+                                            const stages = growth.stages as Record<string, unknown>;
+                                            const stageCount = Object.keys(stages).length;
+                                            const sid = `stage${stageCount}`;
+                                            stages[sid] = { material: "FERN", scale: 1.0, "y-offset": 0.0, duration: 60000 };
+                                            setProjectState(newState);
+                                        }}
+                                        className="text-[10px] font-black uppercase bg-green-400/10 text-green-400 px-3 py-1.5 rounded-lg border border-green-400/20 hover:bg-green-400/20 transition-all flex items-center gap-2"
+                                    >
+                                        <Plus className="w-3 h-3"/> Añadir Fase
+                                    </button>
+                                </div>
+
+                                <div className="space-y-6">
+                                    {Object.entries((currentItem.config.growth as Record<string, Record<string, unknown>>)?.stages || {}).map(([sid, sData]) => {
+                                        const stageData = sData as Record<string, unknown>;
+                                        return (
+                                        <div key={sid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden">
+                                            <div className="bg-white/5 px-6 py-3 flex justify-between items-center border-b border-white/5">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">{sid}</span>
+                                                    <input 
+                                                        type="text" 
+                                                        value={stageData.material as string || ''} 
+                                                        onChange={(e) => updateItemField(`config.growth.stages.${sid}.material`, e.target.value)}
+                                                        className="bg-transparent text-xs font-bold text-white outline-none border-b border-white/10 focus:border-yellow-400/50" 
+                                                        placeholder="Material"
+                                                    />
+                                                </div>
+                                                <button 
+                                                    onClick={() => {
+                                                        const newState = { ...projectState };
+                                                        delete (newState.crops[selectedItem].config.growth as Record<string, Record<string, unknown>>).stages[sid];
+                                                        setProjectState(newState);
+                                                    }}
+                                                    className="text-gray-600 hover:text-red-400 transition-colors"
+                                                >
+                                                    <Trash2 className="w-4 h-4"/>
+                                                </button>
+                                            </div>
+                                            
+                                            <div className="p-6 space-y-6">
+                                                <div className="grid grid-cols-4 gap-4">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[8px] font-bold text-gray-500 uppercase">ItemsAdder ID</label>
+                                                        <input type="text" value={stageData['itemsadder-id'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.itemsadder-id`, e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-white outline-none focus:border-yellow-400/30" placeholder="ns:id" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[8px] font-bold text-gray-500 uppercase">Duración (ms)</label>
+                                                        <input type="number" value={stageData.duration as number || 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.duration`, parseInt(e.target.value))} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-white outline-none focus:border-yellow-400/30" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[8px] font-bold text-gray-500 uppercase">Escala</label>
+                                                        <input type="number" step="0.1" value={stageData.scale as number || 1.0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.scale`, parseFloat(e.target.value))} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-white outline-none focus:border-yellow-400/30" />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[8px] font-bold text-gray-500 uppercase">Y-Offset</label>
+                                                        <input type="number" step="0.1" value={stageData['y-offset'] as number || 0.0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.y-offset`, parseFloat(e.target.value))} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-white outline-none focus:border-yellow-400/30" />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-4">
+                                                    <div className="flex justify-between items-center">
+                                                        <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2"><Settings2 className="w-3 h-3" /> Requisitos de Fase</label>
+                                                        <button 
+                                                            onClick={() => {
+                                                                const newState = { ...projectState };
+                                                                const stage = (newState.crops[selectedItem].config.growth as Record<string, Record<string, unknown>>).stages[sid] as Record<string, unknown>;
+                                                                if (!stage.requirements) stage.requirements = [] as unknown[];
+                                                                (stage.requirements as Record<string, unknown>[]).push({ id: "nuevo", type: "NUTRIENT", chance: 0.5, "nbt-value": "water", "display-name": "&bPide Agua", "action-bar-message": "&b¡Este cultivo necesita agua!" });
+                                                                setProjectState(newState);
+                                                            }}
+                                                            className="text-[8px] font-black uppercase bg-white/5 hover:bg-white/10 px-2 py-1 rounded transition-all"
+                                                        >
+                                                            + Requisito
+                                                        </button>
+                                                    </div>
+                                                    <div className="grid gap-3">
+                                                        {(stageData.requirements as Record<string, unknown>[] || []).map((req, ridx) => (
+                                                            <div key={ridx} className="bg-black/20 rounded-xl p-4 border border-white/5 relative group/req">
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        const newState = { ...projectState };
+                                                                        const stage = (newState.crops[selectedItem].config.growth as Record<string, Record<string, unknown>>).stages[sid] as Record<string, unknown>;
+                                                                        (stage.requirements as unknown[]).splice(ridx, 1);
+                                                                        setProjectState(newState);
+                                                                    }}
+                                                                    className="absolute top-2 right-2 text-gray-700 hover:text-red-400 opacity-0 group-hover/req:opacity-100 transition-all"
+                                                                >
+                                                                    <Trash2 className="w-3 h-3"/>
+                                                                </button>
+                                                                <div className="grid grid-cols-3 gap-4">
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">Tipo</label>
+                                                                        <select 
+                                                                            value={req.type as string} 
+                                                                            onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.type`, e.target.value)}
+                                                                            className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
+                                                                        >
+                                                                            <option value="NUTRIENT">NUTRIENTE (Ítem)</option>
+                                                                            <option value="LIGHT">LUZ (Ambiente)</option>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">Probabilidad</label>
+                                                                        <input type="number" step="0.1" value={req.chance as number || 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.chance`, parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">{req.type === 'LIGHT' ? 'Luz Mín/Máx' : 'Valor NBT'}</label>
+                                                                        {req.type === 'LIGHT' ? (
+                                                                            <div className="flex gap-1">
+                                                                                <input type="number" value={req['min-light'] as number || 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.min-light`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                                <input type="number" value={req['max-light'] as number || 15} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.max-light`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                            </div>
+                                                                        ) : (
+                                                                            <input type="text" value={req['nbt-value'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.nbt-value`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-4 mt-3">
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">Nombre UI</label>
+                                                                        <input type="text" value={req['display-name'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.display-name`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">Mensaje ActionBar</label>
+                                                                        <input type="text" value={req['action-bar-message'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.action-bar-message`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="space-y-6 pt-6 border-t border-[#374151]">
+                                <div className="flex items-center gap-2 text-yellow-400"><Flame className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Cosecha y Resultados</h4></div>
+                                <div className="grid grid-cols-3 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">xFoods ID Recompensa</label>
+                                        <input type="text" value={(currentItem.config.harvest as Record<string, string>)?.['xfoods-id'] || ''} onChange={(e) => updateItemField('config.harvest.xfoods-id', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Cantidad</label>
+                                        <input type="number" value={(currentItem.config.harvest as Record<string, number>)?.amount || 1} onChange={(e) => updateItemField('config.harvest.amount', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Tiempo Marchitado (ms)</label>
+                                        <input type="number" value={(currentItem.config.growth as Record<string, number>)?.['wither-time'] || 2400000} onChange={(e) => updateItemField('config.growth.wither-time', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Mensaje de Cosecha</label>
+                                    <input type="text" value={(currentItem.config.harvest as Record<string, string>)?.message || ''} onChange={(e) => updateItemField('config.harvest.message', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                </div>
                             </div>
                         </div>
                     )}
@@ -642,11 +936,11 @@ export default function StudioPage() {
                                     onClick={() => {
                                         const newState = { ...projectState };
                                         const iaItem = (newState.iaItems[selectedItem].items as Record<string, IAItemConfig>)[selectedItem];
-                                        if (iaItem.resource) {
-                                            iaItem.resource.generate = !iaItem.resource.generate;
-                                            if (iaItem.resource.generate) delete iaItem.resource.model_path;
-                                            else iaItem.resource.model_path = `${newState.projectName}:items/${activeView === 'xfoods' ? 'food' : 'crops'}/${selectedItem}`;
-                                        }
+                                            if (iaItem.resource) {
+                                                iaItem.resource.generate = !iaItem.resource.generate;
+                                                if (iaItem.resource.generate) delete iaItem.resource.model_path;
+                                                else iaItem.resource.model_path = `${newState.projectName}:item/${activeView === 'xfoods' ? 'food' : 'crops'}/${selectedItem}`;
+                                            }
                                         setProjectState(newState);
                                     }}
                                     className="text-[9px] font-black uppercase bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg transition-all"

@@ -24,31 +24,33 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   // 1. Pack xFoods
   Object.entries(state.foods).forEach(([id, data]) => {
     const folder = data.folder ? `${data.folder}/` : '';
-    zip.file(`plugins/xFoods/foods/${folder}${id}.yml`, stringifyYaml(data.config));
+    zip.file(`xFoods/foods/${folder}${id}.yml`, stringifyYaml(data.config));
   });
 
   // 2. Pack xCrops
   Object.entries(state.crops).forEach(([id, data]) => {
     const folder = data.folder ? `${data.folder}/` : '';
-    zip.file(`plugins/xFoodsCrops/species/${folder}${id}.yml`, stringifyYaml(data.config));
+    zip.file(`xFoodsCrops/species/${folder}${id}.yml`, stringifyYaml(data.config));
   });
 
   // 3. Pack Machines
   Object.entries(state.machines).forEach(([id, data]) => {
     const folder = data.folder ? `${data.folder}/` : '';
-    zip.file(`plugins/xFoods/machines/${folder}${id}.yml`, stringifyYaml(data.config));
+    zip.file(`xFoods/machines/${folder}${id}.yml`, stringifyYaml(data.config));
   });
 
   // 4. Pack ItemsAdder (MODULAR STRUCTURE)
-  // Everything goes under plugins/ItemsAdder/contents/[projectName]/
+  // Everything goes under ItemsAdder/contents/[projectName]/
   Object.entries(state.iaItems).forEach(([id, data]) => {
-    zip.file(`plugins/ItemsAdder/contents/${ns}/configs/${id}.yml`, stringifyYaml(data));
+    zip.file(`ItemsAdder/contents/${ns}/configs/${id}.yml`, stringifyYaml(data));
   });
 
   // 5. Pack original raw files (textures/models)
   state.rawFiles.forEach(file => {
     // These paths are already prepared to be under contents/[projectName]/
-    zip.file(file.inferredPath, file.content as string | ArrayBuffer | Blob);
+    // We remove the 'plugins/' prefix if it exists in the inferredPath
+    const cleanPath = file.inferredPath.replace(/^plugins\//, '');
+    zip.file(cleanPath, file.content as string | ArrayBuffer | Blob);
   });
   
   return await zip.generateAsync({ type: 'blob' });
@@ -123,13 +125,27 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
         const ns = iaParts[0];
         const relativeToNamespace = iaParts.slice(1).join('/');
 
+        // Normalize resourcepack -> resource_pack if needed
+        const normalizedPath = relativeToNamespace.replace(/^resourcepack\//, 'resource_pack/');
+
         state.rawFiles.push({
           name: file.name,
           content: buffer,
           type: 'raw',
-          inferredPath: `plugins/ItemsAdder/contents/${ns}/${relativeToNamespace}`
+          inferredPath: `plugins/ItemsAdder/contents/${ns}/${normalizedPath}`
         });
       } else if (path.includes(`${state.projectName}/resourcepack/`)) {
+        const buffer = await file.arrayBuffer();
+        const relativeToNamespace = path.split(`${state.projectName}/`)[1];
+        const normalizedPath = relativeToNamespace.replace(/^resourcepack\//, 'resource_pack/');
+        
+        state.rawFiles.push({
+          name: file.name,
+          content: buffer,
+          type: 'raw',
+          inferredPath: `plugins/ItemsAdder/contents/${state.projectName}/${normalizedPath}`
+        });
+      } else if (path.includes(`${state.projectName}/resource_pack/`)) {
         const buffer = await file.arrayBuffer();
         const relativeToNamespace = path.split(`${state.projectName}/`)[1];
         state.rawFiles.push({
