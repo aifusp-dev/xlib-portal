@@ -245,6 +245,7 @@ export default function StudioPage() {
                     display_name: item['display-name'] || "Nuevo Ítem",
                     permission: `${newState.projectName.toLowerCase()}.${selectedItem}`,
                     resource: { 
+                        material: (target as Record<string, string>)?.material || "PAPER",
                         generate: true, 
                         textures: [`${newState.projectName}:item/${subfolder}/${selectedItem}`] 
                     },
@@ -261,14 +262,21 @@ export default function StudioPage() {
                         if (ns === newState.projectName) {
                             iaItems[id] = {
                                 display_name: `${item['display-name']} (${sid})`,
-                                resource: { generate: true, textures: [`${newState.projectName}:item/crops/${id}`] }
+                                resource: { 
+                                    material: (sData as Record<string, string>)?.material || "PAPER",
+                                    generate: true, 
+                                    textures: [`${newState.projectName}:item/crops/${id}`] 
+                                }
                             };
                         }
                     }
                 });
             }
 
-            newState.iaItems[selectedItem] = { items: iaItems };
+            newState.iaItems[selectedItem] = { 
+                info: { namespace: newState.projectName },
+                items: iaItems 
+            };
         } else {
             if (activeView === 'xfoods' && item.item) delete (item.item as Record<string, unknown>)['itemsadder-id'];
             if (activeView === 'xcrops' && item.seed) delete (item.seed as Record<string, unknown>)['itemsadder-id'];
@@ -292,14 +300,16 @@ export default function StudioPage() {
     current[lastKey] = value;
 
     // Trigger IA Sync if enabled and relevant fields changed
-    if (newState.iaItems[selectedItem] && (path.includes('itemsadder-id') || path.includes('display-name'))) {
+    if (newState.iaItems[selectedItem] && (path.includes('itemsadder-id') || path.includes('display-name') || path.includes('material'))) {
         const item = entry.config;
         const subfolder = activeView === 'xfoods' ? 'food' : 'crops';
+        const target = activeView === 'xfoods' ? item.item : item.seed;
         const iaItems: Record<string, unknown> = {
             [selectedItem]: {
                 display_name: item['display-name'] || "Nuevo Ítem",
                 permission: `${newState.projectName.toLowerCase()}.${selectedItem}`,
                 resource: { 
+                    material: (target as Record<string, string>)?.material || "PAPER",
                     generate: true, 
                     textures: [`${newState.projectName}:item/${subfolder}/${selectedItem}`] 
                 }
@@ -314,13 +324,20 @@ export default function StudioPage() {
                     if (ns === newState.projectName) {
                         iaItems[id] = {
                             display_name: `${item['display-name']} (${sid})`,
-                            resource: { generate: true, textures: [`${newState.projectName}:item/crops/${id}`] }
+                            resource: { 
+                                material: (sData as Record<string, string>)?.material || "PAPER",
+                                generate: true, 
+                                textures: [`${newState.projectName}:item/crops/${id}`] 
+                            }
                         };
                     }
                 }
             });
         }
-        newState.iaItems[selectedItem].items = iaItems;
+        newState.iaItems[selectedItem] = {
+            info: { namespace: newState.projectName },
+            items: iaItems
+        };
     }
 
     // Handle lore as list
