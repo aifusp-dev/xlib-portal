@@ -190,8 +190,18 @@ export default function StudioPage() {
       newId = `nueva_maquina_${timestamp}`;
       newState.machines[newId] = {
         config: {
-            "display-name": "&6Nueva Estación",
-            "recipes": {}
+            "display-name": "&6Nueva Estación de Cocina",
+            "recipes": {
+                "receta_1": {
+                    "inputs": { "i1": { "id": "PORKCHOP", "amount": 1 } },
+                    "output": { "id": "COOKED_PORKCHOP", "amount": 1 },
+                    "time": 200,
+                    "burn-time": 100,
+                    "burnt-id": "COAL",
+                    "use-minigame": false,
+                    "sounds": { "start": "BLOCK_CAMPFIRE_CRACKLE", "finish": "ENTITY_PLAYER_LEVELUP" }
+                }
+            }
         },
         folder: ""
       };
@@ -377,7 +387,15 @@ export default function StudioPage() {
     const machine = newState.machines[selectedItem].config as { recipes: Record<string, Record<string, unknown>> };
     if (!machine.recipes) machine.recipes = {};
     const rid = `recipe_${Date.now()}`;
-    machine.recipes[rid] = { inputs: { i1: { id: "item", amount: 1 } }, output: { id: "result", amount: 1 }, time: 200 };
+    machine.recipes[rid] = { 
+        inputs: { i1: { id: "item", amount: 1 } }, 
+        output: { id: "result", amount: 1 }, 
+        time: 200,
+        "burn-time": 100,
+        "burnt-id": "COAL",
+        "use-minigame": false,
+        sounds: { start: "BLOCK_CAMPFIRE_CRACKLE", finish: "ENTITY_PLAYER_LEVELUP" }
+    };
     setProjectState(newState);
   };
 
@@ -637,7 +655,7 @@ export default function StudioPage() {
                             </div>
                             
                             <div className="grid gap-6">
-                                {Object.entries(currentItem.config.recipes as Record<string, { inputs: Record<string, { id: string, amount: number }>, output: { id: string, amount: number }, time: number }> || {}).map(([rid, rData]) => (
+                                {Object.entries(currentItem.config.recipes as Record<string, Record<string, unknown>> || {}).map(([rid, rData]) => (
                                     <div key={rid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] p-6 relative group/recipe space-y-4">
                                         <button onClick={() => handleRemoveRecipe(rid)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 opacity-0 group-hover/recipe:opacity-100 transition-all">
                                             <Trash2 className="w-4 h-4"/>
@@ -719,7 +737,7 @@ export default function StudioPage() {
                                                     </label>
                                                     <input 
                                                         type="number" 
-                                                        value={rData.time || 200} 
+                                                        value={rData.time as number || 200} 
                                                         onChange={(e) => updateItemField(`config.recipes.${rid}.time`, parseInt(e.target.value))}
                                                         className="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-yellow-400/30"
                                                     />
@@ -729,12 +747,12 @@ export default function StudioPage() {
                                                         <div className="relative">
                                                             <input 
                                                                 type="checkbox" 
-                                                                checked={(rData as Record<string, unknown>)['use-minigame'] as boolean || false} 
+                                                                checked={rData['use-minigame'] as boolean || false} 
                                                                 onChange={(e) => updateItemField(`config.recipes.${rid}.use-minigame`, e.target.checked)}
                                                                 className="sr-only"
                                                             />
-                                                            <div className={cn("w-8 h-4 rounded-full transition-colors", (rData as Record<string, unknown>)['use-minigame'] ? "bg-yellow-400" : "bg-gray-700")}></div>
-                                                            <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", (rData as Record<string, unknown>)['use-minigame'] ? "translate-x-4" : "")}></div>
+                                                            <div className={cn("w-8 h-4 rounded-full transition-colors", rData['use-minigame'] ? "bg-yellow-400" : "bg-gray-700")}></div>
+                                                            <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", rData['use-minigame'] ? "translate-x-4" : "")}></div>
                                                         </div>
                                                         <span className="text-[9px] font-bold text-gray-400 uppercase group-hover/toggle:text-yellow-400 transition-colors">Minijuego</span>
                                                     </label>
@@ -743,7 +761,7 @@ export default function StudioPage() {
                                                             <label className="text-[8px] font-bold text-gray-600 uppercase">Tiempo Quemado</label>
                                                             <input 
                                                                 type="number" 
-                                                                value={(rData as Record<string, unknown>)['burn-time'] as number || 0} 
+                                                                value={rData['burn-time'] as number || 0} 
                                                                 onChange={(e) => updateItemField(`config.recipes.${rid}.burn-time`, parseInt(e.target.value))}
                                                                 className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
                                                                 placeholder="Ticks"
@@ -753,10 +771,32 @@ export default function StudioPage() {
                                                             <label className="text-[8px] font-bold text-gray-600 uppercase">ID Quemado</label>
                                                             <input 
                                                                 type="text" 
-                                                                value={(rData as Record<string, unknown>)['burnt-id'] as string || 'COAL'} 
+                                                                value={rData['burnt-id'] as string || 'COAL'} 
                                                                 onChange={(e) => updateItemField(`config.recipes.${rid}.burnt-id`, e.target.value)}
                                                                 className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
                                                                 placeholder="ID"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        <div className="space-y-1">
+                                                            <label className="text-[8px] font-bold text-gray-600 uppercase">Sonido Inicio</label>
+                                                            <input 
+                                                                type="text" 
+                                                                value={(rData.sounds as Record<string, string>)?.start || ''} 
+                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.sounds.start`, e.target.value)}
+                                                                className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
+                                                                placeholder="SOUND_ID"
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[8px] font-bold text-gray-600 uppercase">Sonido Fin</label>
+                                                            <input 
+                                                                type="text" 
+                                                                value={(rData.sounds as Record<string, string>)?.finish || ''} 
+                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.sounds.finish`, e.target.value)}
+                                                                className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
+                                                                placeholder="SOUND_ID"
                                                             />
                                                         </div>
                                                     </div>
