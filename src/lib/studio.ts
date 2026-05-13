@@ -98,23 +98,26 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
       const content = await file.text();
       const id = file.name.replace(/\.ya?ml$/, '');
 
+      const loadedConfig = yaml.load(content);
+      const config = (loadedConfig && typeof loadedConfig === 'object') ? (loadedConfig as Record<string, unknown>) : {};
+
       if (path.includes('xFoods/foods/')) {
         const folderPath = path.split('xFoods/foods/')[1].split('/').slice(0, -1).join('/');
-        state.foods[id] = { config: yaml.load(content) as Record<string, unknown>, folder: folderPath };
+        state.foods[id] = { config, folder: folderPath };
       } else if (path.includes('xFoods/machines/')) {
         const folderPath = path.split('xFoods/machines/')[1].split('/').slice(0, -1).join('/');
-        state.machines[id] = { config: yaml.load(content) as Record<string, unknown>, folder: folderPath };
+        state.machines[id] = { config, folder: folderPath };
       } else if (path.includes('xFoodsCrops/species/')) {
         const folderPath = path.split('xFoodsCrops/species/')[1].split('/').slice(0, -1).join('/');
-        state.crops[id] = { config: yaml.load(content) as Record<string, unknown>, folder: folderPath };
+        state.crops[id] = { config, folder: folderPath };
       } else if (path.includes('ItemsAdder/contents/')) {
         const iaPath = path.split('ItemsAdder/contents/')[1];
         const iaParts = iaPath.split('/');
         if (iaParts.length > 1 && iaParts[1] === 'configs') {
-          state.iaItems[id] = yaml.load(content) as Record<string, unknown>;
+          state.iaItems[id] = config;
         }
       } else if (path.includes(`${state.projectName}/configs/`)) {
-        state.iaItems[id] = yaml.load(content) as Record<string, unknown>;
+        state.iaItems[id] = config;
       }
     } else if (path.match(/\.(png|json|ogg)$/i)) {
       // Preserve assets from the IA content folder

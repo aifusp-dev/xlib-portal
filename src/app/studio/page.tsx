@@ -289,18 +289,20 @@ export default function StudioPage() {
             // Add stages for crops
             if (activeView === 'xcrops' && item.growth && (item.growth as Record<string, Record<string, unknown>>).stages) {
                 Object.entries((item.growth as Record<string, Record<string, unknown>>).stages).forEach(([sid, sData]) => {
-                    const iaId = (sData as Record<string, unknown>)['itemsadder-id'] as string;
-                    if (iaId && iaId.includes(':')) {
-                        const [ns, id] = iaId.split(':');
-                        if (ns === newState.projectName) {
-                            iaItems[id] = {
-                                display_name: `${item['display-name']} (${sid})`,
-                                resource: { 
-                                    material: (sData as Record<string, string>)?.material || "PAPER",
-                                    generate: true, 
-                                    textures: [`${newState.projectName}:item/crops/${id}`] 
-                                }
-                            };
+                    if (sData && typeof sData === 'object') {
+                        const iaId = (sData as Record<string, unknown>)['itemsadder-id'] as string;
+                        if (iaId && iaId.includes(':')) {
+                            const [ns, id] = iaId.split(':');
+                            if (ns === newState.projectName) {
+                                iaItems[id] = {
+                                    display_name: `${item['display-name']} (${sid})`,
+                                    resource: { 
+                                        material: (sData as Record<string, string>)?.material || "PAPER",
+                                        generate: true, 
+                                        textures: [`${newState.projectName}:item/crops/${id}`] 
+                                    }
+                                };
+                            }
                         }
                     }
                 });
@@ -351,18 +353,20 @@ export default function StudioPage() {
 
         if (activeView === 'xcrops' && item.growth && (item.growth as Record<string, Record<string, unknown>>).stages) {
             Object.entries((item.growth as Record<string, Record<string, unknown>>).stages).forEach(([sid, sData]) => {
-                const iaId = (sData as Record<string, unknown>)['itemsadder-id'] as string;
-                if (iaId && iaId.includes(':')) {
-                    const [ns, id] = iaId.split(':');
-                    if (ns === newState.projectName) {
-                        iaItems[id] = {
-                            display_name: `${item['display-name']} (${sid})`,
-                            resource: { 
-                                material: (sData as Record<string, string>)?.material || "PAPER",
-                                generate: true, 
-                                textures: [`${newState.projectName}:item/crops/${id}`] 
-                            }
-                        };
+                if (sData && typeof sData === 'object') {
+                    const iaId = (sData as Record<string, unknown>)['itemsadder-id'] as string;
+                    if (iaId && iaId.includes(':')) {
+                        const [ns, id] = iaId.split(':');
+                        if (ns === newState.projectName) {
+                            iaItems[id] = {
+                                display_name: `${item['display-name']} (${sid})`,
+                                resource: { 
+                                    material: (sData as Record<string, string>)?.material || "PAPER",
+                                    generate: true, 
+                                    textures: [`${newState.projectName}:item/crops/${id}`] 
+                                }
+                            };
+                        }
                     }
                 }
             });
@@ -498,7 +502,7 @@ export default function StudioPage() {
                       <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">ID Único</label>
                       <input type="text" value={selectedItem} onChange={(e) => renameSelectedItem(e.target.value)} className="bg-transparent text-2xl font-bold text-yellow-400 focus:outline-none border-b border-transparent focus:border-yellow-400/30 w-full" />
                    </div>
-                   <div className="bg-yellow-400/10 border border-yellow-400/20 px-3 py-1.5 rounded-lg text-[10px] font-bold text-yellow-400 uppercase tracking-widest flex items-center gap-2"><FileCode className="w-3.3 h-3.3" /> {activeView.toUpperCase()}</div>
+                   <div className="bg-yellow-400/10 border border-yellow-400/20 px-3 py-1.5 rounded-lg text-[10px] font-bold text-yellow-400 uppercase tracking-widest flex items-center gap-2"><FileCode className="w-3 h-3" /> {activeView.toUpperCase()}</div>
                 </div>
 
                 <div className="space-y-6">
@@ -611,7 +615,7 @@ export default function StudioPage() {
                                 </button>
                             </div>
                             <div className="space-y-2">
-                                {(currentItem.config.commands as string[] || []).map((cmd, idx) => (
+                                {(Array.isArray(currentItem.config.commands) ? currentItem.config.commands : []).map((cmd, idx) => (
                                     <div key={idx} className="flex gap-2 items-center bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-2">
                                         <input 
                                             type="text" 
@@ -896,8 +900,9 @@ export default function StudioPage() {
                                                             + Requisito
                                                         </button>
                                                     </div>
-                                                    <div className="grid gap-3">
-                                                        {((stageData.requirements as any[]) || []).map((req: any, ridx) => (
+                                                        {(Array.isArray(stageData.requirements) ? stageData.requirements : []).map((req: any, ridx) => {
+                                                            if (!req || typeof req !== 'object') return null;
+                                                            return (
                                                             <div key={ridx} className="bg-black/20 rounded-xl p-4 border border-white/5 relative group/req">
                                                                 <button 
                                                                     onClick={() => {
