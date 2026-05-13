@@ -891,8 +891,9 @@ export default function StudioPage() {
                                                             onClick={() => {
                                                                 const newState = { ...projectState };
                                                                 const stage = (newState.crops[selectedItem].config.growth as Record<string, Record<string, unknown>>).stages[sid] as Record<string, unknown>;
-                                                                if (!stage.requirements) stage.requirements = [] as unknown[];
-                                                                (stage.requirements as Record<string, unknown>[]).push({ id: "nuevo", type: "NUTRIENT", chance: 0.5, "nbt-value": "water", "display-name": "&bPide Agua", "action-bar-message": "&b¡Este cultivo necesita agua!" });
+                                                                if (!stage.requirements) stage.requirements = {} as Record<string, unknown>;
+                                                                const reqId = `req_${Object.keys(stage.requirements as Record<string, unknown>).length + 1}`;
+                                                                (stage.requirements as Record<string, unknown>)[reqId] = { type: "NUTRIENT", chance: 0.8, nbt: "WATER", "display-name": "&bPide Agua", "action-bar": "&b¡Este cultivo necesita agua!" };
                                                                 setProjectState(newState);
                                                             }}
                                                             className="text-[8px] font-black uppercase bg-white/5 hover:bg-white/10 px-2 py-1 rounded transition-all"
@@ -900,15 +901,16 @@ export default function StudioPage() {
                                                             + Requisito
                                                         </button>
                                                     </div>
-                                                        {(Array.isArray(stageData.requirements) ? stageData.requirements : []).map((req: any, ridx) => {
+                                                    <div className="grid gap-3">
+                                                        {Object.entries((stageData.requirements as Record<string, any>) || {}).map(([reqId, req]: [string, any]) => {
                                                             if (!req || typeof req !== 'object') return null;
                                                             return (
-                                                            <div key={ridx} className="bg-black/20 rounded-xl p-4 border border-white/5 relative group/req">
+                                                            <div key={reqId} className="bg-black/20 rounded-xl p-4 border border-white/5 relative group/req">
                                                                 <button 
                                                                     onClick={() => {
                                                                         const newState = { ...projectState };
                                                                         const stage = (newState.crops[selectedItem].config.growth as Record<string, Record<string, unknown>>).stages[sid] as Record<string, unknown>;
-                                                                        (stage.requirements as unknown[]).splice(ridx, 1);
+                                                                        delete (stage.requirements as Record<string, unknown>)[reqId];
                                                                         setProjectState(newState);
                                                                     }}
                                                                     className="absolute top-2 right-2 text-gray-700 hover:text-red-400 opacity-0 group-hover/req:opacity-100 transition-all"
@@ -917,50 +919,65 @@ export default function StudioPage() {
                                                                 </button>
                                                                 <div className="grid grid-cols-3 gap-4">
                                                                     <div className="space-y-1">
-                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">Tipo</label>
-                                                                        <select 
-                                                                            value={req.type as string} 
-                                                                            onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.type`, e.target.value)}
-                                                                            className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
-                                                                        >
-                                                                            <option value="NUTRIENT">NUTRIENTE (Ítem)</option>
-                                                                            <option value="LIGHT">LUZ (Ambiente)</option>
-                                                                        </select>
+                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">ID / Tipo</label>
+                                                                        <div className="flex gap-1">
+                                                                            <input type="text" value={reqId} readOnly className="w-1/3 bg-transparent text-[8px] text-gray-500 outline-none" />
+                                                                            <select 
+                                                                                value={req.type as string} 
+                                                                                onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.type`, e.target.value)}
+                                                                                className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
+                                                                            >
+                                                                                <option value="NUTRIENT">NUTRIENTE</option>
+                                                                                <option value="LIGHT">LUZ</option>
+                                                                            </select>
+                                                                        </div>
                                                                     </div>
                                                                     <div className="space-y-1">
                                                                         <label className="text-[8px] font-bold text-gray-600 uppercase">Probabilidad</label>
-                                                                        <input type="number" step="0.1" value={req.chance as number || 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.chance`, parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                        <input type="number" step="0.1" value={req.chance as number || 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.chance`, parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
                                                                     </div>
                                                                     <div className="space-y-1">
                                                                         <label className="text-[8px] font-bold text-gray-600 uppercase">{req.type === 'LIGHT' ? 'Luz Mín/Máx' : 'Valor NBT'}</label>
                                                                         {req.type === 'LIGHT' ? (
                                                                             <div className="flex gap-1">
-                                                                                <input type="number" value={req['min-light'] as number || 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.min-light`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
-                                                                                <input type="number" value={req['max-light'] as number || 15} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.max-light`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                                <input type="number" value={req.light?.min as number || 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.min`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                                <input type="number" value={req.light?.max as number || 15} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.max`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
                                                                             </div>
                                                                         ) : (
-                                                                            <input type="text" value={req['nbt-value'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.nbt-value`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                            <input type="text" value={req.nbt as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.nbt`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
                                                                         )}
                                                                     </div>
                                                                 </div>
                                                                 <div className="grid grid-cols-2 gap-4 mt-3">
                                                                     <div className="space-y-1">
                                                                         <label className="text-[8px] font-bold text-gray-600 uppercase">Nombre UI</label>
-                                                                        <input type="text" value={req['display-name'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${ridx}.display-name`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                        <input type="text" value={req['display-name'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.display-name`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
                                                                     </div>
                                                                     <div className="space-y-1">
                                                                         <label className="text-[8px] font-bold text-gray-600 uppercase">Mensaje ActionBar</label>
-                                                                        <input type="text" value={req['action-bar-message'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.action-bar-message`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                        <input type="text" value={req['action-bar'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.action-bar`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        )})}
+                                                        );
+                                                        })}
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
                                     );
                                     })}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-6 pt-6 border-t border-[#374151]">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Título del Holograma</label>
+                                    <input type="text" value={(currentItem.config.visuals as any)?.['hologram-title'] || ''} onChange={(e) => updateItemField('config.visuals.hologram-title', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Identificador Semilla (NBT)</label>
+                                    <input type="text" value={(currentItem.config.requirements as any)?.['seed-nbt'] || ''} onChange={(e) => updateItemField('config.requirements.seed-nbt', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                 </div>
                             </div>
 
