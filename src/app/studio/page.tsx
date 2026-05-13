@@ -902,7 +902,7 @@ export default function StudioPage() {
                                                         </button>
                                                     </div>
                                                     <div className="grid gap-3">
-                                                        {Object.entries((stageData.requirements as Record<string, any>) || {}).map(([reqId, req]: [string, any]) => {
+                                                        {Object.entries((stageData.requirements && typeof stageData.requirements === 'object' ? stageData.requirements : {}) as Record<string, any>).map(([reqId, req]: [string, any]) => {
                                                             if (!req || typeof req !== 'object') return null;
                                                             return (
                                                             <div key={reqId} className="bg-black/20 rounded-xl p-4 border border-white/5 relative group/req">
@@ -940,8 +940,8 @@ export default function StudioPage() {
                                                                         <label className="text-[8px] font-bold text-gray-600 uppercase">{req.type === 'LIGHT' ? 'Luz Mín/Máx' : 'Valor NBT'}</label>
                                                                         {req.type === 'LIGHT' ? (
                                                                             <div className="flex gap-1">
-                                                                                <input type="number" value={req.light?.min as number || 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.min`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
-                                                                                <input type="number" value={req.light?.max as number || 15} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.max`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                                <input type="number" value={(req.light as any)?.min ?? 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.min`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                                <input type="number" value={(req.light as any)?.max ?? 15} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.max`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
                                                                             </div>
                                                                         ) : (
                                                                             <input type="text" value={req.nbt as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.nbt`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
@@ -977,7 +977,7 @@ export default function StudioPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Identificador Semilla (NBT)</label>
-                                    <input type="text" value={(currentItem.config.requirements as any)?.['seed-nbt'] || ''} onChange={(e) => updateItemField('config.requirements.seed-nbt', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <input type="text" value={(currentItem.config.requirements && typeof currentItem.config.requirements === 'object' ? (currentItem.config.requirements as any)['seed-nbt'] : '') || ''} onChange={(e) => updateItemField('config.requirements.seed-nbt', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                 </div>
                             </div>
 
