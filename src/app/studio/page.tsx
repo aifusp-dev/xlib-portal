@@ -32,6 +32,50 @@ interface IAItemConfig {
   };
 }
 
+const AutocompleteInput = ({ value, onChange, options, placeholder, className }: { 
+    value: string, 
+    onChange: (val: string) => void, 
+    options: string[], 
+    placeholder?: string, 
+    className?: string 
+}) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const filtered = options.filter(opt => opt.toLowerCase().includes(value.toLowerCase()));
+
+    return (
+        <div className="relative w-full">
+            <input 
+                type="text" 
+                value={value} 
+                onChange={(e) => {
+                    onChange(e.target.value);
+                    setIsOpen(true);
+                }}
+                onFocus={() => setIsOpen(true)}
+                onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+                placeholder={placeholder}
+                className={className}
+            />
+            {isOpen && filtered.length > 0 && (
+                <div className="absolute z-[100] w-full mt-1 bg-[#1a1f2e] border border-[#374151] rounded-xl shadow-2xl max-h-48 overflow-y-auto scrollbar-hide animate-in fade-in zoom-in-95 duration-200">
+                    {filtered.map(opt => (
+                        <div 
+                            key={opt} 
+                            onClick={() => {
+                                onChange(opt);
+                                setIsOpen(false);
+                            }}
+                            className="px-4 py-2.5 hover:bg-yellow-400/10 hover:text-yellow-400 cursor-pointer text-[10px] font-black uppercase tracking-wider border-b border-white/5 last:border-0 transition-colors"
+                        >
+                            {opt}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 export default function StudioPage() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
   const [activeView, setActiveView] = useState<'xfoods' | 'xcrops' | 'xmachines'>("xfoods");
@@ -579,7 +623,13 @@ export default function StudioPage() {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">ID al Caducar (xFoods)</label>
-                                    <input type="text" value={(currentItem.config.stats as Record<string, string>)?.['expired-id'] || ''} onChange={(e) => updateItemField('config.stats.expired-id', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="ej: bigmac_podrida" />
+                                    <AutocompleteInput 
+                                        value={(currentItem.config.stats as Record<string, string>)?.['expired-id'] || ''} 
+                                        onChange={(val) => updateItemField('config.stats.expired-id', val)}
+                                        options={Object.keys(projectState.foods)}
+                                        placeholder="ej: bigmac_podrida"
+                                        className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -701,12 +751,12 @@ export default function StudioPage() {
                                                 <div className="space-y-2">
                                                     {Object.entries((rData.inputs as Record<string, { id: string, amount: number }>) || {}).map(([inputId, input]) => (
                                                         <div key={inputId} className="flex gap-2 items-center bg-black/20 p-2 rounded-lg border border-white/5">
-                                                            <input 
-                                                                type="text" 
+                                                            <AutocompleteInput 
                                                                 value={input.id} 
-                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.inputs.${inputId}.id`, e.target.value)}
-                                                                className="flex-1 bg-transparent text-[11px] text-white outline-none" 
+                                                                onChange={(val) => updateItemField(`config.recipes.${rid}.inputs.${inputId}.id`, val)}
+                                                                options={Object.keys(projectState.foods)}
                                                                 placeholder="ID Item"
+                                                                className="flex-1 bg-transparent text-[11px] text-white outline-none"
                                                             />
                                                             <input 
                                                                 type="number" 
@@ -734,12 +784,12 @@ export default function StudioPage() {
                                                 <div className="space-y-2">
                                                     <label className="text-[9px] font-bold text-gray-500 uppercase">Resultado (Output)</label>
                                                     <div className="flex gap-2 items-center bg-yellow-400/5 p-2 rounded-lg border border-yellow-400/10">
-                                                        <input 
-                                                            type="text" 
+                                                        <AutocompleteInput 
                                                             value={(rData.output as { id: string, amount: number })?.id || ''} 
-                                                            onChange={(e) => updateItemField(`config.recipes.${rid}.output.id`, e.target.value)}
-                                                            className="flex-1 bg-transparent text-[11px] text-white font-bold outline-none" 
+                                                            onChange={(val) => updateItemField(`config.recipes.${rid}.output.id`, val)}
+                                                            options={Object.keys(projectState.foods)}
                                                             placeholder="Resultado ID"
+                                                            className="flex-1 bg-transparent text-[11px] text-white font-bold outline-none"
                                                         />
                                                         <input 
                                                             type="number" 
@@ -787,12 +837,12 @@ export default function StudioPage() {
                                                         </div>
                                                         <div className="space-y-1">
                                                             <label className="text-[8px] font-bold text-gray-600 uppercase">ID Quemado</label>
-                                                            <input 
-                                                                type="text" 
+                                                            <AutocompleteInput 
                                                                 value={rData['burnt-id'] as string || 'COAL'} 
-                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.burnt-id`, e.target.value)}
-                                                                className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
+                                                                onChange={(val) => updateItemField(`config.recipes.${rid}.burnt-id`, val)}
+                                                                options={Object.keys(projectState.foods)}
                                                                 placeholder="ID"
+                                                                className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
                                                             />
                                                         </div>
                                                     </div>
@@ -1000,9 +1050,14 @@ export default function StudioPage() {
                                 <div className="grid grid-cols-3 gap-6">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">xFoods ID Recompensa</label>
-                                        <input type="text" value={(currentItem.config.harvest as any)?.['xfoods-id'] || ''} onChange={(e) => updateItemField('config.harvest.xfoods-id', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                    </div>
-                                    <div className="space-y-2">
+                                        <AutocompleteInput 
+                                            value={(currentItem.config.harvest as any)?.['xfoods-id'] || ''} 
+                                            onChange={(val) => updateItemField('config.harvest.xfoods-id', val)}
+                                            options={Object.keys(projectState.foods)}
+                                            placeholder="ej: tomate_raw"
+                                            className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none"
+                                        />
+                                    </div>                                    <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Cantidad</label>
                                         <input type="number" value={(currentItem.config.harvest as any)?.amount || 1} onChange={(e) => updateItemField('config.harvest.amount', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                     </div>
