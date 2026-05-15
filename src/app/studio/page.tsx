@@ -571,6 +571,20 @@ export default function StudioPage() {
                         </div>
 
                         <div className="space-y-6 pt-4 border-t border-[#374151]">
+                            <div className="flex items-center gap-2 text-orange-400"><Clock className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Expiración y Caducidad</h4></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Tiempo Expiración (min)</label>
+                                    <input type="number" value={(currentItem.config.stats as Record<string, number>)?.['expiry-minutes'] || 0} onChange={(e) => updateItemField('config.stats.expiry-minutes', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="0 = nunca" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">ID al Caducar (xFoods)</label>
+                                    <input type="text" value={(currentItem.config.stats as Record<string, string>)?.['expired-id'] || ''} onChange={(e) => updateItemField('config.stats.expired-id', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="ej: bigmac_podrida" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6 pt-4 border-t border-[#374151]">
                             <div className="flex items-center gap-2 text-red-400"><Binary className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Integración RPXHealth (Enfermedades)</h4></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
