@@ -18,7 +18,8 @@ import {
   ChevronDown,
   ChevronRight,
   Maximize2,
-  Zap
+  Zap,
+  Copy
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseUploadedFiles, EcosystemState, stringifyYaml } from "@/lib/studio";
@@ -253,6 +254,33 @@ export default function StudioPage() {
     
     setProjectState(newState);
     setSelectedItem(newId);
+  };
+
+  const handleCloneItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!projectState) return;
+    
+    const newState = { ...projectState };
+    const currentMap = activeView === 'xfoods' ? newState.foods : 
+                     (activeView === 'xcrops' ? newState.crops : newState.machines);
+    
+    const originalEntry = currentMap[id];
+    if (!originalEntry) return;
+
+    let finalId = `${id}_copy`;
+    let counter = 1;
+    while (currentMap[finalId]) {
+        finalId = `${id}_copy_${counter++}`;
+    }
+
+    const newEntry = JSON.parse(JSON.stringify(originalEntry));
+    
+    if (activeView === 'xfoods') newState.foods[finalId] = newEntry;
+    else if (activeView === 'xcrops') newState.crops[finalId] = newEntry;
+    else newState.machines[finalId] = newEntry;
+
+    setProjectState(newState);
+    setSelectedItem(finalId);
   };
 
   const renameSelectedItem = (newId: string) => {
@@ -529,7 +557,16 @@ export default function StudioPage() {
                    {openFolders[folder] !== true && (
                      <div className="space-y-1 pl-4 animate-in slide-in-from-top-1 duration-200">
                         {items.map(id => (
-                            <div key={id} onClick={() => setSelectedItem(id)} className={cn("px-4 py-2.5 rounded-xl text-xs font-medium cursor-pointer transition-all border", selectedItem === id ? "bg-yellow-400/10 border-yellow-400/50 text-white" : "border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5")}>{id}</div>
+                            <div key={id} onClick={() => setSelectedItem(id)} className={cn("px-4 py-2.5 rounded-xl text-xs font-medium cursor-pointer transition-all border flex items-center justify-between group", selectedItem === id ? "bg-yellow-400/10 border-yellow-400/50 text-white" : "border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5")}>
+                                <span className="truncate">{id}</span>
+                                <button 
+                                    onClick={(e) => handleCloneItem(id, e)} 
+                                    className="p-1.5 hover:bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all text-gray-400 hover:text-yellow-400"
+                                    title="Clonar ítem"
+                                >
+                                    <Copy className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
                         ))}
                      </div>
                    )}
