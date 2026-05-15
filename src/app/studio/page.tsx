@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Maximize2,
   Zap,
-  Copy
+  Copy,
+  Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseUploadedFiles, EcosystemState, stringifyYaml } from "@/lib/studio";
@@ -83,6 +84,7 @@ export default function StudioPage() {
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
   const [activePreview, setActivePreview] = useState<'plugin' | 'ia'>('plugin');
+  const [searchTerm, setSearchTerm] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const iaFileInputRef = useRef<HTMLInputElement>(null);
@@ -518,6 +520,7 @@ export default function StudioPage() {
   const currentMap = activeView === 'xfoods' ? projectState.foods : (activeView === 'xcrops' ? projectState.crops : projectState.machines);
   const groupedItems: Record<string, string[]> = {};
   Object.entries(currentMap).forEach(([id, data]) => {
+    if (searchTerm && !id.toLowerCase().includes(searchTerm.toLowerCase())) return;
     const folder = data.folder || "Raíz";
     if (!groupedItems[folder]) groupedItems[folder] = [];
     groupedItems[folder].push(id);
@@ -547,6 +550,16 @@ export default function StudioPage() {
               <button onClick={() => { setActiveView('xcrops'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-black uppercase rounded-lg transition-all flex-shrink-0", activeView === 'xcrops' ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300")}>Cultivos</button>
            </div>
            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
+                <input 
+                    type="text" 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Buscar ítem..." 
+                    className="w-full bg-white/2 border border-[#374151] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none focus:border-yellow-400/30 focus:bg-yellow-400/5 transition-all"
+                />
+              </div>
               <button onClick={handleCreateNew} className="w-full flex items-center gap-3 px-4 py-3 bg-yellow-400/5 border border-yellow-400/20 rounded-xl text-xs font-bold text-yellow-400 hover:bg-yellow-400/10 transition-all"><Plus className="w-4 h-4" /> Crear Nuevo</button>
               {Object.entries(groupedItems).map(([folder, items]) => (
                 <div key={folder} className="space-y-1">
