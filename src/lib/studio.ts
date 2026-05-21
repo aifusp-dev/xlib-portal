@@ -117,10 +117,14 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
         const iaPath = path.split('ItemsAdder/contents/')[1];
         const iaParts = iaPath.split('/');
         if (iaParts.length > 1 && iaParts[1] === 'configs') {
-          state.iaItems[id] = config;
+          const relativeIdPath = iaParts.slice(2).join('/');
+          const fullId = sanitizePath(relativeIdPath.replace(/\.ya?ml$/, ''));
+          state.iaItems[fullId] = config;
         }
       } else if (path.includes(`${state.projectName}/configs/`)) {
-        state.iaItems[id] = config;
+        const relativeIdPath = path.split(`${state.projectName}/configs/`)[1];
+        const fullId = sanitizePath(relativeIdPath.replace(/\.ya?ml$/, ''));
+        state.iaItems[fullId] = config;
       }
     } else if (path.match(/\.(png|json|ogg)$/i)) {
       // Preserve assets from the IA content folder
