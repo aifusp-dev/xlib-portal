@@ -124,7 +124,7 @@ export default function StudioPage() {
             const model = JSON.parse(text);
             if (model.textures) {
                 Object.keys(model.textures).forEach(key => {
-                    let texPath = model.textures[key] as string;
+                    const texPath = model.textures[key] as string;
                     // If it doesn't have a namespace, add it
                     if (!texPath.includes(':')) {
                         // Clean path (remove 'item/' prefix if it's already there to avoid duplication)
@@ -464,6 +464,7 @@ export default function StudioPage() {
     const newState = { ...projectState };
     const machine = newState.machines[selectedItem].config as { recipes: Record<string, Record<string, unknown>> };
     if (!machine.recipes) machine.recipes = {};
+    // eslint-disable-next-line react-hooks/purity
     const rid = `recipe_${Date.now()}`;
     machine.recipes[rid] = { 
         inputs: { i1: { id: "item", amount: 1 } }, 
@@ -482,6 +483,22 @@ export default function StudioPage() {
     const newState = { ...projectState };
     const machineConfig = newState.machines[selectedItem].config as { recipes: Record<string, Record<string, unknown>> };
     delete machineConfig.recipes[recipeId];
+    setProjectState(newState);
+  };
+
+  const handleDuplicateRecipe = (recipeId: string) => {
+    if (!projectState || !selectedItem || activeView !== 'xmachines') return;
+    const newState = { ...projectState };
+    const machineConfig = newState.machines[selectedItem].config as { recipes: Record<string, Record<string, unknown>> };
+    if (!machineConfig.recipes || !machineConfig.recipes[recipeId]) return;
+    
+    const originalRecipe = machineConfig.recipes[recipeId];
+    // eslint-disable-next-line react-hooks/purity
+    const newRid = `recipe_${Date.now()}`;
+    
+    // Deep copy of the recipe
+    machineConfig.recipes[newRid] = JSON.parse(JSON.stringify(originalRecipe));
+    
     setProjectState(newState);
   };
 
@@ -775,9 +792,22 @@ export default function StudioPage() {
                             <div className="grid gap-6">
                                 {Object.entries(currentItem.config.recipes as Record<string, Record<string, unknown>> || {}).map(([rid, rData]) => (
                                     <div key={rid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] p-6 relative group/recipe space-y-4">
-                                        <button onClick={() => handleRemoveRecipe(rid)} className="absolute top-4 right-4 text-gray-600 hover:text-red-500 opacity-0 group-hover/recipe:opacity-100 transition-all">
-                                            <Trash2 className="w-4 h-4"/>
-                                        </button>
+                                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover/recipe:opacity-100 transition-all">
+                                            <button 
+                                                onClick={() => handleDuplicateRecipe(rid)} 
+                                                title="Duplicar Receta"
+                                                className="text-gray-600 hover:text-yellow-400 transition-colors"
+                                            >
+                                                <Copy className="w-4 h-4"/>
+                                            </button>
+                                            <button 
+                                                onClick={() => handleRemoveRecipe(rid)} 
+                                                title="Eliminar Receta"
+                                                className="text-gray-600 hover:text-red-500 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4"/>
+                                            </button>
+                                        </div>
                                         
                                         <div className="grid grid-cols-2 gap-6">
                                             {/* Inputs Section */}
