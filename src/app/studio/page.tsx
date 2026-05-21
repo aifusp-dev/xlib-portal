@@ -83,6 +83,7 @@ const VisualPreview = ({ mcPath, rawFiles }: { mcPath: string | null, rawFiles: 
 
     useEffect(() => {
         if (!mcPath) {
+            // eslint-disable-next-line react-hooks/exhaustive-deps
             setUrl(null);
             return;
         }
