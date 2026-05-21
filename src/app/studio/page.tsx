@@ -816,11 +816,23 @@ export default function StudioPage() {
                                                     <label className="text-[9px] font-bold text-gray-500 uppercase">Entradas (Inputs)</label>
                                                     <button 
                                                         onClick={() => {
+                                                            if (!projectState || !selectedItem) return;
                                                             const newState = { ...projectState };
-                                                            const recipe = (newState.machines[selectedItem].config.recipes as Record<string, Record<string, unknown>>)[rid];
-                                                            const inputId = `i${Object.keys((recipe.inputs as Record<string, unknown>) || {}).length + 1}`;
-                                                            if (!recipe.inputs) recipe.inputs = {};
-                                                            (recipe.inputs as Record<string, unknown>)[inputId] = { id: "item_id", amount: 1 };
+                                                            const machine = { ...newState.machines[selectedItem] };
+                                                            const config = { ...machine.config as Record<string, any> };
+                                                            const recipes = { ...config.recipes as Record<string, any> };
+                                                            const recipe = { ...recipes[rid] as Record<string, any> };
+                                                            const inputs = { ...recipe.inputs as Record<string, any> || {} };
+                                                            
+                                                            const inputId = `i${Object.keys(inputs).length + 1}`;
+                                                            inputs[inputId] = { id: "item_id", amount: 1 };
+                                                            
+                                                            recipe.inputs = inputs;
+                                                            recipes[rid] = recipe;
+                                                            config.recipes = recipes;
+                                                            machine.config = config;
+                                                            newState.machines[selectedItem] = machine;
+                                                            
                                                             setProjectState(newState);
                                                         }}
                                                         className="text-[8px] font-bold bg-white/5 hover:bg-white/10 px-2 py-1 rounded"
@@ -846,8 +858,22 @@ export default function StudioPage() {
                                                             />
                                                             <button 
                                                                 onClick={() => {
+                                                                    if (!projectState || !selectedItem) return;
                                                                     const newState = { ...projectState };
-                                                                    delete ((newState.machines[selectedItem].config.recipes as Record<string, Record<string, unknown>>)[rid].inputs as Record<string, unknown>)[inputId];
+                                                                    const machine = { ...newState.machines[selectedItem] };
+                                                                    const config = { ...machine.config as Record<string, any> };
+                                                                    const recipes = { ...config.recipes as Record<string, any> };
+                                                                    const recipe = { ...recipes[rid] as Record<string, any> };
+                                                                    const inputs = { ...recipe.inputs as Record<string, any> };
+                                                                    
+                                                                    delete inputs[inputId];
+                                                                    
+                                                                    recipe.inputs = inputs;
+                                                                    recipes[rid] = recipe;
+                                                                    config.recipes = recipes;
+                                                                    machine.config = config;
+                                                                    newState.machines[selectedItem] = machine;
+                                                                    
                                                                     setProjectState(newState);
                                                                 }}
                                                                 className="text-gray-600 hover:text-red-400"
