@@ -1284,7 +1284,8 @@ export default function StudioPage() {
                                             return f.inferredPath.includes(`/${cleanId}.`) || 
                                                    (f.inferredPath.includes(`/item/${sub}/`) && f.inferredPath.includes(`/${cleanId}_`));
                                         })
-                                        .slice(-5) // Show last 5 relevant files                                        .map((file, idx) => (
+                                        .slice(-5) // Show last 5 relevant files
+                                        .map((file, idx) => (
                                             <div key={idx} className="flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5">
                                                 <div className="flex items-center gap-2">
                                                     <FileCode className={cn("w-3 h-3", file.name.endsWith('.json') ? "text-blue-400" : "text-green-400")} />
