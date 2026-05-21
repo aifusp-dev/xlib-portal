@@ -78,31 +78,101 @@ const AutocompleteInput = ({ value, onChange, options, placeholder, className }:
     );
 };
 
+import { Model3DViewer } from "@/components/Model3DViewer";
+
 const VisualPreview = ({ mcPath, rawFiles }: { mcPath: string | null, rawFiles: StudioFile[] }) => {
     const [url, setUrl] = useState<string | null>(null);
+    const [is3D, setIs3D] = useState(false);
+    const [modelData, setModelData] = useState<Record<string, unknown> | null>(null);
+    const [textureUrls, setTextureUrls] = useState<Record<string, string>>({});
 
     useEffect(() => {
         let currentUrl: string | null = null;
+        const objectUrls: string[] = [];
+        let isCurrent3D = false;
+        let currentModel: Record<string, unknown> | null = null;
+        let currentTextures: Record<string, string> = {};
         
-        if (mcPath) {
-            const [ns, path] = mcPath.includes(':') ? mcPath.split(':') : ['minecraft', mcPath];
-            const target = `resource_pack/assets/${ns}/textures/${path}.png`;
-            const file = rawFiles.find(f => f.inferredPath.endsWith(target));
-            
-            if (file) {
-                currentUrl = URL.createObjectURL(new Blob([file.content]));
+        const cleanup = () => {
+            if (currentUrl) URL.revokeObjectURL(currentUrl);
+            objectUrls.forEach(u => URL.revokeObjectURL(u));
+        };
+
+        const updateState = () => {
+            queueMicrotask(() => {
+                setUrl(currentUrl);
+                setIs3D(isCurrent3D);
+                setModelData(currentModel);
+                setTextureUrls(currentTextures);
+            });
+        };
+
+        if (!mcPath) {
+            currentUrl = null;
+            isCurrent3D = false;
+            currentModel = null;
+            currentTextures = {};
+            updateState();
+            return cleanup;
+        }
+
+        const [ns, path] = mcPath.includes(':') ? mcPath.split(':') : ['minecraft', mcPath];
+        
+        // 1. CHECK IF IT'S A MODEL
+        const targetModel = `resource_pack/assets/${ns}/models/${path}.json`;
+        const modelFile = rawFiles.find(f => f.inferredPath.endsWith(targetModel));
+
+        if (modelFile) {
+            try {
+                const model = JSON.parse(new TextDecoder().decode(modelFile.content as ArrayBuffer)) as Record<string, unknown>;
+                if (model.elements) {
+                    isCurrent3D = true;
+                    currentModel = model;
+                    
+                    // Resolve textures
+                    if (model.textures) {
+                        Object.entries(model.textures as Record<string, string>).forEach(([key, texPath]) => {
+                            const [tNs, tP] = (texPath as string).includes(':') ? (texPath as string).split(':') : [ns, texPath];
+                            const cleanTP = (tP as string).startsWith('item/') ? tP : `item/${tP}`;
+                            const targetTex = `resource_pack/assets/${tNs}/textures/${cleanTP}.png`;
+                            const texFile = rawFiles.find(f => f.inferredPath.endsWith(targetTex));
+                            if (texFile) {
+                                const u = URL.createObjectURL(new Blob([texFile.content]));
+                                currentTextures[key] = u;
+                                objectUrls.push(u);
+                            }
+                        });
+                    }
+                    updateState();
+                    return cleanup;
+                }
+            } catch(e) {
+                console.error("3D Load failed", e);
             }
         }
 
-        const timeout = setTimeout(() => {
-            setUrl(currentUrl);
-        }, 0);
+        // 2. FALLBACK TO 2D TEXTURE
+        isCurrent3D = false;
+        const cleanP = path.startsWith('item/') ? path : `item/${path}`;
+        const targetTex = `resource_pack/assets/${ns}/textures/${cleanP}.png`;
+        const file = rawFiles.find(f => f.inferredPath.endsWith(targetTex));
+        
+        if (file) {
+            currentUrl = URL.createObjectURL(new Blob([file.content]));
+        }
 
-        return () => {
-            clearTimeout(timeout);
-            if (currentUrl) URL.revokeObjectURL(currentUrl);
-        };
+        updateState();
+
+        return cleanup;
     }, [mcPath, rawFiles]);
+
+    if (is3D && modelData) {
+        return (
+            <div className="w-32 h-32 bg-black/40 rounded-2xl flex items-center justify-center border border-white/10 shrink-0 overflow-hidden shadow-inner cursor-grab active:cursor-grabbing">
+                <Model3DViewer model={modelData} textureUrls={textureUrls} />
+            </div>
+        );
+    }
 
     if (!url) return <div className="w-32 h-32 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 shrink-0"><Package className="w-8 h-8 text-gray-700" /></div>;
     
