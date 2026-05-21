@@ -133,7 +133,6 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
     
     if (path.endsWith('.yml') || path.endsWith('.yaml')) {
       const content = await file.text();
-      const id = file.name.replace(/\.ya?ml$/, '');
 
       const loadedConfig = yaml.load(content);
       const config = (loadedConfig && typeof loadedConfig === 'object') ? (loadedConfig as Record<string, unknown>) : {};
