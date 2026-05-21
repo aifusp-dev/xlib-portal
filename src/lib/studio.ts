@@ -42,12 +42,52 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
     zip.file(`ItemsAdder/contents/${ns}/configs/${id}.yml`, stringifyYaml(data));
   });
 
-  // 5. Pack original raw files (textures/models)
+  // 5. Pack original raw files (textures/models) with final JSON remapping
   state.rawFiles.forEach(file => {
-    // These paths are already prepared to be under contents/[projectName]/
-    // We remove the 'plugins/' prefix if it exists in the inferredPath
     const cleanPath = file.inferredPath.replace(/^plugins\//, '');
-    zip.file(cleanPath, file.content as string | ArrayBuffer | Blob);
+    let finalContent: string | ArrayBuffer | Blob = file.content;
+
+    // IF JSON model, perform final texture remapping to ensure 100% correctness
+    if (file.name.endsWith('.json')) {
+      try {
+        const text = new TextDecoder().decode(file.content as ArrayBuffer);
+        const model = JSON.parse(text);
+        
+        if (model.textures) {
+          Object.keys(model.textures).forEach(key => {
+            const texPath = model.textures[key] as string;
+            // Only remap if it's our project or has no namespace
+            if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
+              // Extract just the filename and sanitize it
+              const fileName = sanitizePath(texPath.split('/').pop() || texPath);
+              
+              // Find where this texture actually is in our project
+              const actualTexFile = state.rawFiles.find(f => 
+                f.name.toLowerCase() === `${fileName}.png` || 
+                f.name.toLowerCase() === fileName
+              );
+
+              if (actualTexFile) {
+                // Extract subfolder from actual file path
+                const parts = actualTexFile.inferredPath.split('/');
+                const assetsIdx = parts.indexOf('assets');
+                if (assetsIdx !== -1 && parts.length > assetsIdx + 4) {
+                   const actualSubfolder = parts.slice(assetsIdx + 3, -1).join('/'); // item/subfolder
+                   model.textures[key] = `${ns}:${actualSubfolder}/${fileName}`;
+                } else {
+                   model.textures[key] = `${ns}:item/food/${fileName}`;
+                }
+              }
+            }
+          });
+          finalContent = new TextEncoder().encode(JSON.stringify(model, null, 2)).buffer;
+        }
+      } catch (e) {
+        console.error("Failed final remapping for", file.name, e);
+      }
+    }
+
+    zip.file(cleanPath, finalContent);
   });
   
   return await zip.generateAsync({ type: 'blob' });
