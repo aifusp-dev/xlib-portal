@@ -23,20 +23,17 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   
   // 1. Pack xFoods
   Object.entries(state.foods).forEach(([id, data]) => {
-    const folder = data.folder ? `${data.folder}/` : '';
-    zip.file(`xFoods/foods/${folder}${id}.yml`, stringifyYaml(data.config));
+    zip.file(`xFoods/foods/${id}.yml`, stringifyYaml(data.config));
   });
 
   // 2. Pack xCrops
   Object.entries(state.crops).forEach(([id, data]) => {
-    const folder = data.folder ? `${data.folder}/` : '';
-    zip.file(`xFoodsCrops/species/${folder}${id}.yml`, stringifyYaml(data.config));
+    zip.file(`xFoodsCrops/species/${id}.yml`, stringifyYaml(data.config));
   });
 
   // 3. Pack Machines
   Object.entries(state.machines).forEach(([id, data]) => {
-    const folder = data.folder ? `${data.folder}/` : '';
-    zip.file(`xFoods/machines/${folder}${id}.yml`, stringifyYaml(data.config));
+    zip.file(`xFoods/machines/${id}.yml`, stringifyYaml(data.config));
   });
 
   // 4. Pack ItemsAdder (MODULAR STRUCTURE)
@@ -102,14 +99,20 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
       const config = (loadedConfig && typeof loadedConfig === 'object') ? (loadedConfig as Record<string, unknown>) : {};
 
       if (path.includes('xFoods/foods/')) {
-        const folderPath = path.split('xFoods/foods/')[1].split('/').slice(0, -1).join('/');
-        state.foods[id] = { config, folder: folderPath };
+        const relativePath = path.split('xFoods/foods/')[1];
+        const fullId = relativePath.replace(/\.ya?ml$/, '');
+        const folderPath = fullId.split('/').slice(0, -1).join('/');
+        state.foods[fullId] = { config, folder: folderPath };
       } else if (path.includes('xFoods/machines/')) {
-        const folderPath = path.split('xFoods/machines/')[1].split('/').slice(0, -1).join('/');
-        state.machines[id] = { config, folder: folderPath };
+        const relativePath = path.split('xFoods/machines/')[1];
+        const fullId = relativePath.replace(/\.ya?ml$/, '');
+        const folderPath = fullId.split('/').slice(0, -1).join('/');
+        state.machines[fullId] = { config, folder: folderPath };
       } else if (path.includes('xFoodsCrops/species/')) {
-        const folderPath = path.split('xFoodsCrops/species/')[1].split('/').slice(0, -1).join('/');
-        state.crops[id] = { config, folder: folderPath };
+        const relativePath = path.split('xFoodsCrops/species/')[1];
+        const fullId = relativePath.replace(/\.ya?ml$/, '');
+        const folderPath = fullId.split('/').slice(0, -1).join('/');
+        state.crops[fullId] = { config, folder: folderPath };
       } else if (path.includes('ItemsAdder/contents/')) {
         const iaPath = path.split('ItemsAdder/contents/')[1];
         const iaParts = iaPath.split('/');
