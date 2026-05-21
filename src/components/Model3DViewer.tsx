@@ -89,7 +89,7 @@ export const Model3DViewer = ({ model, textureUrls }: { model: MCModel, textureU
             <Canvas camera={{ position: [2, 2, 2], fov: 45 }} gl={{ antialias: false }}>
                 <ambientLight intensity={1.5} />
                 <pointLight position={[10, 10, 10]} intensity={1} />
-                <Stage environment="city" intensity={0.5} contactShadow={false}>
+                <Stage environment="city" intensity={0.5} shadows={false}>
                     <Center>
                         <group>
                             {model.elements.map((el, i) => (
