@@ -273,10 +273,10 @@ export default function StudioPage() {
     const originalEntry = currentMap[id];
     if (!originalEntry) return;
 
-    let finalId = `${id}_copy`;
+    let finalId = sanitizePath(`${id}_copy`);
     let counter = 1;
     while (currentMap[finalId]) {
-        finalId = `${id}_copy_${counter++}`;
+        finalId = sanitizePath(`${id}_copy_${counter++}`);
     }
 
     const newEntry = JSON.parse(JSON.stringify(originalEntry));
