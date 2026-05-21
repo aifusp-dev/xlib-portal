@@ -204,7 +204,7 @@ export default function StudioPage() {
     const newState = { ...projectState };
 
     if (activeView === 'xfoods') {
-      newId = `nueva_comida_${timestamp}`;
+      newId = sanitizePath(`nueva_comida_${timestamp}`);
       newState.foods[newId] = {
         config: {
             "display-name": "&eNueva Comida",
@@ -219,7 +219,7 @@ export default function StudioPage() {
         folder: ""
       };
     } else if (activeView === 'xcrops') {
-      newId = `nuevo_cultivo_${timestamp}`;
+      newId = sanitizePath(`nuevo_cultivo_${timestamp}`);
       newState.crops[newId] = {
         config: {
             "display-name": "Nuevo Cultivo",
@@ -238,7 +238,7 @@ export default function StudioPage() {
         folder: ""
       };
     } else {
-      newId = `nueva_maquina_${timestamp}`;
+      newId = sanitizePath(`nueva_maquina_${timestamp}`);
       newState.machines[newId] = {
         config: {
             "display-name": "&6Nueva Estación de Cocina",
@@ -291,19 +291,40 @@ export default function StudioPage() {
 
   const renameSelectedItem = (newId: string) => {
     if (!projectState || !selectedItem || !newId || newId === selectedItem) return;
+    const sanitizedId = sanitizePath(newId);
+    if (sanitizedId === selectedItem) return;
+
     const newState = { ...projectState };
     let targetMap: Record<string, { config: Record<string, unknown>, folder?: string }>;
     if (activeView === 'xfoods') targetMap = newState.foods;
     else if (activeView === 'xcrops') targetMap = newState.crops;
     else targetMap = newState.machines;
     
-    if (targetMap[newId]) return;
+    if (targetMap[sanitizedId]) return;
 
-    targetMap[newId] = { ...targetMap[selectedItem] };
+    targetMap[sanitizedId] = { ...targetMap[selectedItem] };
     delete targetMap[selectedItem];
+
+    // Rename in IA items if exists
+    if (newState.iaItems[selectedItem]) {
+        newState.iaItems[sanitizedId] = newState.iaItems[selectedItem];
+        delete newState.iaItems[selectedItem];
+        
+        // Update itemsadder-id in config
+        const item = targetMap[sanitizedId].config;
+        const target = activeView === 'xfoods' ? item.item : item.seed;
+        if (target) (target as Record<string, unknown>)['itemsadder-id'] = `${newState.projectName}:${sanitizedId}`;
+        
+        // Update key in iaItems.items
+        const iaData = newState.iaItems[sanitizedId];
+        if (iaData.items && (iaData.items as Record<string, unknown>)[selectedItem]) {
+            (iaData.items as Record<string, unknown>)[sanitizedId] = (iaData.items as Record<string, unknown>)[selectedItem];
+            delete (iaData.items as Record<string, unknown>)[selectedItem];
+        }
+    }
     
     setProjectState(newState);
-    setSelectedItem(newId);
+    setSelectedItem(sanitizedId);
   };
 
   const updateItemField = (path: string, value: unknown) => {
@@ -1257,9 +1278,13 @@ export default function StudioPage() {
                                 <label className="text-[9px] font-bold text-gray-500 uppercase px-1">Archivos Vinculados</label>
                                 <div className="grid gap-2">
                                     {projectState.rawFiles
-                                        .filter(f => f.inferredPath.includes(`/${selectedItem}.`) || f.inferredPath.includes(`/${activeView === 'xfoods' ? 'food' : 'crops'}/`))
-                                        .slice(-5) // Show last 5 relevant files
-                                        .map((file, idx) => (
+                                        .filter(f => {
+                                            const cleanId = sanitizePath(selectedItem);
+                                            const sub = activeView === 'xfoods' ? 'food' : 'crops';
+                                            return f.inferredPath.includes(`/${cleanId}.`) || 
+                                                   (f.inferredPath.includes(`/item/${sub}/`) && f.inferredPath.includes(`/${cleanId}_`));
+                                        })
+                                        .slice(-5) // Show last 5 relevant files                                        .map((file, idx) => (
                                             <div key={idx} className="flex items-center justify-between bg-white/5 p-2 rounded-lg border border-white/5">
                                                 <div className="flex items-center gap-2">
                                                     <FileCode className={cn("w-3 h-3", file.name.endsWith('.json') ? "text-blue-400" : "text-green-400")} />
