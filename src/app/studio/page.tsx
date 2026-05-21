@@ -82,21 +82,26 @@ const VisualPreview = ({ mcPath, rawFiles }: { mcPath: string | null, rawFiles: 
     const [url, setUrl] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!mcPath) {
-            // eslint-disable-next-line react-hooks/exhaustive-deps
-            setUrl(null);
-            return;
-        }
-        const [ns, path] = mcPath.includes(':') ? mcPath.split(':') : ['minecraft', mcPath];
-        const target = `resource_pack/assets/${ns}/textures/${path}.png`;
-        const file = rawFiles.find(f => f.inferredPath.endsWith(target));
+        let currentUrl: string | null = null;
         
-        if (file) {
-            const newUrl = URL.createObjectURL(new Blob([file.content]));
-            setUrl(newUrl);
-            return () => URL.revokeObjectURL(newUrl);
+        if (mcPath) {
+            const [ns, path] = mcPath.includes(':') ? mcPath.split(':') : ['minecraft', mcPath];
+            const target = `resource_pack/assets/${ns}/textures/${path}.png`;
+            const file = rawFiles.find(f => f.inferredPath.endsWith(target));
+            
+            if (file) {
+                currentUrl = URL.createObjectURL(new Blob([file.content]));
+            }
         }
-        setUrl(null);
+
+        const timeout = setTimeout(() => {
+            setUrl(currentUrl);
+        }, 0);
+
+        return () => {
+            clearTimeout(timeout);
+            if (currentUrl) URL.revokeObjectURL(currentUrl);
+        };
     }, [mcPath, rawFiles]);
 
     if (!url) return <div className="w-32 h-32 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 shrink-0"><Package className="w-8 h-8 text-gray-700" /></div>;
@@ -913,10 +918,10 @@ export default function StudioPage() {
                                                             if (!projectState || !selectedItem) return;
                                                             const newState = { ...projectState };
                                                             const machine = { ...newState.machines[selectedItem] };
-                                                            const config = { ...machine.config as Record<string, any> };
-                                                            const recipes = { ...config.recipes as Record<string, any> };
-                                                            const recipe = { ...recipes[rid] as Record<string, any> };
-                                                            const inputs = { ...recipe.inputs as Record<string, any> || {} };
+                                                            const config = { ...machine.config as Record<string, unknown> };
+                                                            const recipes = { ...config.recipes as Record<string, unknown> };
+                                                            const recipe = { ...recipes[rid] as Record<string, unknown> };
+                                                            const inputs = { ...recipe.inputs as Record<string, unknown> || {} };
                                                             
                                                             const inputId = `i${Object.keys(inputs).length + 1}`;
                                                             inputs[inputId] = { id: "item_id", amount: 1 };
@@ -955,10 +960,10 @@ export default function StudioPage() {
                                                                     if (!projectState || !selectedItem) return;
                                                                     const newState = { ...projectState };
                                                                     const machine = { ...newState.machines[selectedItem] };
-                                                                    const config = { ...machine.config as Record<string, any> };
-                                                                    const recipes = { ...config.recipes as Record<string, any> };
-                                                                    const recipe = { ...recipes[rid] as Record<string, any> };
-                                                                    const inputs = { ...recipe.inputs as Record<string, any> };
+                                                                    const config = { ...machine.config as Record<string, unknown> };
+                                                                    const recipes = { ...config.recipes as Record<string, unknown> };
+                                                                    const recipe = { ...recipes[rid] as Record<string, unknown> };
+                                                                    const inputs = { ...recipe.inputs as Record<string, unknown> };
                                                                     
                                                                     delete inputs[inputId];
                                                                     
@@ -1101,8 +1106,8 @@ export default function StudioPage() {
                                 </div>
 
                                 <div className="space-y-6">
-                                    {Object.entries((currentItem.config.growth as any)?.stages || {}).map(([sid, sData]) => {
-                                        const stageData = (sData as any) || {};
+                                    {Object.entries((currentItem.config.growth as Record<string, unknown>)?.stages as Record<string, unknown> || {}).map(([sid, sData]) => {
+                                        const stageData = (sData as Record<string, unknown>) || {};
                                         return (
                                         <div key={sid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden">
                                             <div className="bg-white/5 px-6 py-3 flex justify-between items-center border-b border-white/5">
@@ -1166,7 +1171,8 @@ export default function StudioPage() {
                                                         </button>
                                                     </div>
                                                     <div className="grid gap-3">
-                                                        {Object.entries((stageData.requirements && typeof stageData.requirements === 'object' ? stageData.requirements : {}) as Record<string, any>).map(([reqId, req]: [string, any]) => {
+                                                        {Object.entries((stageData.requirements && typeof stageData.requirements === 'object' ? stageData.requirements : {}) as Record<string, unknown>).map(([reqId, r]) => {
+                                                            const req = r as Record<string, unknown>;
                                                             if (!req || typeof req !== 'object') return null;
                                                             return (
                                                             <div key={reqId} className="bg-black/20 rounded-xl p-4 border border-white/5 relative group/req">
@@ -1204,8 +1210,8 @@ export default function StudioPage() {
                                                                         <label className="text-[8px] font-bold text-gray-600 uppercase">{req.type === 'LIGHT' ? 'Luz Mín/Máx' : 'Valor NBT'}</label>
                                                                         {req.type === 'LIGHT' ? (
                                                                             <div className="flex gap-1">
-                                                                                <input type="number" value={(req.light as any)?.min ?? 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.min`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
-                                                                                <input type="number" value={(req.light as any)?.max ?? 15} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.max`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                                <input type="number" value={(req.light as Record<string, number>)?.min ?? 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.min`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
+                                                                                <input type="number" value={(req.light as Record<string, number>)?.max ?? 15} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.max`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
                                                                             </div>
                                                                         ) : (
                                                                             <input type="text" value={req.nbt as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.nbt`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
@@ -1237,11 +1243,11 @@ export default function StudioPage() {
                             <div className="grid grid-cols-2 gap-6 pt-6 border-t border-[#374151]">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Título del Holograma</label>
-                                    <input type="text" value={(currentItem.config.visuals as any)?.['hologram-title'] || ''} onChange={(e) => updateItemField('config.visuals.hologram-title', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <input type="text" value={(currentItem.config.visuals as Record<string, unknown>)?.['hologram-title'] as string || ''} onChange={(e) => updateItemField('config.visuals.hologram-title', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Identificador Semilla (NBT)</label>
-                                    <input type="text" value={(currentItem.config.requirements && typeof currentItem.config.requirements === 'object' ? (currentItem.config.requirements as any)['seed-nbt'] : '') || ''} onChange={(e) => updateItemField('config.requirements.seed-nbt', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <input type="text" value={(currentItem.config.requirements && typeof currentItem.config.requirements === 'object' ? (currentItem.config.requirements as Record<string, unknown>)['seed-nbt'] as string : '') || ''} onChange={(e) => updateItemField('config.requirements.seed-nbt', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                 </div>
                             </div>
 
@@ -1251,7 +1257,7 @@ export default function StudioPage() {
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">xFoods ID Recompensa</label>
                                         <AutocompleteInput 
-                                            value={(currentItem.config.harvest as any)?.['xfoods-id'] || ''} 
+                                            value={(currentItem.config.harvest as Record<string, unknown>)?.['xfoods-id'] as string || ''} 
                                             onChange={(val) => updateItemField('config.harvest.xfoods-id', val)}
                                             options={Object.keys(projectState.foods)}
                                             placeholder="ej: tomate_raw"
@@ -1259,16 +1265,16 @@ export default function StudioPage() {
                                         />
                                     </div>                                    <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Cantidad</label>
-                                        <input type="number" value={(currentItem.config.harvest as any)?.amount || 1} onChange={(e) => updateItemField('config.harvest.amount', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                        <input type="number" value={(currentItem.config.harvest as Record<string, unknown>)?.amount as number || 1} onChange={(e) => updateItemField('config.harvest.amount', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Tiempo Marchitado (ms)</label>
-                                        <input type="number" value={(currentItem.config.growth as any)?.['wither-time'] || 2400000} onChange={(e) => updateItemField('config.growth.wither-time', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                        <input type="number" value={(currentItem.config.growth as Record<string, unknown>)?.['wither-time'] as number || 2400000} onChange={(e) => updateItemField('config.growth.wither-time', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Mensaje de Cosecha</label>
-                                    <input type="text" value={(currentItem.config.harvest as any)?.message || ''} onChange={(e) => updateItemField('config.harvest.message', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <input type="text" value={(currentItem.config.harvest as Record<string, unknown>)?.message as string || ''} onChange={(e) => updateItemField('config.harvest.message', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                 </div>
                             </div>
                         </div>

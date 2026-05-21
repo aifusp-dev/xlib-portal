@@ -6,14 +6,13 @@ import {
   Terminal, 
   PlayCircle,
   Database,
-  UserCircle,
   CheckCircle2,
   AlertCircle,
   Code2,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Zap
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface Command {
   cmd: string;
