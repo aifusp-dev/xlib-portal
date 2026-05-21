@@ -73,7 +73,7 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
     // Priority: Find ItemsAdder namespace
     const iaIdx = parts.indexOf('ItemsAdder');
     if (iaIdx !== -1 && parts[iaIdx + 1] === 'contents' && parts[iaIdx + 2]) {
-      state.projectName = parts[iaIdx + 2];
+      state.projectName = sanitizePath(parts[iaIdx + 2]);
       break;
     }
 
@@ -81,7 +81,7 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
     if (parts.length > 1) {
       const topFolder = parts[0];
       if (!['xFoods', 'xFoodsCrops', 'plugins', 'ItemsAdder'].includes(topFolder)) {
-        state.projectName = topFolder;
+        state.projectName = sanitizePath(topFolder);
         // Don't break yet, ItemsAdder might be found later and is more reliable
       }
     }
@@ -100,17 +100,17 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
 
       if (path.includes('xFoods/foods/')) {
         const relativePath = path.split('xFoods/foods/')[1];
-        const fullId = relativePath.replace(/\.ya?ml$/, '');
+        const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
         const folderPath = fullId.split('/').slice(0, -1).join('/');
         state.foods[fullId] = { config, folder: folderPath };
       } else if (path.includes('xFoods/machines/')) {
         const relativePath = path.split('xFoods/machines/')[1];
-        const fullId = relativePath.replace(/\.ya?ml$/, '');
+        const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
         const folderPath = fullId.split('/').slice(0, -1).join('/');
         state.machines[fullId] = { config, folder: folderPath };
       } else if (path.includes('xFoodsCrops/species/')) {
         const relativePath = path.split('xFoodsCrops/species/')[1];
-        const fullId = relativePath.replace(/\.ya?ml$/, '');
+        const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
         const folderPath = fullId.split('/').slice(0, -1).join('/');
         state.crops[fullId] = { config, folder: folderPath };
       } else if (path.includes('ItemsAdder/contents/')) {
@@ -128,37 +128,28 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
         const buffer = await file.arrayBuffer();
         const iaPath = path.split('ItemsAdder/contents/')[1];
         const iaParts = iaPath.split('/');
-        const ns = iaParts[0];
-        const relativeToNamespace = iaParts.slice(1).join('/');
+        const ns = sanitizePath(iaParts[0]);
+        const relativeToNamespace = sanitizePath(iaParts.slice(1).join('/'));
 
         // Normalize resourcepack -> resource_pack if needed
         const normalizedPath = relativeToNamespace.replace(/^resourcepack\//, 'resource_pack/');
 
         state.rawFiles.push({
-          name: file.name,
+          name: sanitizePath(file.name),
           content: buffer,
           type: 'raw',
           inferredPath: `plugins/ItemsAdder/contents/${ns}/${normalizedPath}`
         });
-      } else if (path.includes(`${state.projectName}/resourcepack/`)) {
+      } else if (path.includes(`${state.projectName}/resourcepack/`) || path.includes(`${state.projectName}/resource_pack/`)) {
         const buffer = await file.arrayBuffer();
-        const relativeToNamespace = path.split(`${state.projectName}/`)[1];
-        const normalizedPath = relativeToNamespace.replace(/^resourcepack\//, 'resource_pack/');
+        const isLegacy = path.includes('/resourcepack/');
+        const relativeToNamespace = sanitizePath(path.split(isLegacy ? '/resourcepack/' : '/resource_pack/')[1]);
         
         state.rawFiles.push({
-          name: file.name,
+          name: sanitizePath(file.name),
           content: buffer,
           type: 'raw',
-          inferredPath: `plugins/ItemsAdder/contents/${state.projectName}/${normalizedPath}`
-        });
-      } else if (path.includes(`${state.projectName}/resource_pack/`)) {
-        const buffer = await file.arrayBuffer();
-        const relativeToNamespace = path.split(`${state.projectName}/`)[1];
-        state.rawFiles.push({
-          name: file.name,
-          content: buffer,
-          type: 'raw',
-          inferredPath: `plugins/ItemsAdder/contents/${state.projectName}/${relativeToNamespace}`
+          inferredPath: `plugins/ItemsAdder/contents/${state.projectName}/resource_pack/${relativeToNamespace}`
         });
       }
     }
@@ -170,3 +161,10 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
 export const stringifyYaml = (obj: Record<string, unknown> | unknown) => {
   return yaml.dump(obj, { indent: 2, lineWidth: -1, noRefs: true });
 };
+
+export const sanitizePath = (path: string) => {
+    return path.toLowerCase()
+               .replace(/\s+/g, '_')
+               .replace(/[^a-z0-9/._:-]/g, '');
+};
+

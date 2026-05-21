@@ -23,7 +23,7 @@ import {
   Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { parseUploadedFiles, EcosystemState, stringifyYaml } from "@/lib/studio";
+import { parseUploadedFiles, EcosystemState, stringifyYaml, sanitizePath } from "@/lib/studio";
 import { exportEcosystem } from "@/lib/export";
 
 interface IAItemConfig {
@@ -101,9 +101,9 @@ export default function StudioPage() {
     if (filesList.length === 0 || !projectState || !selectedItem) return;
     
     const newState = { ...projectState };
-    const ns = projectState.projectName;
+    const ns = sanitizePath(projectState.projectName);
     const itemEntry = activeView === 'xfoods' ? newState.foods[selectedItem] : newState.crops[selectedItem];
-    const subfolder = itemEntry?.folder || (activeView === 'xfoods' ? 'food' : 'crops');
+    const subfolder = sanitizePath(itemEntry?.folder || (activeView === 'xfoods' ? 'food' : 'crops'));
     
     let hasModel = false;
     let modelName = "";
@@ -114,9 +114,11 @@ export default function StudioPage() {
 
       let buffer = await file.arrayBuffer();
       const isJson = ext === 'json';
+      const sanitizedFileName = sanitizePath(file.name);
+
       if (isJson) {
         hasModel = true;
-        modelName = file.name.replace(".json", "");
+        modelName = sanitizedFileName.replace(".json", "");
         
         // --- REMAP JSON TEXTURES ---
         try {
@@ -125,11 +127,13 @@ export default function StudioPage() {
             if (model.textures) {
                 Object.keys(model.textures).forEach(key => {
                     const texPath = model.textures[key] as string;
-                    // If it doesn't have a namespace, add it
-                    if (!texPath.includes(':')) {
-                        // Clean path (remove 'item/' prefix if it's already there to avoid duplication)
-                        const cleanName = texPath.split('/').pop() || texPath;
+                    // If it belongs to our namespace or has no namespace, sanitize it
+                    if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
+                        const cleanName = sanitizePath(texPath.split('/').pop() || texPath);
                         model.textures[key] = `${ns}:item/${subfolder}/${cleanName}`;
+                    } else {
+                        // For other namespaces, at least lowercase and replace spaces
+                        model.textures[key] = sanitizePath(texPath);
                     }
                 });
                 const updatedJson = JSON.stringify(model, null, 2);
@@ -142,10 +146,10 @@ export default function StudioPage() {
 
       // Determine where to put it in the resource pack
       const assetType = isJson ? 'models' : 'textures';
-      const inferredPath = `${assetType}/item/${subfolder}/${file.name}`;
+      const inferredPath = `${assetType}/item/${subfolder}/${sanitizedFileName}`;
 
       newState.rawFiles.push({
-        name: file.name,
+        name: sanitizedFileName,
         content: buffer,
         type: 'raw',
         inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/${inferredPath}`
@@ -168,7 +172,7 @@ export default function StudioPage() {
         // Only switch to texture-based if there isn't a model already configured
         const firstPng = filesList.find(f => f.name.endsWith('.png'));
         if (firstPng) {
-          const texName = firstPng.name.replace(".png", "");
+          const texName = sanitizePath(firstPng.name.replace(".png", ""));
           iaItem.resource = { 
             generate: true, 
             textures: [`${ns}:item/${subfolder}/${texName}`] 
