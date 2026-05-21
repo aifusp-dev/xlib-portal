@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { 
   Upload, 
   FileCode, 
@@ -23,7 +23,7 @@ import {
   Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { parseUploadedFiles, EcosystemState, stringifyYaml, sanitizePath } from "@/lib/studio";
+import { parseUploadedFiles, EcosystemState, stringifyYaml, sanitizePath, StudioFile } from "@/lib/studio";
 import { exportEcosystem } from "@/lib/export";
 
 interface IAItemConfig {
@@ -78,6 +78,40 @@ const AutocompleteInput = ({ value, onChange, options, placeholder, className }:
     );
 };
 
+const VisualPreview = ({ mcPath, rawFiles }: { mcPath: string | null, rawFiles: StudioFile[] }) => {
+    const [url, setUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!mcPath) {
+            setUrl(null);
+            return;
+        }
+        const [ns, path] = mcPath.includes(':') ? mcPath.split(':') : ['minecraft', mcPath];
+        const target = `resource_pack/assets/${ns}/textures/${path}.png`;
+        const file = rawFiles.find(f => f.inferredPath.endsWith(target));
+        
+        if (file) {
+            const newUrl = URL.createObjectURL(new Blob([file.content]));
+            setUrl(newUrl);
+            return () => URL.revokeObjectURL(newUrl);
+        }
+        setUrl(null);
+    }, [mcPath, rawFiles]);
+
+    if (!url) return <div className="w-32 h-32 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 shrink-0"><Package className="w-8 h-8 text-gray-700" /></div>;
+    
+    return (
+        <div className="w-32 h-32 bg-black/40 rounded-2xl flex items-center justify-center border border-white/10 shrink-0 overflow-hidden group/preview relative shadow-inner">
+            <img 
+                src={url} 
+                alt="Preview" 
+                className="max-w-[80%] max-h-[80%] object-contain image-pixelated transition-transform group-hover/preview:scale-110 duration-500" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover/preview:opacity-100 transition-opacity" />
+        </div>
+    );
+};
+
 export default function StudioPage() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
   const [activeView, setActiveView] = useState<'xfoods' | 'xcrops' | 'xmachines'>("xfoods");
@@ -86,6 +120,37 @@ export default function StudioPage() {
   const [activePreview, setActivePreview] = useState<'plugin' | 'ia'>('plugin');
   const [searchTerm, setSearchTerm] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const activeTexturePath = useMemo(() => {
+    if (!projectState || !selectedItem) return null;
+    
+    // IA Integration check
+    const iaData = projectState.iaItems[selectedItem];
+    if (iaData && iaData.items) {
+        const iaConfig = (iaData.items as Record<string, IAItemConfig>)[selectedItem];
+        if (iaConfig && iaConfig.resource) {
+            if (iaConfig.resource.generate && iaConfig.resource.textures && iaConfig.resource.textures.length > 0) {
+                return iaConfig.resource.textures[0];
+            } else if (!iaConfig.resource.generate && iaConfig.resource.model_path) {
+                // Find model, then find first texture in model
+                const modelPath = iaConfig.resource.model_path;
+                const [ns, path] = modelPath.includes(':') ? modelPath.split(':') : ['minecraft', modelPath];
+                const targetModel = `resource_pack/assets/${ns}/models/${path}.json`;
+                const modelFile = projectState.rawFiles.find(f => f.inferredPath.endsWith(targetModel));
+                if (modelFile) {
+                    try {
+                        const model = JSON.parse(new TextDecoder().decode(modelFile.content as ArrayBuffer));
+                        if (model.textures) {
+                            const firstTexKey = Object.keys(model.textures)[0];
+                            return model.textures[firstTexKey];
+                        }
+                    } catch(e) {}
+                }
+            }
+        }
+    }
+    return null;
+  }, [projectState, selectedItem, activeView]);
 
   const iaFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -634,9 +699,12 @@ export default function StudioPage() {
            {selectedItem && currentItem ? (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-8 pb-10">
                 <div className="flex justify-between items-start border-b border-[#374151] pb-6">
-                   <div className="space-y-1 flex-1">
-                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">ID Único</label>
-                      <input type="text" value={selectedItem} onChange={(e) => renameSelectedItem(e.target.value)} className="bg-transparent text-2xl font-bold text-yellow-400 focus:outline-none border-b border-transparent focus:border-yellow-400/30 w-full" />
+                   <div className="flex gap-6 items-center flex-1">
+                      <VisualPreview mcPath={activeTexturePath} rawFiles={projectState.rawFiles} />
+                      <div className="space-y-1 flex-1">
+                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">ID Único</label>
+                         <input type="text" value={selectedItem} onChange={(e) => renameSelectedItem(e.target.value)} className="bg-transparent text-2xl font-bold text-yellow-400 focus:outline-none border-b border-transparent focus:border-yellow-400/30 w-full" />
+                      </div>
                    </div>
                    <div className="bg-yellow-400/10 border border-yellow-400/20 px-3 py-1.5 rounded-lg text-[10px] font-bold text-yellow-400 uppercase tracking-widest flex items-center gap-2"><FileCode className="w-3 h-3" /> {activeView.toUpperCase()}</div>
                 </div>
