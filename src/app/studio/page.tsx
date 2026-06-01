@@ -639,7 +639,8 @@ export default function StudioPage() {
         "burn-time": 100,
         "burnt-id": "COAL",
         "use-minigame": false,
-        sounds: { start: "BLOCK_CAMPFIRE_CRACKLE", finish: "ENTITY_PLAYER_LEVELUP" }
+        sounds: { start: "BLOCK_CAMPFIRE_CRACKLE", finish: "ENTITY_PLAYER_LEVELUP" },
+        rpg: { category: "comida", "required-level": 1, "xp-reward": 10 }
     };
     setProjectState(newState);
   };
@@ -1141,6 +1142,44 @@ export default function StudioPage() {
                                                                 className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
                                                                 placeholder="SOUND_ID"
                                                             />
+                                                        </div>
+                                                    </div>
+
+                                                    {/* RPG SECTION */}
+                                                    <div className="mt-4 p-3 bg-purple-500/5 border border-purple-500/10 rounded-xl space-y-3">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <Zap className="w-3 h-3 text-purple-400" />
+                                                            <span className="text-[9px] font-black text-purple-400 uppercase tracking-wider">Sistema RPG</span>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <label className="text-[8px] font-bold text-gray-600 uppercase">Categoría</label>
+                                                            <AutocompleteInput 
+                                                                value={(rData.rpg as Record<string, unknown>)?.category as string || 'comida'} 
+                                                                onChange={(val) => updateItemField(`config.recipes.${rid}.rpg.category`, val)}
+                                                                options={['comida', 'cafeteria', 'quimica']}
+                                                                placeholder="ID Categoría"
+                                                                className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none focus:border-purple-500/30"
+                                                            />
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <div className="space-y-1">
+                                                                <label className="text-[8px] font-bold text-gray-600 uppercase">Nivel Req.</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    value={(rData.rpg as Record<string, number>)?.['required-level'] || 1} 
+                                                                    onChange={(e) => updateItemField(`config.recipes.${rid}.rpg.required-level`, parseInt(e.target.value))}
+                                                                    className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none focus:border-purple-500/30"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-[8px] font-bold text-gray-600 uppercase">Recompensa XP</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    value={(rData.rpg as Record<string, number>)?.['xp-reward'] || 10} 
+                                                                    onChange={(e) => updateItemField(`config.recipes.${rid}.rpg.xp-reward`, parseInt(e.target.value))}
+                                                                    className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none focus:border-purple-500/30"
+                                                                />
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
