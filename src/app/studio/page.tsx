@@ -346,14 +346,31 @@ export default function StudioWorkspace() {
         const id = prompt("ID del objeto ItemsAdder:");
         if (!id || !selectedNamespace) return;
         const sid = sanitizePath(id);
-        const fullKey = `${selectedNamespace}/new_content`;
+        const targetFileId = activeCategory === 'furnitures' ? "created_furnitures" : (activeCategory === 'blocks' ? "created_blocks" : "created_items");
+        const fullKey = `${selectedNamespace}/${targetFileId}`;
         let targetMap: any;
         let keyName = "";
         if (activeCategory === 'items') { targetMap = newState.iaItems; keyName = "items"; }
         else if (activeCategory === 'blocks') { targetMap = newState.iaBlocks; keyName = "blocks"; }
         else { targetMap = newState.iaFurnitures; keyName = "furnitures"; }
+
         if (!targetMap[fullKey]) targetMap[fullKey] = { info: { namespace: selectedNamespace }, [keyName]: {} };
-        targetMap[fullKey][keyName][sid] = { display_name: id, resource: { material: "PAPER", generate: true, textures: [`${selectedNamespace}:item/${sid}`] } };
+        if (!targetMap[fullKey][keyName]) targetMap[fullKey][keyName] = {};
+
+        targetMap[fullKey][keyName][sid] = activeCategory === 'furnitures' ? {
+            display_name: id,
+            resource: { material: "PAPER", generate: true, model_path: `${selectedNamespace}:furniture/${sid}` },
+            specific_properties: {
+                furniture: {
+                    furniture_type: "ARMOR_STAND",
+                    armor_stand: { invisible: true, small: true },
+                    hitbox: { length: 1, width: 1, height: 1 }
+                }
+            }
+        } : { 
+            display_name: id, 
+            resource: { material: "PAPER", generate: true, textures: [`${selectedNamespace}:item/${sid}`] } 
+        };
         setProjectState(newState);
         setSelectedItem(sid);
     } else {
@@ -427,6 +444,62 @@ export default function StudioWorkspace() {
     });
     return groups;
   }, [projectState, activeEditor, searchTerm]);
+
+  const handleIAFileUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
+    if (!e.target.files || !projectState || !selectedItem || !selectedNamespace || !selectedData) return;
+    const filesList = Array.from(e.target.files);
+    const newState = { ...projectState };
+    const ns = selectedNamespace;
+    const subfolder = activeCategory === 'furnitures' ? 'furniture' : (activeCategory === 'blocks' ? 'block' : 'item');
+
+    for (const file of filesList) {
+      if (file.name.endsWith('.png')) {
+        const buffer = await file.arrayBuffer();
+        const sanitizedFileName = sanitizePath(file.name);
+        newState.rawFiles.push({
+          name: sanitizedFileName,
+          content: buffer,
+          type: 'raw',
+          inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/${subfolder}/${sanitizedFileName}`
+        });
+      }
+    }
+
+    for (const file of filesList) {
+      if (file.name.endsWith('.json')) {
+        let buffer = await file.arrayBuffer();
+        const sanitizedFileName = sanitizePath(file.name);
+        const modelName = sanitizedFileName.replace(".json", "");
+        try {
+            const text = new TextDecoder().decode(buffer);
+            const model = JSON.parse(text);
+            if (model.textures) {
+                Object.keys(model.textures).forEach(key => {
+                    const texPath = model.textures[key] as string;
+                    const fileName = sanitizePath(texPath.split('/').pop() || texPath).replace('.png', '');
+                    if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
+                        model.textures[key] = `${ns}:${subfolder}/${fileName}`;
+                    }
+                });
+                buffer = new TextEncoder().encode(JSON.stringify(model, null, 2)).buffer;
+            }
+        } catch (err) { console.error("Error processing JSON model", err); }
+
+        newState.rawFiles.push({
+          name: sanitizedFileName,
+          content: buffer,
+          type: 'raw',
+          inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/models/${subfolder}/${sanitizedFileName}`
+        });
+
+        const pathInConfig = `${activeCategory}.${selectedItem}.resource`;
+        updateField(`${pathInConfig}.model_path`, `${ns}:${subfolder}/${modelName}`, selectedData.fullKey);
+        updateField(`${pathInConfig}.generate`, false, selectedData.fullKey);
+      }
+    }
+    setProjectState(newState);
+    alert(`¡Archivos vinculados!`);
+  };
 
   const isIAEnabled = selectedItem && projectState ? !!projectState.iaItems[`${projectState.projectName}/${selectedItem}`] : false;
 
@@ -611,7 +684,7 @@ export default function StudioWorkspace() {
                             </div>
                         </div>
                         <div className="space-y-6 pt-4 border-t border-[#374151]">
-                             <div className="flex justify-between items-center"><h4 className="text-xs font-black text-green-400 uppercase tracking-widest">Comandos</h4><button onClick={() => { const newState = {...projectState}; const food = newState.foods[selectedItem].config; if(!food.commands) food.commands = []; (food.commands as any).push(""); setProjectState(newState); }} className="text-[10px] font-bold text-green-400">+ AÑADIR</button></div>
+                             <div className="flex justify-between items-center"><h4 className="text-xs font-black text-green-400 uppercase tracking-widest">Comandos</h4><button onClick={() => { const newState = {...projectState}; const food = newState.foods[selectedItem as string].config; if(!food.commands) food.commands = []; (food.commands as any).push(""); setProjectState(newState); }} className="text-[10px] font-bold text-green-400">+ AÑADIR</button></div>
                              <div className="space-y-2">{(Array.isArray(selectedData.config.commands) ? selectedData.config.commands : []).map((cmd: string, idx: number) => (<div key={idx} className="flex gap-2"><input type="text" value={cmd} onChange={(e) => { const newState = {...projectState}; (newState.foods[selectedItem as string].config.commands as any)[idx] = e.target.value; setProjectState(newState); }} className="flex-1 bg-black/20 border border-white/5 rounded-xl px-4 py-2 text-white outline-none" /><button onClick={() => { const newState = {...projectState}; (newState.foods[selectedItem as string].config.commands as any).splice(idx, 1); setProjectState(newState); }} className="text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>))}</div>
                         </div>
                         </>
@@ -627,7 +700,7 @@ export default function StudioWorkspace() {
                     {activeEditor === 'ia' && (
                         <div className="space-y-8">
                             <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6">
-                                <div className="flex justify-between items-center"><h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Recursos</h4><button onClick={() => iaFileInputRef.current?.click()} className="bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border border-yellow-400/20">Inyectar</button><input type="file" ref={iaFileInputRef} onChange={() => {}} className="hidden" accept=".png,.json" multiple /></div>
+                                <div className="flex justify-between items-center"><h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Recursos</h4><button onClick={() => iaFileInputRef.current?.click()} className="bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border border-yellow-400/20">Inyectar</button><input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple /></div>
                                 <div className="space-y-4">
                                     <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ruta Modelo</label><input type="text" value={selectedData.data.resource?.model_path || ''} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.resource.model_path`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none text-xs" /></div>
                                     <label className="flex items-center gap-3 cursor-pointer"><div className="relative"><input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.resource.generate`, e.target.checked, selectedData.fullKey)} className="sr-only" /><div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div><div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div></div><span className="text-[10px] font-black text-gray-500 uppercase">Auto-Gen 2D</span></label>
