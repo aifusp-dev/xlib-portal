@@ -446,8 +446,16 @@ export default function StudioWorkspace() {
   }, [projectState, activeEditor, searchTerm]);
 
   const handleIAFileUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
-    if (!e.target.files || !projectState || !selectedItem || !selectedNamespace || !selectedData) return;
-    const filesList = Array.from(e.target.files);
+    let filesList: File[] = [];
+    if ('dataTransfer' in e) {
+      e.preventDefault();
+      filesList = Array.from(e.dataTransfer.files);
+    } else {
+      filesList = Array.from((e.target as HTMLInputElement).files || []);
+    }
+
+    if (filesList.length === 0 || !projectState || !selectedItem || !selectedNamespace || !selectedData) return;
+    
     const newState = { ...projectState };
     const ns = selectedNamespace;
     const subfolder = activeCategory === 'furnitures' ? 'furniture' : (activeCategory === 'blocks' ? 'block' : 'item');
