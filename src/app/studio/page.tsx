@@ -354,7 +354,16 @@ export default function StudioWorkspace() {
         else if (activeCategory === 'blocks') { targetMap = newState.iaBlocks; keyName = "blocks"; }
         else { targetMap = newState.iaFurnitures; keyName = "furnitures"; }
 
-        if (!targetMap[fullKey]) targetMap[fullKey] = { info: { namespace: selectedNamespace }, [keyName]: {} };
+        // MANDATORY: IA files NEED an "info" section with namespace and type
+        if (!targetMap[fullKey]) {
+            targetMap[fullKey] = { 
+                info: { 
+                    namespace: selectedNamespace,
+                    type: activeCategory.toUpperCase()
+                }, 
+                [keyName]: {} 
+            };
+        }
         if (!targetMap[fullKey][keyName]) targetMap[fullKey][keyName] = {};
 
         targetMap[fullKey][keyName][sid] = activeCategory === 'furnitures' ? {
