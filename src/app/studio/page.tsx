@@ -226,8 +226,11 @@ export default function StudioWorkspace() {
         const buffer = await zipEntry.async('arraybuffer');
         files.push(new File([buffer], path, { type: 'application/octet-stream' }));
     }
-    return await parseUploadedFiles(files);
-  };
+
+    const state = await parseUploadedFiles(files);
+    setProjectState(state);
+    return state;
+    };
 
   useEffect(() => {
     if (!mounted) return;
