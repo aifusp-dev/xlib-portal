@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { generateZIP, parseUploadedFiles, EcosystemState, stringifyYaml, sanitizePath, StudioFile } from "@/lib/studio";
 import { exportEcosystem } from "@/lib/export";
 import SyncModal from "@/components/SyncModal";
+import { Model3DViewer } from "@/components/Model3DViewer";
 
 interface IAItemConfig {
   resource?: {
@@ -51,25 +52,19 @@ const AutocompleteInput = ({ value, onChange, options, placeholder, className }:
             <input 
                 type="text" 
                 value={value} 
-                onChange={(e) => {
-                    onChange(e.target.value);
-                    setIsOpen(true);
-                }}
+                onChange={(e) => onChange(e.target.value)} 
                 onFocus={() => setIsOpen(true)}
                 onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+                className={className} 
                 placeholder={placeholder}
-                className={className}
             />
             {isOpen && filtered.length > 0 && (
-                <div className="absolute z-[100] w-full mt-1 bg-[#1a1f2e] border border-[#374151] rounded-xl shadow-2xl max-h-48 overflow-y-auto scrollbar-hide animate-in fade-in zoom-in-95 duration-200">
+                <div className="absolute z-50 w-full mt-1 bg-[#111827] border border-[#374151] rounded-xl shadow-2xl max-h-40 overflow-y-auto overflow-x-hidden custom-scrollbar">
                     {filtered.map(opt => (
                         <div 
                             key={opt} 
-                            onClick={() => {
-                                onChange(opt);
-                                setIsOpen(false);
-                            }}
-                            className="px-4 py-2.5 hover:bg-yellow-400/10 hover:text-yellow-400 cursor-pointer text-[10px] font-black uppercase tracking-wider border-b border-white/5 last:border-0 transition-colors"
+                            onClick={() => { onChange(opt); setIsOpen(false); }}
+                            className="px-4 py-2 text-[10px] text-gray-300 hover:bg-white/5 cursor-pointer uppercase font-bold"
                         >
                             {opt}
                         </div>
@@ -80,19 +75,17 @@ const AutocompleteInput = ({ value, onChange, options, placeholder, className }:
     );
 };
 
-import { Model3DViewer } from "@/components/Model3DViewer";
-
-const VisualPreview = ({ mcPath, rawFiles }: { mcPath: string | null, rawFiles: StudioFile[] }) => {
+const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null, rawFiles: StudioFile[], namespace: string }) => {
     const [url, setUrl] = useState<string | null>(null);
     const [is3D, setIs3D] = useState(false);
-    const [modelData, setModelData] = useState<Record<string, unknown> | null>(null);
+    const [modelData, setModelData] = useState<any | null>(null);
     const [textureUrls, setTextureUrls] = useState<Record<string, string>>({});
 
     useEffect(() => {
         let currentUrl: string | null = null;
         const objectUrls: string[] = [];
         let isCurrent3D = false;
-        let currentModel: Record<string, unknown> | null = null;
+        let currentModel: any = null;
         let currentTextures: Record<string, string> = {};
         
         const cleanup = () => {
@@ -100,44 +93,26 @@ const VisualPreview = ({ mcPath, rawFiles }: { mcPath: string | null, rawFiles: 
             objectUrls.forEach(u => URL.revokeObjectURL(u));
         };
 
-        const updateState = () => {
-            queueMicrotask(() => {
-                setUrl(currentUrl);
-                setIs3D(isCurrent3D);
-                setModelData(currentModel);
-                setTextureUrls(currentTextures);
-            });
-        };
+        if (!mcPath) return cleanup;
 
-        if (!mcPath) {
-            currentUrl = null;
-            isCurrent3D = false;
-            currentModel = null;
-            currentTextures = {};
-            updateState();
-            return cleanup;
-        }
+        const [ns, path] = mcPath.includes(':') ? mcPath.split(':') : [namespace, mcPath];
 
-        const [ns, path] = mcPath.includes(':') ? mcPath.split(':') : ['minecraft', mcPath];
-        
-        // 1. CHECK IF IT'S A MODEL
+        // 1. TRY LOAD 3D MODEL
         const targetModel = `resource_pack/assets/${ns}/models/${path}.json`;
         const modelFile = rawFiles.find(f => f.inferredPath.endsWith(targetModel));
 
         if (modelFile) {
             try {
-                const model = JSON.parse(new TextDecoder().decode(modelFile.content as ArrayBuffer)) as Record<string, unknown>;
+                const text = new TextDecoder().decode(modelFile.content as ArrayBuffer);
+                const model = JSON.parse(text);
                 if (model.elements) {
                     isCurrent3D = true;
                     currentModel = model;
                     
-                    // Resolve textures
                     if (model.textures) {
-                        Object.entries(model.textures as Record<string, string>).forEach(([key, texPath]) => {
-                            const [tNs, tP] = (texPath as string).includes(':') ? (texPath as string).split(':') : [ns, texPath];
-                            const cleanTP = (tP as string).startsWith('item/') ? tP : `item/${tP}`;
-                            const targetTex = `resource_pack/assets/${tNs}/textures/${cleanTP}.png`;
-                            const texFile = rawFiles.find(f => f.inferredPath.endsWith(targetTex));
+                        Object.entries(model.textures).forEach(([key, texPath]: [string, any]) => {
+                            const [tNs, tP] = texPath.includes(':') ? texPath.split(':') : [ns, texPath];
+                            const texFile = rawFiles.find(f => f.inferredPath.endsWith(`resource_pack/assets/${tNs}/textures/${tP}.png`));
                             if (texFile) {
                                 const u = URL.createObjectURL(new Blob([texFile.content]));
                                 currentTextures[key] = u;
@@ -145,28 +120,28 @@ const VisualPreview = ({ mcPath, rawFiles }: { mcPath: string | null, rawFiles: 
                             }
                         });
                     }
-                    updateState();
-                    return cleanup;
                 }
-            } catch(e) {
+            } catch (e) {
                 console.error("3D Load failed", e);
             }
         }
 
         // 2. FALLBACK TO 2D TEXTURE
-        isCurrent3D = false;
-        const cleanP = path.startsWith('item/') ? path : `item/${path}`;
-        const targetTex = `resource_pack/assets/${ns}/textures/${cleanP}.png`;
-        const file = rawFiles.find(f => f.inferredPath.endsWith(targetTex));
-        
-        if (file) {
-            currentUrl = URL.createObjectURL(new Blob([file.content]));
+        if (!isCurrent3D) {
+            const targetTex = `resource_pack/assets/${ns}/textures/${path}.png`;
+            const file = rawFiles.find(f => f.inferredPath.endsWith(targetTex));
+            if (file) {
+                currentUrl = URL.createObjectURL(new Blob([file.content]));
+            }
         }
 
-        updateState();
+        setIs3D(isCurrent3D);
+        setModelData(currentModel);
+        setTextureUrls(currentTextures);
+        setUrl(currentUrl);
 
         return cleanup;
-    }, [mcPath, rawFiles]);
+    }, [mcPath, rawFiles, namespace]);
 
     if (is3D && modelData) {
         return (
@@ -180,12 +155,7 @@ const VisualPreview = ({ mcPath, rawFiles }: { mcPath: string | null, rawFiles: 
     
     return (
         <div className="w-32 h-32 bg-black/40 rounded-2xl flex items-center justify-center border border-white/10 shrink-0 overflow-hidden group/preview relative shadow-inner">
-            <img 
-                src={url} 
-                alt="Preview" 
-                className="max-w-[80%] max-h-[80%] object-contain image-pixelated transition-transform group-hover/preview:scale-110 duration-500" 
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover/preview:opacity-100 transition-opacity" />
+            <img src={url} alt="Preview" className="max-w-[80%] max-h-[80%] object-contain image-pixelated transition-transform group-hover/preview:scale-110 duration-500" />
         </div>
     );
 };
@@ -197,12 +167,52 @@ export default function StudioPage() {
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
   const [activePreview, setActivePreview] = useState<'plugin' | 'ia'>('plugin');
   const [searchTerm, setSearchTerm] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isAutoImporting, setIsAutoImporting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const iaFileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleSyncToBridge = async () => {
+    if (!projectState) return null;
+    const blob = await generateZIP(projectState);
+    const formData = new FormData();
+    formData.append('file', blob, 'sync.zip');
+
+    const res = await fetch('/api/sync/publish', {
+        method: 'POST',
+        body: formData
+    });
+    const data = await res.json();
+    return data.token;
+  };
+
+  const handleImportFromBridge = async (token: string) => {
+    const res = await fetch(`/api/sync/download/${token}`);
+    if (!res.ok) throw new Error('Token invalid');
+    
+    const blob = await res.blob();
+    const JSZip = (await import('jszip')).default;
+    const zip = await JSZip.loadAsync(blob);
+    const files: File[] = [];
+    
+    for (const [path, zipEntry] of Object.entries(zip.files)) {
+        if (zipEntry.dir) continue;
+        const buffer = await zipEntry.async('arraybuffer');
+        files.push(new File([buffer], path, { type: 'application/octet-stream' }));
+    }
+
+    return await parseUploadedFiles(files);
+  };
 
   // Auto-import from URL
   useEffect(() => {
+    if (!mounted) return;
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     
@@ -226,172 +236,7 @@ export default function StudioPage() {
                 setIsAutoImporting(false);
             });
     }
-  }, [projectState, isAutoImporting]);
-
-  const handleSyncToBridge = async () => {
-    if (!projectState) return null;
-    const blob = await generateZIP(projectState);
-    const formData = new FormData();
-    formData.append('file', blob, 'sync.zip');
-
-    const res = await fetch('/api/sync/publish', {
-        method: 'POST',
-        body: formData
-    });
-    const data = await res.json();
-    return data.token;
-  };
-
-  const handleImportFromBridge = async (token: string) => {
-    const res = await fetch(`/api/sync/download/${token}`);
-    if (!res.ok) throw new Error('Token invalid');
-    
-    const blob = await res.blob();
-    
-    // JSZip to extract and parse
-    const JSZip = (await import('jszip')).default;
-    const zip = await JSZip.loadAsync(blob);
-    const files: File[] = [];
-    
-    for (const [path, zipEntry] of Object.entries(zip.files)) {
-        if (zipEntry.dir) continue;
-        const buffer = await zipEntry.async('arraybuffer');
-        files.push(new File([buffer], path, { type: 'application/octet-stream' }));
-    }
-
-    return await parseUploadedFiles(files);
-  };
-
-  const activeTexturePath = useMemo(() => {
-    if (!projectState || !selectedItem) return null;
-    
-    // IA Integration check
-    const iaData = projectState.iaItems[selectedItem];
-    if (iaData && iaData.items) {
-        const iaConfig = (iaData.items as Record<string, IAItemConfig>)[selectedItem];
-        if (iaConfig && iaConfig.resource) {
-            if (iaConfig.resource.generate && iaConfig.resource.textures && iaConfig.resource.textures.length > 0) {
-                return iaConfig.resource.textures[0];
-            } else if (!iaConfig.resource.generate && iaConfig.resource.model_path) {
-                // Find model, then find first texture in model
-                const modelPath = iaConfig.resource.model_path;
-                const [ns, path] = modelPath.includes(':') ? modelPath.split(':') : ['minecraft', modelPath];
-                const targetModel = `resource_pack/assets/${ns}/models/${path}.json`;
-                const modelFile = projectState.rawFiles.find(f => f.inferredPath.endsWith(targetModel));
-                if (modelFile) {
-                    try {
-                        const model = JSON.parse(new TextDecoder().decode(modelFile.content as ArrayBuffer));
-                        if (model.textures) {
-                            const firstTexKey = Object.keys(model.textures)[0];
-                            return model.textures[firstTexKey];
-                        }
-                    } catch(e) {}
-                }
-            }
-        }
-    }
-    return null;
-  }, [projectState, selectedItem, activeView]);
-
-  const iaFileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleIAFileUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
-    let filesList: File[] = [];
-    if ('dataTransfer' in e) {
-      e.preventDefault();
-      filesList = Array.from(e.dataTransfer.files);
-    } else {
-      filesList = Array.from((e.target as HTMLInputElement).files || []);
-    }
-
-    if (filesList.length === 0 || !projectState || !selectedItem) return;
-    
-    const newState = { ...projectState };
-    const ns = sanitizePath(projectState.projectName);
-    const itemEntry = activeView === 'xfoods' ? newState.foods[selectedItem] : newState.crops[selectedItem];
-    const subfolder = sanitizePath(itemEntry?.folder || (activeView === 'xfoods' ? 'food' : 'crops'));
-    
-    let hasModel = false;
-    let modelName = "";
-
-    for (const file of filesList) {
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      if (ext !== 'png' && ext !== 'json') continue;
-
-      let buffer = await file.arrayBuffer();
-      const isJson = ext === 'json';
-      const sanitizedFileName = sanitizePath(file.name);
-
-      if (isJson) {
-        hasModel = true;
-        modelName = sanitizedFileName.replace(".json", "");
-        
-        // --- REMAP JSON TEXTURES ---
-        try {
-            const text = new TextDecoder().decode(buffer);
-            const model = JSON.parse(text);
-            if (model.textures) {
-                Object.keys(model.textures).forEach(key => {
-                    const texPath = model.textures[key] as string;
-                    // If it belongs to our namespace or has no namespace, sanitize it
-                    if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
-                        const cleanName = sanitizePath(texPath.split('/').pop() || texPath);
-                        model.textures[key] = `${ns}:item/${subfolder}/${cleanName}`;
-                    } else {
-                        // For other namespaces, at least lowercase and replace spaces
-                        model.textures[key] = sanitizePath(texPath);
-                    }
-                });
-                const updatedJson = JSON.stringify(model, null, 2);
-                buffer = new TextEncoder().encode(updatedJson).buffer;
-            }
-        } catch (err) {
-            console.error("Error processing JSON model", err);
-        }
-      }
-
-      // Determine where to put it in the resource pack
-      const assetType = isJson ? 'models' : 'textures';
-      const inferredPath = `${assetType}/item/${subfolder}/${sanitizedFileName}`;
-
-      newState.rawFiles.push({
-        name: sanitizedFileName,
-        content: buffer,
-        type: 'raw',
-        inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/${inferredPath}`
-      });
-    }
-
-    // Update IA Config based on what was uploaded
-    if (newState.iaItems[selectedItem]) {
-      const iaItem = (newState.iaItems[selectedItem].items as Record<string, IAItemConfig>)[selectedItem];
-      const currentResource = iaItem.resource || {};
-      const alreadyHasModel = !!currentResource.model_path;
-
-      if (hasModel) {
-        // If this batch has a model, we definitely want to use it
-        iaItem.resource = { 
-          generate: false, 
-          model_path: `${ns}:item/${subfolder}/${modelName}` 
-        };
-      } else if (!alreadyHasModel) {
-        // Only switch to texture-based if there isn't a model already configured
-        const firstPng = filesList.find(f => f.name.endsWith('.png'));
-        if (firstPng) {
-          const texName = sanitizePath(firstPng.name.replace(".png", ""));
-          iaItem.resource = { 
-            generate: true, 
-            textures: [`${ns}:item/${subfolder}/${texName}`] 
-          };
-        }
-      }
-      // If alreadyHasModel is true and no model was in this batch, 
-      // we keep the model_path but the textures were still added to rawFiles.
-    }
-
-    setProjectState(newState);
-    alert(`¡${filesList.length} archivos vinculados con éxito!`);
-  };
+  }, [projectState, isAutoImporting, mounted]);
 
   const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -401,6 +246,11 @@ export default function StudioPage() {
     } catch (err) {
       console.error("Import failed", err);
     }
+  };
+
+  const handleExport = async () => {
+    if (!projectState) return;
+    await exportEcosystem(projectState);
   };
 
   const handleCreateNew = () => {
@@ -516,53 +366,32 @@ export default function StudioPage() {
         newState.iaItems[sanitizedId] = newState.iaItems[selectedItem];
         delete newState.iaItems[selectedItem];
         
-        // Update itemsadder-id in config
-        const item = targetMap[sanitizedId].config;
-        const target = activeView === 'xfoods' ? item.item : item.seed;
-        if (target) (target as Record<string, unknown>)['itemsadder-id'] = `${newState.projectName}:${sanitizedId}`;
-        
-        // Update key in iaItems.items
-        const iaData = newState.iaItems[sanitizedId];
-        if (iaData.items && (iaData.items as Record<string, unknown>)[selectedItem]) {
-            (iaData.items as Record<string, unknown>)[sanitizedId] = (iaData.items as Record<string, unknown>)[selectedItem];
-            delete (iaData.items as Record<string, unknown>)[selectedItem];
+        // Update references inside iaItems
+        const iaConfig = newState.iaItems[sanitizedId];
+        if (iaConfig.items && (iaConfig.items as Record<string, unknown>)[selectedItem]) {
+            (iaConfig.items as Record<string, unknown>)[sanitizedId] = (iaConfig.items as Record<string, unknown>)[selectedItem];
+            delete (iaConfig.items as Record<string, unknown>)[selectedItem];
+            
+            // Update permissions and textures
+            const itemData = (iaConfig.items as Record<string, any>)[sanitizedId];
+            if (itemData.permission) itemData.permission = itemData.permission.replace(selectedItem, sanitizedId);
+            if (itemData.resource && itemData.resource.textures) {
+                itemData.resource.textures = itemData.resource.textures.map((t: string) => t.replace(selectedItem, sanitizedId));
+            }
         }
     }
     
-    setProjectState(newState);
     setSelectedItem(sanitizedId);
+    setProjectState(newState);
   };
 
   const updateItemField = (path: string, value: unknown) => {
     if (!projectState || !selectedItem) return;
     const newState = { ...projectState };
+    const entry = activeView === 'xfoods' ? newState.foods[selectedItem] : (activeView === 'xcrops' ? newState.crops[selectedItem] : newState.machines[selectedItem]);
     
-    // Determine target map
-    const targetMap = activeView === 'xfoods' ? newState.foods : 
-                     (activeView === 'xcrops' ? newState.crops : newState.machines);
-    
-    const entry = targetMap[selectedItem];
-    if (!entry) return;
-
-    if (path === 'config.item.custom-model-data' || path === 'config.seed.custom-model-data') {
-        const val = parseInt(value as string) || 0;
-        const item = activeView === 'xfoods' ? newState.foods[selectedItem].config : newState.crops[selectedItem].config;
-        if (activeView === 'xfoods') {
-            if (!item.item) item.item = {};
-            (item.item as Record<string, unknown>)['custom-model-data'] = val;
-        } else {
-            if (!item.seed) item.seed = {};
-            (item.seed as Record<string, unknown>)['custom-model-data'] = val;
-        }
-        
-        // Sync to IA if exists
-        if (newState.iaItems[selectedItem]) {
-            const iaItem = (newState.iaItems[selectedItem].items as Record<string, Record<string, unknown>>)?.[selectedItem];
-            if (iaItem) {
-                if (!iaItem.specific_properties) iaItem.specific_properties = {};
-                (iaItem.specific_properties as Record<string, unknown>).custom_model_data = val;
-            }
-        }
+    if (path === 'folder') {
+        entry.folder = value as string;
         setProjectState(newState);
         return;
     }
@@ -690,58 +519,118 @@ export default function StudioPage() {
     setProjectState(newState);
   };
 
-  const handleAddRecipe = () => {
-    if (!projectState || !selectedItem || activeView !== 'xmachines') return;
-    const newState = { ...projectState };
-    const machine = newState.machines[selectedItem].config as { recipes: Record<string, Record<string, unknown>> };
-    if (!machine.recipes) machine.recipes = {};
-    // eslint-disable-next-line react-hooks/purity
-    const rid = `recipe_${Date.now()}`;
-    machine.recipes[rid] = { 
-        inputs: { i1: { id: "item", amount: 1 } }, 
-        output: { id: "result", amount: 1 }, 
-        time: 200,
-        "burn-time": 100,
-        "burnt-id": "COAL",
-        "use-minigame": false,
-        sounds: { start: "BLOCK_CAMPFIRE_CRACKLE", finish: "ENTITY_PLAYER_LEVELUP" },
-        rpg: { category: "comida", "required-level": 1, "xp-reward": 10 }
-    };
-    setProjectState(newState);
-  };
+  const handleIAFileUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
+    let filesList: File[] = [];
+    if ('dataTransfer' in e) {
+      e.preventDefault();
+      filesList = Array.from(e.dataTransfer.files);
+    } else {
+      filesList = Array.from((e.target as HTMLInputElement).files || []);
+    }
 
-  const handleRemoveRecipe = (recipeId: string) => {
-    if (!projectState || !selectedItem || activeView !== 'xmachines') return;
-    const newState = { ...projectState };
-    const machineConfig = newState.machines[selectedItem].config as { recipes: Record<string, Record<string, unknown>> };
-    delete machineConfig.recipes[recipeId];
-    setProjectState(newState);
-  };
-
-  const handleDuplicateRecipe = (recipeId: string) => {
-    if (!projectState || !selectedItem || activeView !== 'xmachines') return;
-    const newState = { ...projectState };
-    const machineConfig = newState.machines[selectedItem].config as { recipes: Record<string, Record<string, unknown>> };
-    if (!machineConfig.recipes || !machineConfig.recipes[recipeId]) return;
+    if (filesList.length === 0 || !projectState || !selectedItem) return;
     
-    const originalRecipe = machineConfig.recipes[recipeId];
-    // eslint-disable-next-line react-hooks/purity
-    const newRid = `recipe_${Date.now()}`;
+    const newState = { ...projectState };
+    const ns = sanitizePath(projectState.projectName);
+    const itemEntry = activeView === 'xfoods' ? newState.foods[selectedItem] : newState.crops[selectedItem];
+    const subfolder = sanitizePath(itemEntry?.folder || (activeView === 'xfoods' ? 'food' : 'crops'));
     
-    // Deep copy of the recipe
-    machineConfig.recipes[newRid] = JSON.parse(JSON.stringify(originalRecipe));
-    
+    let hasModel = false;
+    let modelName = "";
+
+    for (const file of filesList) {
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (ext !== 'png' && ext !== 'json') continue;
+
+      let buffer = await file.arrayBuffer();
+      const isJson = ext === 'json';
+      const sanitizedFileName = sanitizePath(file.name);
+
+      if (isJson) {
+        hasModel = true;
+        modelName = sanitizedFileName.replace(".json", "");
+        
+        // --- REMAP JSON TEXTURES ---
+        try {
+            const text = new TextDecoder().decode(buffer);
+            const model = JSON.parse(text);
+            if (model.textures) {
+                Object.keys(model.textures).forEach(key => {
+                    const texPath = model.textures[key] as string;
+                    // If it belongs to our namespace or has no namespace, sanitize it
+                    if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
+                        const cleanName = sanitizePath(texPath.split('/').pop() || texPath);
+                        model.textures[key] = `${ns}:item/${subfolder}/${cleanName}`;
+                    } else {
+                        // For other namespaces, at least lowercase and replace spaces
+                        model.textures[key] = sanitizePath(texPath);
+                    }
+                });
+                const updatedJson = JSON.stringify(model, null, 2);
+                buffer = new TextEncoder().encode(updatedJson).buffer;
+            }
+        } catch (err) {
+            console.error("Error processing JSON model", err);
+        }
+      }
+
+      // Determine where to put it in the resource pack
+      const assetType = isJson ? 'models' : 'textures';
+      const inferredPath = `${assetType}/item/${subfolder}/${sanitizedFileName}`;
+
+      newState.rawFiles.push({
+        name: sanitizedFileName,
+        content: buffer,
+        type: 'raw',
+        inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/${inferredPath}`
+      });
+    }
+
+    // Update IA Config based on what was uploaded
+    if (newState.iaItems[selectedItem]) {
+      const iaItem = (newState.iaItems[selectedItem].items as Record<string, IAItemConfig>)[selectedItem];
+      const currentResource = iaItem.resource || {};
+      const alreadyHasModel = !!currentResource.model_path;
+
+      if (hasModel) {
+        // If this batch has a model, we definitely want to use it
+        iaItem.resource = { 
+          generate: false, 
+          model_path: `${ns}:item/${subfolder}/${modelName}` 
+        };
+      } else if (!alreadyHasModel) {
+        // Only switch to texture-based if there isn't a model already configured
+        const firstPng = filesList.find(f => f.name.endsWith('.png'));
+        if (firstPng) {
+          const texName = sanitizePath(firstPng.name.replace(".png", ""));
+          iaItem.resource = { 
+            generate: true, 
+            textures: [`${ns}:item/${subfolder}/${texName}`] 
+          };
+        }
+      }
+    }
+
     setProjectState(newState);
+    alert(`¡${filesList.length} archivos vinculados con éxito!`);
   };
 
-  const toggleFolder = (folderName: string) => {
-    setOpenFolders(prev => ({ ...prev, [folderName]: prev[folderName] === false }));
-  };
+  if (!mounted) return null;
 
-  const handleExport = async () => {
-    if (!projectState) return;
-    await exportEcosystem(projectState);
-  };
+  if (isAutoImporting) {
+    return (
+        <div className="h-screen flex flex-col items-center justify-center space-y-6 bg-[#0b0f19]">
+            <div className="relative">
+                <div className="w-24 h-24 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
+                <Cloud className="absolute inset-0 m-auto w-8 h-8 text-yellow-400 animate-pulse" />
+            </div>
+            <div className="text-center space-y-2">
+                <h2 className="text-xl font-bold text-white">Sincronizando con xLib Bridge...</h2>
+                <p className="text-gray-500 text-sm animate-pulse px-4">Estamos descargando y procesando tu configuración directamente desde el servidor.</p>
+            </div>
+        </div>
+    );
+  }
 
   if (!projectState) {
     return (
@@ -756,7 +645,7 @@ export default function StudioPage() {
         
         <div className="grid grid-cols-2 gap-6">
             <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-[#374151] rounded-3xl p-16 hover:border-yellow-400/5 hover:bg-yellow-400/5 transition-all cursor-pointer group">
-                <input type="file" ref={fileInputRef} onChange={handleFolderUpload} className="hidden" {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
+                <input type="file" ref={fileInputRef} onChange={handleFolderUpload} className="hidden" {...({ webkitdirectory: "", directory: "" } as any)} />
                 <div className="space-y-6">
                     <div className="bg-white/5 p-5 rounded-2xl w-fit mx-auto group-hover:scale-110 transition-transform duration-300">
                         <Upload className="w-10 h-10 text-gray-400 group-hover:text-yellow-400" />
@@ -835,58 +724,82 @@ export default function StudioPage() {
                     type="text" 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar ítem..." 
+                    placeholder="Buscar ID..." 
                     className="w-full bg-white/2 border border-[#374151] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none focus:border-yellow-400/30 focus:bg-yellow-400/5 transition-all"
                 />
               </div>
-              <button onClick={handleCreateNew} className="w-full flex items-center gap-3 px-4 py-3 bg-yellow-400/5 border border-yellow-400/20 rounded-xl text-xs font-bold text-yellow-400 hover:bg-yellow-400/10 transition-all"><Plus className="w-4 h-4" /> Crear Nuevo</button>
-              {Object.entries(groupedItems).map(([folder, items]) => (
-                <div key={folder} className="space-y-1">
-                   <button onClick={() => toggleFolder(folder)} className="w-full flex items-center gap-2 px-2 py-1 text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-gray-300 transition-colors">
-                     {openFolders[folder] ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                     <FolderOpen className="w-3 h-3" /> {folder}
-                   </button>
-                   {openFolders[folder] !== true && (
-                     <div className="space-y-1 pl-4 animate-in slide-in-from-top-1 duration-200">
-                        {items.map(id => (
-                            <div key={id} onClick={() => setSelectedItem(id)} className={cn("px-4 py-2.5 rounded-xl text-xs font-medium cursor-pointer transition-all border flex items-center justify-between group", selectedItem === id ? "bg-yellow-400/10 border-yellow-400/50 text-white" : "border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5")}>
-                                <span className="truncate">{id}</span>
-                                <button 
-                                    onClick={(e) => handleCloneItem(id, e)} 
-                                    className="p-1.5 hover:bg-white/10 rounded-lg opacity-0 group-hover:opacity-100 transition-all text-gray-400 hover:text-yellow-400"
-                                    title="Clonar ítem"
-                                >
-                                    <Copy className="w-3.5 h-3.5" />
-                                </button>
+              
+              <div className="space-y-4">
+                 <button onClick={handleCreateNew} className="w-full bg-accent/10 hover:bg-accent/20 text-accent border border-accent/20 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                    <Plus className="w-3 h-3" /> Crear Nuevo
+                 </button>
+
+                 {Object.entries(groupedItems).map(([folder, items]) => (
+                    <div key={folder} className="space-y-1">
+                        <button 
+                            onClick={() => setOpenFolders(prev => ({ ...prev, [folder]: !prev[folder] }))}
+                            className="w-full flex items-center justify-between px-2 py-1 hover:bg-white/5 rounded-lg transition-colors group"
+                        >
+                            <div className="flex items-center gap-2">
+                                {openFolders[folder] ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronRight className="w-3 h-3 text-gray-500" />}
+                                <span className="text-[10px] font-black uppercase text-gray-500 group-hover:text-gray-300 transition-colors tracking-widest">{folder}</span>
                             </div>
-                        ))}
-                     </div>
-                   )}
-                </div>
-              ))}
+                            <span className="text-[9px] font-bold text-gray-700 bg-white/5 px-1.5 py-0.5 rounded-md">{items.length}</span>
+                        </button>
+                        
+                        {(openFolders[folder] || folder === "Raíz") && (
+                            <div className="space-y-0.5 ml-2 border-l border-white/5 pl-2 animate-in slide-in-from-left-1 duration-200">
+                                {items.map(id => (
+                                    <div 
+                                        key={id} 
+                                        onClick={() => setSelectedItem(id)} 
+                                        className={cn(
+                                            "px-4 py-2 rounded-xl text-xs font-medium cursor-pointer transition-all border flex items-center justify-between group", 
+                                            selectedItem === id ? "bg-accent/10 border-accent/50 text-white" : "border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5"
+                                        )}
+                                    >
+                                        <span className="truncate">{id}</span>
+                                        <button onClick={(e) => handleCloneItem(id, e)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded-md transition-all"><Copy className="w-3 h-3 text-gray-500" /></button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                 ))}
+              </div>
            </div>
         </aside>
 
-        <main className="col-span-6 bg-[#111827] border border-[#374151] rounded-2xl overflow-y-auto p-8 shadow-2xl space-y-8">
+        <main className="col-span-6 bg-[#111827] border border-[#374151] rounded-2xl overflow-y-auto p-8 shadow-2xl space-y-8 custom-scrollbar">
            {selectedItem && currentItem ? (
-             <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-8 pb-10">
+             <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-8 pb-20">
                 <div className="flex justify-between items-start border-b border-[#374151] pb-6">
                    <div className="flex gap-6 items-center flex-1">
-                      <VisualPreview mcPath={activeTexturePath} rawFiles={projectState.rawFiles} />
+                      <VisualPreview 
+                        mcPath={activeView === 'xfoods' ? (currentItem.config.item as Record<string, string>)?.material : (activeView === 'xcrops' ? (currentItem.config.seed as Record<string, string>)?.material : null)} 
+                        rawFiles={projectState.rawFiles}
+                        namespace={projectState.projectName}
+                      />
                       <div className="space-y-1 flex-1">
-                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">ID Único</label>
-                         <input type="text" value={selectedItem} onChange={(e) => renameSelectedItem(e.target.value)} className="bg-transparent text-2xl font-bold text-yellow-400 focus:outline-none border-b border-transparent focus:border-yellow-400/30 w-full" />
+                         <div className="flex items-center gap-2">
+                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Identificador del Ítem</label>
+                         </div>
+                         <div className="flex gap-2 items-center">
+                            <input 
+                                type="text" 
+                                defaultValue={selectedItem} 
+                                onBlur={(e) => renameSelectedItem(e.target.value)}
+                                className="text-2xl font-bold bg-transparent text-yellow-400 border-none outline-none focus:ring-0 w-full hover:bg-white/5 rounded px-1 transition-colors" 
+                            />
+                         </div>
                       </div>
                    </div>
-                   <div className="bg-yellow-400/10 border border-yellow-400/20 px-3 py-1.5 rounded-lg text-[10px] font-bold text-yellow-400 uppercase tracking-widest flex items-center gap-2"><FileCode className="w-3 h-3" /> {activeView.toUpperCase()}</div>
+                   <div className="flex flex-col gap-2">
+                      <button onClick={(e) => handleCloneItem(selectedItem, e)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"><Copy className="w-3 h-3"/> Clonar</button>
+                      <button onClick={() => { if(confirm("¿Borrar?")) { const newState = {...projectState}; if(activeView === 'xfoods') delete newState.foods[selectedItem]; else if(activeView === 'xcrops') delete newState.crops[selectedItem]; else delete newState.machines[selectedItem]; setProjectState(newState); setSelectedItem(null); }}} className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-red-500/20"><Trash2 className="w-3 h-3"/> Eliminar</button>
+                   </div>
                 </div>
 
-                <div className="space-y-6">
-                    <div className="flex items-center gap-2 text-blue-400"><FolderOpen className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Organización</h4></div>
-                    <input type="text" value={(currentItem.folder as string) || ''} onChange={(e) => updateItemField('folder', e.target.value)} placeholder="ej: macdonalds/burgers" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white focus:border-yellow-400 outline-none transition-colors" />
-                </div>
-
-                {/* --- RENDER EDITOR CONTENT --- */}
                 <div className="space-y-6">
                     <div className="flex items-center gap-2 text-yellow-400"><Info className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Ajustes Base</h4></div>
                     <div className={cn("grid gap-6", activeView !== 'xmachines' ? "grid-cols-3" : "grid-cols-2")}>
@@ -926,10 +839,10 @@ export default function StudioPage() {
                             <textarea rows={3} value={Array.isArray(currentItem.config.lore) ? (currentItem.config.lore as string[]).join('\n') : ''} onChange={(e) => updateItemField('config.lore', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none resize-none text-sm" />
                         </div>
                         <div className="grid grid-cols-4 gap-4">
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Proteínas</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.proteins || 0} onChange={(e) => updateItemField('config.nutrition.proteins', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Carbos</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.carbs || 0} onChange={(e) => updateItemField('config.nutrition.carbs', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Azúcares</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.sugars || 0} onChange={(e) => updateItemField('config.nutrition.sugars', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-600 uppercase block mb-1">Vitaminas</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.vitamins || 0} onChange={(e) => updateItemField('config.nutrition.vitamins', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Proteínas</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.proteins || 0} onChange={(e) => updateItemField('config.nutrition.proteins', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Carbos</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.carbs || 0} onChange={(e) => updateItemField('config.nutrition.carbs', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Azúcares</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.sugars || 0} onChange={(e) => updateItemField('config.nutrition.sugars', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Vitaminas</label><input type="number" value={(currentItem.config.nutrition as Record<string, number>)?.vitamins || 0} onChange={(e) => updateItemField('config.nutrition.vitamins', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
                         </div>
 
                         <div className="space-y-6 pt-4 border-t border-[#374151]">
@@ -1043,181 +956,116 @@ export default function StudioPage() {
                         </>
                     )}
                     {activeView === 'xmachines' && (
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-2 text-yellow-400">
-                                    <Flame className="w-4 h-4" />
-                                    <h4 className="text-xs font-black uppercase tracking-widest">Recetas de la Estación</h4>
-                                </div>
-                                <button onClick={handleAddRecipe} className="text-[10px] font-black uppercase bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg border border-yellow-400/20 hover:bg-yellow-400/20 transition-all flex items-center gap-2">
+                        <div className="space-y-8">
+                            <div className="flex justify-between items-center border-b border-[#374151] pb-4">
+                                <div className="flex items-center gap-2 text-orange-400"><Flame className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Recetas de la Estación</h4></div>
+                                <button 
+                                    onClick={() => {
+                                        const newState = { ...projectState };
+                                        const machine = newState.machines[selectedItem].config;
+                                        if (!machine.recipes) machine.recipes = {};
+                                        const recipes = machine.recipes as Record<string, unknown>;
+                                        const rid = `receta_${Object.keys(recipes).length + 1}`;
+                                        recipes[rid] = {
+                                            inputs: { i1: { id: "PORKCHOP", amount: 1 } },
+                                            output: { id: "COOKED_PORKCHOP", amount: 1 },
+                                            time: 200,
+                                            "burn-time": 100
+                                        };
+                                        setProjectState(newState);
+                                    }}
+                                    className="text-[10px] font-black uppercase bg-orange-400/10 text-orange-400 px-3 py-1.5 rounded-lg border border-orange-400/20 hover:bg-orange-400/20 transition-all flex items-center gap-2"
+                                >
                                     <Plus className="w-3 h-3"/> Añadir Receta
                                 </button>
                             </div>
                             
                             <div className="grid gap-6">
-                                {Object.entries(currentItem.config.recipes as Record<string, Record<string, unknown>> || {}).map(([rid, rData]) => (
-                                    <div key={rid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] p-6 relative group/recipe space-y-4">
-                                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover/recipe:opacity-100 transition-all">
+                                {Object.entries((currentItem.config.recipes as Record<string, unknown>) || {}).map(([rid, rData]: [string, any]) => (
+                                    <div key={rid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden">
+                                        <div className="bg-white/5 px-6 py-3 flex justify-between items-center border-b border-white/5">
+                                            <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">{rid}</span>
                                             <button 
-                                                onClick={() => handleDuplicateRecipe(rid)} 
-                                                title="Duplicar Receta"
-                                                className="text-gray-600 hover:text-yellow-400 transition-colors"
+                                                onClick={() => {
+                                                    const newState = { ...projectState };
+                                                    delete (newState.machines[selectedItem].config.recipes as Record<string, unknown>)[rid];
+                                                    setProjectState(newState);
+                                                }}
+                                                className="text-gray-600 hover:text-red-400"
                                             >
-                                                <Copy className="w-4 h-4"/>
-                                            </button>
-                                            <button 
-                                                onClick={() => handleRemoveRecipe(rid)} 
-                                                title="Eliminar Receta"
-                                                className="text-gray-600 hover:text-red-500 transition-colors"
-                                            >
-                                                <Trash2 className="w-4 h-4"/>
+                                                <Trash2 className="w-3.5 h-3.5"/>
                                             </button>
                                         </div>
-                                        
-                                        <div className="grid grid-cols-2 gap-6">
-                                            {/* Inputs Section */}
-                                            <div className="space-y-3">
-                                                <div className="flex justify-between items-center">
-                                                    <label className="text-[9px] font-bold text-gray-500 uppercase">Entradas (Inputs)</label>
-                                                    <button 
-                                                        onClick={() => {
-                                                            if (!projectState || !selectedItem) return;
-                                                            const newState = { ...projectState };
-                                                            const machine = { ...newState.machines[selectedItem] };
-                                                            const config = { ...machine.config as Record<string, unknown> };
-                                                            const recipes = { ...config.recipes as Record<string, unknown> };
-                                                            const recipe = { ...recipes[rid] as Record<string, unknown> };
-                                                            const inputs = { ...recipe.inputs as Record<string, unknown> || {} };
-                                                            
-                                                            const inputId = `i${Object.keys(inputs).length + 1}`;
-                                                            inputs[inputId] = { id: "item_id", amount: 1 };
-                                                            
-                                                            recipe.inputs = inputs;
-                                                            recipes[rid] = recipe;
-                                                            config.recipes = recipes;
-                                                            machine.config = config;
-                                                            newState.machines[selectedItem] = machine;
-                                                            
-                                                            setProjectState(newState);
-                                                        }}
-                                                        className="text-[8px] font-bold bg-white/5 hover:bg-white/10 px-2 py-1 rounded"
-                                                    >
-                                                        + Item
-                                                    </button>
+                                        <div className="p-6 space-y-6">
+                                            <div className="grid grid-cols-2 gap-8">
+                                                <div className="space-y-4">
+                                                    <div className="flex justify-between items-center">
+                                                        <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Ingredientes</label>
+                                                        <button 
+                                                            onClick={() => {
+                                                                const newState = { ...projectState };
+                                                                const recipe = (newState.machines[selectedItem].config.recipes as Record<string, any>)[rid];
+                                                                if (!recipe.inputs) recipe.inputs = {};
+                                                                const inputs = recipe.inputs as Record<string, unknown>;
+                                                                const inputId = `i${Object.keys(inputs).length + 1}`;
+                                                                inputs[inputId] = { id: "item_id", amount: 1 };
+                                                                setProjectState(newState);
+                                                            }}
+                                                            className="text-[8px] font-bold text-orange-400/60 hover:text-orange-400"
+                                                        >+ AÑADIR</button>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {Object.entries((rData.inputs as Record<string, unknown>) || {}).map(([iKey, iVal]: [string, any]) => (
+                                                            <div key={iKey} className="flex gap-2 items-center">
+                                                                <input 
+                                                                    type="text" 
+                                                                    value={iVal.id} 
+                                                                    onChange={(e) => updateItemField(`config.recipes.${rid}.inputs.${iKey}.id`, e.target.value)}
+                                                                    className="flex-1 bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" 
+                                                                />
+                                                                <input 
+                                                                    type="number" 
+                                                                    value={iVal.amount} 
+                                                                    onChange={(e) => updateItemField(`config.recipes.${rid}.inputs.${iKey}.amount`, parseInt(e.target.value))}
+                                                                    className="w-12 bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" 
+                                                                />
+                                                                <button 
+                                                                    onClick={() => {
+                                                                        const newState = { ...projectState };
+                                                                        delete (newState.machines[selectedItem].config.recipes as Record<string, any>)[rid].inputs[iKey];
+                                                                        setProjectState(newState);
+                                                                    }}
+                                                                    className="text-gray-700 hover:text-red-500"
+                                                                ><Trash2 className="w-3 h-3"/></button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-2">
-                                                    {Object.entries((rData.inputs as Record<string, { id: string, amount: number }>) || {}).map(([inputId, input]) => (
-                                                        <div key={inputId} className="flex gap-2 items-center bg-black/20 p-2 rounded-lg border border-white/5">
-                                                            <AutocompleteInput 
-                                                                value={input.id} 
-                                                                onChange={(val) => updateItemField(`config.recipes.${rid}.inputs.${inputId}.id`, val)}
-                                                                options={Object.keys(projectState.foods)}
-                                                                placeholder="ID Item"
-                                                                className="flex-1 bg-transparent text-[11px] text-white outline-none"
-                                                            />
-                                                            <input 
-                                                                type="number" 
-                                                                value={input.amount} 
-                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.inputs.${inputId}.amount`, parseInt(e.target.value))}
-                                                                className="w-12 bg-transparent text-[11px] text-yellow-400 font-bold outline-none text-right"
-                                                            />
-                                                            <button 
-                                                                onClick={() => {
-                                                                    if (!projectState || !selectedItem) return;
-                                                                    const newState = { ...projectState };
-                                                                    const machine = { ...newState.machines[selectedItem] };
-                                                                    const config = { ...machine.config as Record<string, unknown> };
-                                                                    const recipes = { ...config.recipes as Record<string, unknown> };
-                                                                    const recipe = { ...recipes[rid] as Record<string, unknown> };
-                                                                    const inputs = { ...recipe.inputs as Record<string, unknown> };
-                                                                    
-                                                                    delete inputs[inputId];
-                                                                    
-                                                                    recipe.inputs = inputs;
-                                                                    recipes[rid] = recipe;
-                                                                    config.recipes = recipes;
-                                                                    machine.config = config;
-                                                                    newState.machines[selectedItem] = machine;
-                                                                    
-                                                                    setProjectState(newState);
-                                                                }}
-                                                                className="text-gray-600 hover:text-red-400"
-                                                            >
-                                                                <Trash2 className="w-3 h-3"/>
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {/* Output & Time Section */}
-                                            <div className="space-y-4">
-                                                <div className="space-y-2">
-                                                    <label className="text-[9px] font-bold text-gray-500 uppercase">Resultado (Output)</label>
-                                                    <div className="flex gap-2 items-center bg-yellow-400/5 p-2 rounded-lg border border-yellow-400/10">
-                                                        <AutocompleteInput 
+                                                <div className="space-y-4 text-right">
+                                                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block">Resultado</label>
+                                                    <div className="flex gap-2 justify-end">
+                                                        <input 
+                                                            type="text" 
                                                             value={(rData.output as { id: string, amount: number })?.id || ''} 
-                                                            onChange={(val) => updateItemField(`config.recipes.${rid}.output.id`, val)}
-                                                            options={Object.keys(projectState.foods)}
-                                                            placeholder="Resultado ID"
-                                                            className="flex-1 bg-transparent text-[11px] text-white font-bold outline-none"
+                                                            onChange={(e) => updateItemField(`config.recipes.${rid}.output.id`, e.target.value)}
+                                                            className="flex-1 bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none text-right" 
                                                         />
                                                         <input 
                                                             type="number" 
                                                             value={(rData.output as { id: string, amount: number })?.amount || 1} 
                                                             onChange={(e) => updateItemField(`config.recipes.${rid}.output.amount`, parseInt(e.target.value))}
-                                                            className="w-12 bg-transparent text-[11px] text-yellow-400 font-bold outline-none text-right"
+                                                            className="w-12 bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" 
                                                         />
                                                     </div>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <label className="text-[9px] font-bold text-gray-500 uppercase flex items-center gap-2">
-                                                        <Clock className="w-3 h-3" /> Tiempo (Ticks)
-                                                    </label>
-                                                    <input 
-                                                        type="number" 
-                                                        value={rData.time as number || 200} 
-                                                        onChange={(e) => updateItemField(`config.recipes.${rid}.time`, parseInt(e.target.value))}
-                                                        className="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-[11px] text-white outline-none focus:border-yellow-400/30"
-                                                    />
-                                                </div>
-                                                <div className="pt-2 space-y-3">
-                                                    <label className="flex items-center gap-3 cursor-pointer group/toggle">
-                                                        <div className="relative">
-                                                            <input 
-                                                                type="checkbox" 
-                                                                checked={rData['use-minigame'] as boolean || false} 
-                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.use-minigame`, e.target.checked)}
-                                                                className="sr-only"
-                                                            />
-                                                            <div className={cn("w-8 h-4 rounded-full transition-colors", rData['use-minigame'] ? "bg-yellow-400" : "bg-gray-700")}></div>
-                                                            <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", rData['use-minigame'] ? "translate-x-4" : "")}></div>
-                                                        </div>
-                                                        <span className="text-[9px] font-bold text-gray-400 uppercase group-hover/toggle:text-yellow-400 transition-colors">Minijuego</span>
-                                                    </label>
-                                                    <div className="grid grid-cols-2 gap-2">
+                                                    <div className="grid grid-cols-2 gap-2 pt-2 text-left">
                                                         <div className="space-y-1">
-                                                            <label className="text-[8px] font-bold text-gray-600 uppercase">Tiempo Quemado</label>
-                                                            <input 
-                                                                type="number" 
-                                                                value={rData['burn-time'] as number || 0} 
-                                                                onChange={(e) => updateItemField(`config.recipes.${rid}.burn-time`, parseInt(e.target.value))}
-                                                                className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
-                                                                placeholder="Ticks"
-                                                            />
+                                                            <label className="text-[8px] font-bold text-gray-600 uppercase">Tiempo (Ticks)</label>
+                                                            <input type="number" value={rData.time || 200} onChange={(e) => updateItemField(`config.recipes.${rid}.time`, parseInt(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
                                                         </div>
                                                         <div className="space-y-1">
-                                                            <label className="text-[8px] font-bold text-gray-600 uppercase">ID Quemado</label>
-                                                            <AutocompleteInput 
-                                                                value={rData['burnt-id'] as string || 'COAL'} 
-                                                                onChange={(val) => updateItemField(`config.recipes.${rid}.burnt-id`, val)}
-                                                                options={Object.keys(projectState.foods)}
-                                                                placeholder="ID"
-                                                                className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
-                                                            />
+                                                            <label className="text-[8px] font-bold text-gray-600 uppercase">Gasto Combustible</label>
+                                                            <input type="number" value={rData['burn-time'] || 100} onChange={(e) => updateItemField(`config.recipes.${rid}.burn-time`, parseInt(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
                                                         </div>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-2">
                                                         <div className="space-y-1">
                                                             <label className="text-[8px] font-bold text-gray-600 uppercase">Sonido Inicio</label>
                                                             <input 
@@ -1241,7 +1089,7 @@ export default function StudioPage() {
                                                     </div>
 
                                                     {/* RPG SECTION */}
-                                                    <div className="mt-4 p-3 bg-purple-500/5 border border-purple-500/10 rounded-xl space-y-3">
+                                                    <div className="mt-4 p-3 bg-purple-500/5 border border-purple-500/10 rounded-xl space-y-3 text-left">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <Zap className="w-3 h-3 text-purple-400" />
                                                             <span className="text-[9px] font-black text-purple-400 uppercase tracking-wider">Sistema RPG</span>
@@ -1328,157 +1176,41 @@ export default function StudioPage() {
                                                 <button 
                                                     onClick={() => {
                                                         const newState = { ...projectState };
-                                                        delete (newState.crops[selectedItem].config.growth as Record<string, Record<string, unknown>>).stages[sid];
+                                                        delete (newState.crops[selectedItem].config.growth as Record<string, any>).stages[sid];
                                                         setProjectState(newState);
                                                     }}
-                                                    className="text-gray-600 hover:text-red-400 transition-colors"
+                                                    className="text-gray-600 hover:text-red-400"
                                                 >
-                                                    <Trash2 className="w-4 h-4"/>
+                                                    <Trash2 className="w-3.5 h-3.5"/>
                                                 </button>
                                             </div>
-                                            
-                                            <div className="p-6 space-y-6">
-                                                <div className="grid grid-cols-4 gap-4">
-                                                    <div className="space-y-1">
-                                                        <label className="text-[8px] font-bold text-gray-500 uppercase">ItemsAdder ID</label>
-                                                        <input type="text" value={stageData['itemsadder-id'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.itemsadder-id`, e.target.value)} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-white outline-none focus:border-yellow-400/30" placeholder="ns:id" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-[8px] font-bold text-gray-500 uppercase">Duración (ms)</label>
-                                                        <input type="number" value={stageData.duration as number || 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.duration`, parseInt(e.target.value))} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-white outline-none focus:border-yellow-400/30" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-[8px] font-bold text-gray-500 uppercase">Escala</label>
-                                                        <input type="number" step="0.1" value={stageData.scale as number || 1.0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.scale`, parseFloat(e.target.value))} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-white outline-none focus:border-yellow-400/30" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-[8px] font-bold text-gray-500 uppercase">Y-Offset</label>
-                                                        <input type="number" step="0.1" value={stageData['y-offset'] as number || 0.0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.y-offset`, parseFloat(e.target.value))} className="w-full bg-black/40 border border-white/5 rounded-lg px-3 py-2 text-[10px] text-white outline-none focus:border-yellow-400/30" />
-                                                    </div>
+                                            <div className="p-6 grid grid-cols-4 gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[8px] font-bold text-gray-600 uppercase">Escala</label>
+                                                    <input type="number" step="0.1" value={stageData.scale as number || 1.0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.scale`, parseFloat(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-2 text-white outline-none" />
                                                 </div>
-
-                                                <div className="space-y-4">
-                                                    <div className="flex justify-between items-center">
-                                                        <label className="text-[9px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2"><Settings2 className="w-3 h-3" /> Requisitos de Fase</label>
-                                                        <button 
-                                                            onClick={() => {
-                                                                const newState = { ...projectState };
-                                                                const stage = (newState.crops[selectedItem].config.growth as Record<string, Record<string, unknown>>).stages[sid] as Record<string, unknown>;
-                                                                if (!stage.requirements) stage.requirements = {} as Record<string, unknown>;
-                                                                const reqId = `req_${Object.keys(stage.requirements as Record<string, unknown>).length + 1}`;
-                                                                (stage.requirements as Record<string, unknown>)[reqId] = { type: "NUTRIENT", chance: 0.8, nbt: "WATER", "display-name": "&bPide Agua", "action-bar": "&b¡Este cultivo necesita agua!" };
-                                                                setProjectState(newState);
-                                                            }}
-                                                            className="text-[8px] font-black uppercase bg-white/5 hover:bg-white/10 px-2 py-1 rounded transition-all"
-                                                        >
-                                                            + Requisito
-                                                        </button>
-                                                    </div>
-                                                    <div className="grid gap-3">
-                                                        {Object.entries((stageData.requirements && typeof stageData.requirements === 'object' ? stageData.requirements : {}) as Record<string, unknown>).map(([reqId, r]) => {
-                                                            const req = r as Record<string, unknown>;
-                                                            if (!req || typeof req !== 'object') return null;
-                                                            return (
-                                                            <div key={reqId} className="bg-black/20 rounded-xl p-4 border border-white/5 relative group/req">
-                                                                <button 
-                                                                    onClick={() => {
-                                                                        const newState = { ...projectState };
-                                                                        const stage = (newState.crops[selectedItem].config.growth as Record<string, Record<string, unknown>>).stages[sid] as Record<string, unknown>;
-                                                                        delete (stage.requirements as Record<string, unknown>)[reqId];
-                                                                        setProjectState(newState);
-                                                                    }}
-                                                                    className="absolute top-2 right-2 text-gray-700 hover:text-red-400 opacity-0 group-hover/req:opacity-100 transition-all"
-                                                                >
-                                                                    <Trash2 className="w-3 h-3"/>
-                                                                </button>
-                                                                <div className="grid grid-cols-3 gap-4">
-                                                                    <div className="space-y-1">
-                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">ID / Tipo</label>
-                                                                        <div className="flex gap-1">
-                                                                            <input type="text" value={reqId} readOnly className="w-1/3 bg-transparent text-[8px] text-gray-500 outline-none" />
-                                                                            <select 
-                                                                                value={req.type as string} 
-                                                                                onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.type`, e.target.value)}
-                                                                                className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none"
-                                                                            >
-                                                                                <option value="NUTRIENT">NUTRIENTE</option>
-                                                                                <option value="LIGHT">LUZ</option>
-                                                                            </select>
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">Probabilidad</label>
-                                                                        <input type="number" step="0.1" value={req.chance as number || 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.chance`, parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">{req.type === 'LIGHT' ? 'Luz Mín/Máx' : 'Valor NBT'}</label>
-                                                                        {req.type === 'LIGHT' ? (
-                                                                            <div className="flex gap-1">
-                                                                                <input type="number" value={(req.light as Record<string, number>)?.min ?? 0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.min`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
-                                                                                <input type="number" value={(req.light as Record<string, number>)?.max ?? 15} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.light.max`, parseInt(e.target.value))} className="w-1/2 bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
-                                                                            </div>
-                                                                        ) : (
-                                                                            <input type="text" value={req.nbt as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.nbt`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                                <div className="grid grid-cols-2 gap-4 mt-3">
-                                                                    <div className="space-y-1">
-                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">Nombre UI</label>
-                                                                        <input type="text" value={req['display-name'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.display-name`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
-                                                                    </div>
-                                                                    <div className="space-y-1">
-                                                                        <label className="text-[8px] font-bold text-gray-600 uppercase">Mensaje ActionBar</label>
-                                                                        <input type="text" value={req['action-bar'] as string || ''} onChange={(e) => updateItemField(`config.growth.stages.${sid}.requirements.${reqId}.action-bar`, e.target.value)} className="w-full bg-[#0b0f19] border border-white/5 rounded px-2 py-1 text-[10px] text-white outline-none" />
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                        })}
-                                                    </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[8px] font-bold text-gray-600 uppercase">Offset Y</label>
+                                                    <input type="number" step="0.1" value={stageData['y-offset'] as number || 0.0} onChange={(e) => updateItemField(`config.growth.stages.${sid}.y-offset`, parseFloat(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-2 text-white outline-none" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[8px] font-bold text-gray-600 uppercase">Duración (ms)</label>
+                                                    <input type="number" value={stageData.duration as number || 60000} onChange={(e) => updateItemField(`config.growth.stages.${sid}.duration`, parseInt(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-2 text-white outline-none" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[8px] font-bold text-gray-600 uppercase tracking-tighter">ItemsAdder ID</label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={stageData['itemsadder-id'] as string || ''} 
+                                                        onChange={(e) => updateItemField(`config.growth.stages.${sid}.itemsadder-id`, e.target.value)}
+                                                        className="w-full bg-black/20 border border-white/5 rounded-xl px-4 py-2 text-white outline-none text-[10px]" 
+                                                        placeholder="namespace:item"
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
-                                    );
+                                        );
                                     })}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-6 pt-6 border-t border-[#374151]">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Título del Holograma</label>
-                                    <input type="text" value={(currentItem.config.visuals as Record<string, unknown>)?.['hologram-title'] as string || ''} onChange={(e) => updateItemField('config.visuals.hologram-title', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Identificador Semilla (NBT)</label>
-                                    <input type="text" value={(currentItem.config.requirements && typeof currentItem.config.requirements === 'object' ? (currentItem.config.requirements as Record<string, unknown>)['seed-nbt'] as string : '') || ''} onChange={(e) => updateItemField('config.requirements.seed-nbt', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                </div>
-                            </div>
-
-                            <div className="space-y-6 pt-6 border-t border-[#374151]">
-                                <div className="flex items-center gap-2 text-yellow-400"><Flame className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Cosecha y Resultados</h4></div>
-                                <div className="grid grid-cols-3 gap-6">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">xFoods ID Recompensa</label>
-                                        <AutocompleteInput 
-                                            value={(currentItem.config.harvest as Record<string, unknown>)?.['xfoods-id'] as string || ''} 
-                                            onChange={(val) => updateItemField('config.harvest.xfoods-id', val)}
-                                            options={Object.keys(projectState.foods)}
-                                            placeholder="ej: tomate_raw"
-                                            className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none"
-                                        />
-                                    </div>                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Cantidad</label>
-                                        <input type="number" value={(currentItem.config.harvest as Record<string, unknown>)?.amount as number || 1} onChange={(e) => updateItemField('config.harvest.amount', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Tiempo Marchitado (ms)</label>
-                                        <input type="number" value={(currentItem.config.growth as Record<string, unknown>)?.['wither-time'] as number || 2400000} onChange={(e) => updateItemField('config.growth.wither-time', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Mensaje de Cosecha</label>
-                                    <input type="text" value={(currentItem.config.harvest as Record<string, unknown>)?.message as string || ''} onChange={(e) => updateItemField('config.harvest.message', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
                                 </div>
                             </div>
                         </div>

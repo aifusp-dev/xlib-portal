@@ -113,54 +113,14 @@ export default function IAConfigPage() {
   const [activeCategory, setActiveCategory] = useState<string>("items");
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isAutoImporting, setIsAutoImporting] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iaFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Auto-import from URL
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    
-    if (token && !projectState && !isAutoImporting) {
-        setIsAutoImporting(true);
-        console.log("[Bridge] Starting auto-import for token:", token);
-        
-        handleImportFromBridge(token)
-            .then((state) => {
-                console.log("[Bridge] Import successful, state length:", Object.keys(state.iaItems).length);
-                // Ensure state is set before doing anything else
-                setProjectState(state);
-                // We DON'T alert immediately to avoid blocking the render
-                setTimeout(() => {
-                    window.history.replaceState({}, '', window.location.pathname);
-                }, 100);
-            })
-            .catch(err => {
-                console.error("[Bridge] Auto-import failed", err);
-                alert("Error al importar: El token no existe, ha expirado o el archivo está corrupto.");
-                window.history.replaceState({}, '', window.location.pathname);
-            })
-            .finally(() => {
-                setIsAutoImporting(false);
-            });
-    }
-  }, [projectState, isAutoImporting]); // Add isAutoImporting to prevent loops
-
-  if (isAutoImporting) {
-    return (
-        <div className="h-screen flex flex-col items-center justify-center space-y-6 bg-[#0b0f19]">
-            <div className="relative">
-                <div className="w-24 h-24 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
-                <Cloud className="absolute inset-0 m-auto w-8 h-8 text-yellow-400 animate-pulse" />
-            </div>
-            <div className="text-center space-y-2">
-                <h2 className="text-xl font-bold text-white">Sincronizando con xLib Bridge...</h2>
-                <p className="text-gray-500 text-sm animate-pulse px-4">Estamos descargando y procesando tu configuración directamente desde el servidor.</p>
-            </div>
-        </div>
-    );
-  }
 
   const handleSyncToBridge = async () => {
     if (!projectState) return null;
@@ -193,6 +153,35 @@ export default function IAConfigPage() {
 
     return await parseUploadedFiles(files);
   };
+
+  // Auto-import from URL
+  useEffect(() => {
+    if (!mounted) return;
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    
+    if (token && !projectState && !isAutoImporting) {
+        setIsAutoImporting(true);
+        console.log("[Bridge] Starting auto-import for token:", token);
+        
+        handleImportFromBridge(token)
+            .then((state) => {
+                console.log("[Bridge] Import successful, state length:", Object.keys(state.iaItems).length);
+                setProjectState(state);
+                setTimeout(() => {
+                    window.history.replaceState({}, '', window.location.pathname);
+                }, 100);
+            })
+            .catch(err => {
+                console.error("[Bridge] Auto-import failed", err);
+                alert("Error al importar: El token no existe, ha expirado o el archivo está corrupto.");
+                window.history.replaceState({}, '', window.location.pathname);
+            })
+            .finally(() => {
+                setIsAutoImporting(false);
+            });
+    }
+  }, [projectState, isAutoImporting, mounted]);
 
   const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -268,7 +257,6 @@ export default function IAConfigPage() {
     const newState = { ...projectState };
     const ns = newState.projectName;
 
-    // Default configuration template
     const defaultData = {
         display_name: id,
         resource: {
@@ -278,7 +266,6 @@ export default function IAConfigPage() {
         }
     };
 
-    // Find or create a default config file
     let targetFile = "";
     if (activeCategory === 'items') {
         targetFile = Object.keys(newState.iaItems)[0] || "items";
@@ -319,7 +306,6 @@ export default function IAConfigPage() {
     
     const subfolder = activeCategory === 'furnitures' ? 'furniture' : (activeCategory === 'blocks' ? 'block' : 'item');
 
-    // 1. Process Textures first so we can remap models
     const uploadedTextures: string[] = [];
     for (const file of filesList) {
         if (file.name.endsWith('.png')) {
@@ -337,21 +323,18 @@ export default function IAConfigPage() {
         }
     }
 
-    // 2. Process Models and link
     for (const file of filesList) {
         if (file.name.endsWith('.json')) {
             let buffer = await file.arrayBuffer();
             const sanitizedFileName = sanitizePath(file.name);
             const modelName = sanitizedFileName.replace('.json', '');
 
-            // REMAP TEXTURES IN JSON
             try {
                 const text = new TextDecoder().decode(buffer);
                 const model = JSON.parse(text);
                 if (model.textures) {
                     Object.keys(model.textures).forEach(key => {
                         const texPath = model.textures[key] as string;
-                        // If texture was in this batch or belongs to our namespace, remap it
                         const fileName = sanitizePath(texPath.split('/').pop() || texPath).replace('.png', '');
                         if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
                             model.textures[key] = `${ns}:${subfolder}/${fileName}`;
@@ -371,7 +354,6 @@ export default function IAConfigPage() {
                 inferredPath: `plugins/ItemsAdder/contents/${ns}/${inferredPath}`
             });
 
-            // Update Config
             updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.resource.model_path`, `${ns}:${subfolder}/${modelName}`);
             updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.resource.generate`, false);
         }
@@ -380,6 +362,23 @@ export default function IAConfigPage() {
     setProjectState(newState);
     alert(`¡${filesList.length} archivos vinculados con éxito!`);
   };
+
+  if (!mounted) return null;
+
+  if (isAutoImporting) {
+    return (
+        <div className="h-screen flex flex-col items-center justify-center space-y-6 bg-[#0b0f19]">
+            <div className="relative">
+                <div className="w-24 h-24 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
+                <Cloud className="absolute inset-0 m-auto w-8 h-8 text-yellow-400 animate-pulse" />
+            </div>
+            <div className="text-center space-y-2">
+                <h2 className="text-xl font-bold text-white">Sincronizando con xLib Bridge...</h2>
+                <p className="text-gray-500 text-sm animate-pulse px-4">Estamos descargando y procesando tu configuración directamente desde el servidor.</p>
+            </div>
+        </div>
+    );
+  }
 
   if (!projectState) {
     return (
