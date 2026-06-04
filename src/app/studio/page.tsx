@@ -350,18 +350,15 @@ export default function StudioWorkspace() {
         const fullKey = `${selectedNamespace}/${targetFileId}`;
         
         let targetMap: any;
-        let keyName = "";
-        if (activeCategory === 'items') { targetMap = newState.iaItems; keyName = "items"; }
-        else if (activeCategory === 'blocks') { targetMap = newState.iaBlocks; keyName = "blocks"; }
-        else { targetMap = newState.iaFurnitures; keyName = "furnitures"; }
+        let keyName = activeCategory === 'blocks' ? "blocks" : "items"; 
+        
+        if (activeCategory === 'items') targetMap = newState.iaItems;
+        else if (activeCategory === 'blocks') targetMap = newState.iaBlocks;
+        else targetMap = newState.iaFurnitures;
 
-        // MANDATORY: Ensure info section exists with namespace and type
         if (!targetMap[fullKey]) {
             targetMap[fullKey] = { 
-                info: { 
-                    namespace: selectedNamespace,
-                    type: activeCategory.toUpperCase()
-                }, 
+                info: { namespace: selectedNamespace }, 
                 [keyName]: {} 
             };
         }
@@ -417,12 +414,13 @@ export default function StudioWorkspace() {
         if (!selectedNamespace) return [];
         const result: [string, any][] = [];
         let targetMap: any;
+        let keyName = activeCategory === 'blocks' ? "blocks" : "items";
         if (activeCategory === 'items') targetMap = projectState.iaItems;
         else if (activeCategory === 'blocks') targetMap = projectState.iaBlocks;
         else targetMap = projectState.iaFurnitures;
         Object.entries(targetMap).forEach(([fullKey, config]: [string, any]) => {
             if (fullKey.startsWith(`${selectedNamespace}/`)) {
-                const subMap = config[activeCategory] || {};
+                const subMap = config[keyName] || {};
                 Object.entries(subMap).forEach(([id, data]) => {
                     if (!searchTerm || id.toLowerCase().includes(searchTerm.toLowerCase())) result.push([id, { fullKey, data }]);
                 });
@@ -457,11 +455,12 @@ export default function StudioWorkspace() {
 
   const handleIAFileUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
     let filesList: File[] = [];
-    if ('dataTransfer' in e) {
-      e.preventDefault();
-      filesList = Array.from(e.dataTransfer.files);
-    } else {
-      filesList = Array.from((e.target as HTMLInputElement).files || []);
+    const event = e as any;
+    if (event.dataTransfer) {
+      event.preventDefault();
+      filesList = Array.from(event.dataTransfer.files);
+    } else if (event.target && event.target.files) {
+      filesList = Array.from(event.target.files);
     }
 
     if (filesList.length === 0 || !projectState || !selectedItem || !selectedNamespace || !selectedData) return;
@@ -495,8 +494,6 @@ export default function StudioWorkspace() {
                 Object.keys(model.textures).forEach(key => {
                     const texPath = model.textures[key] as string;
                     const fileName = sanitizePath(texPath.split('/').pop() || texPath).replace('.png', '');
-                    // IMPORTANT: ItemsAdder paths in JSON should NOT include "textures/"
-                    // Correct: namespace:furniture/file (points to assets/ns/textures/furniture/file.png)
                     if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
                         model.textures[key] = `${ns}:${subfolder}/${fileName}`;
                     }
@@ -512,9 +509,9 @@ export default function StudioWorkspace() {
           inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/models/${subfolder}/${sanitizedFileName}`
         });
 
-        const pathInConfig = `${activeCategory}.${selectedItem}.resource`;
-        updateField(`${pathInConfig}.model_path`, `${ns}:${subfolder}/${modelName}`, selectedData.fullKey);
-        updateField(`${pathInConfig}.generate`, false, selectedData.fullKey);
+        const keyName = activeCategory === 'blocks' ? "blocks" : "items";
+        updateField(`${keyName}.${selectedItem}.resource.model_path`, `${ns}:${subfolder}/${modelName}`, selectedData.fullKey);
+        updateField(`${keyName}.${selectedItem}.resource.generate`, false, selectedData.fullKey);
       }
     }
     setProjectState(newState);
@@ -660,12 +657,12 @@ export default function StudioWorkspace() {
                         <div className={cn("grid gap-6", activeEditor === 'ia' || activeEditor === 'xmachines' ? "grid-cols-2" : "grid-cols-3")}>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Nombre Display</label>
-                                <input type="text" value={(activeEditor === 'ia' ? selectedData.data.display_name : selectedData.config['display-name']) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `config.${activeCategory}.${selectedItem}.display_name` : 'config.display-name', e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
+                                <input type="text" value={(activeEditor === 'ia' ? selectedData.data.display_name : selectedData.config['display-name']) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `${activeCategory === 'blocks' ? 'blocks' : 'items'}.${selectedItem}.display_name` : 'config.display-name', e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
                             </div>
                             {activeEditor !== 'xmachines' && (
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Material</label>
-                                    <input type="text" value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xfoods' ? selectedData.config.item?.material : selectedData.config.seed?.material)) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `config.${activeCategory}.${selectedItem}.resource.material` : (activeEditor === 'xfoods' ? 'config.item.material' : 'config.seed.material'), e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
+                                    <input type="text" value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xfoods' ? selectedData.config.item?.material : selectedData.config.seed?.material)) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `${activeCategory === 'blocks' ? 'blocks' : 'items'}.${selectedItem}.resource.material` : (activeEditor === 'xfoods' ? 'config.item.material' : 'config.seed.material'), e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
                                 </div>
                             )}
                             {(activeEditor === 'xfoods' || activeEditor === 'xcrops') && (
@@ -722,12 +719,12 @@ export default function StudioWorkspace() {
                             <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6">
                                 <div className="flex justify-between items-center"><h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Recursos</h4><button onClick={() => iaFileInputRef.current?.click()} className="bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border border-yellow-400/20">Inyectar</button><input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple /></div>
                                 <div className="space-y-4">
-                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ruta Modelo</label><input type="text" value={selectedData.data.resource?.model_path || ''} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.resource.model_path`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none text-xs" /></div>
-                                    <label className="flex items-center gap-3 cursor-pointer"><div className="relative"><input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.resource.generate`, e.target.checked, selectedData.fullKey)} className="sr-only" /><div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div><div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div></div><span className="text-[10px] font-black text-gray-500 uppercase">Auto-Gen 2D</span></label>
+                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ruta Modelo</label><input type="text" value={selectedData.data.resource?.model_path || ''} onChange={(e) => updateField(`${activeCategory === 'blocks' ? 'blocks' : 'items'}.${selectedItem}.resource.model_path`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none text-xs" /></div>
+                                    <label className="flex items-center gap-3 cursor-pointer"><div className="relative"><input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateField(`${activeCategory === 'blocks' ? 'blocks' : 'items'}.${selectedItem}.resource.generate`, e.target.checked, selectedData.fullKey)} className="sr-only" /><div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div><div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div></div><span className="text-[10px] font-black text-gray-500 uppercase">Auto-Gen 2D</span></label>
                                 </div>
                             </div>
                             {activeCategory === 'furnitures' && (
-                                <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6"><h4 className="text-xs font-black uppercase text-blue-400 tracking-widest italic">Hitbox</h4><div className="grid grid-cols-3 gap-3">{['length', 'width', 'height'].map(dim => (<div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5"><label className="text-[8px] font-bold text-gray-500 uppercase block mb-1">{dim}</label><input type="number" step="0.1" value={selectedData.data.specific_properties?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.specific_properties.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-transparent text-white font-bold outline-none text-xs" /></div>))}</div></div>
+                                <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6"><h4 className="text-xs font-black uppercase text-blue-400 tracking-widest italic">Hitbox</h4><div className="grid grid-cols-3 gap-3">{['length', 'width', 'height'].map(dim => (<div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5"><label className="text-[8px] font-bold text-gray-500 uppercase block mb-1">{dim}</label><input type="number" step="0.1" value={selectedData.data.specific_properties?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`${activeCategory === 'blocks' ? 'blocks' : 'items'}.${selectedItem}.specific_properties.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-transparent text-white font-bold outline-none text-xs" /></div>))}</div></div>
                             )}
                         </div>
                     )}
