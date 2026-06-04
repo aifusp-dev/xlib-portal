@@ -199,6 +199,22 @@ export default function StudioPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isAutoImporting, setIsAutoImporting] = useState(false);
+
+  // Auto-import from URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token && !projectState && !isAutoImporting) {
+        setIsAutoImporting(true);
+        handleImportFromBridge(token)
+            .then(() => {
+                window.history.replaceState({}, '', window.location.pathname);
+            })
+            .catch(err => console.error("Auto-import failed", err))
+            .finally(() => setIsAutoImporting(false));
+    }
+  }, [projectState]);
 
   const handleSyncToBridge = async () => {
     if (!projectState) return null;
