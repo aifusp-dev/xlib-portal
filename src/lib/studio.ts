@@ -13,6 +13,8 @@ export interface EcosystemState {
   foods: Record<string, { config: Record<string, unknown>, folder?: string }>;
   crops: Record<string, { config: Record<string, unknown>, folder?: string }>;
   iaItems: Record<string, Record<string, unknown>>;
+  iaBlocks: Record<string, Record<string, unknown>>;
+  iaFurnitures: Record<string, Record<string, unknown>>;
   machines: Record<string, { config: Record<string, unknown>, folder?: string }>;
   rawFiles: StudioFile[];
 }
@@ -37,9 +39,19 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   });
 
   // 4. Pack ItemsAdder (MODULAR STRUCTURE)
-  // Everything goes under ItemsAdder/contents/[projectName]/
+  // General configs
   Object.entries(state.iaItems).forEach(([id, data]) => {
     zip.file(`ItemsAdder/contents/${ns}/configs/${id}.yml`, stringifyYaml(data));
+  });
+
+  // Blocks
+  Object.entries(state.iaBlocks).forEach(([id, data]) => {
+    zip.file(`ItemsAdder/contents/${ns}/configs/blocks/${id}.yml`, stringifyYaml(data));
+  });
+
+  // Furnitures
+  Object.entries(state.iaFurnitures).forEach(([id, data]) => {
+    zip.file(`ItemsAdder/contents/${ns}/configs/furnitures/${id}.yml`, stringifyYaml(data));
   });
 
   // 5. Pack original raw files (textures/models) with final JSON remapping
@@ -99,6 +111,8 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
     foods: {},
     crops: {},
     iaItems: {},
+    iaBlocks: {},
+    iaFurnitures: {},
     machines: {},
     rawFiles: []
   };
@@ -158,12 +172,26 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
         if (iaParts.length > 1 && iaParts[1] === 'configs') {
           const relativeIdPath = iaParts.slice(2).join('/');
           const fullId = sanitizePath(relativeIdPath.replace(/\.ya?ml$/, ''));
-          state.iaItems[fullId] = config;
+          
+          if (path.includes('/configs/blocks/')) {
+            state.iaBlocks[fullId.replace('blocks/', '')] = config;
+          } else if (path.includes('/configs/furnitures/')) {
+            state.iaFurnitures[fullId.replace('furnitures/', '')] = config;
+          } else {
+            state.iaItems[fullId] = config;
+          }
         }
       } else if (path.includes(`${state.projectName}/configs/`)) {
         const relativeIdPath = path.split(`${state.projectName}/configs/`)[1];
         const fullId = sanitizePath(relativeIdPath.replace(/\.ya?ml$/, ''));
-        state.iaItems[fullId] = config;
+        
+        if (path.includes('/configs/blocks/')) {
+            state.iaBlocks[fullId.replace('blocks/', '')] = config;
+        } else if (path.includes('/configs/furnitures/')) {
+            state.iaFurnitures[fullId.replace('furnitures/', '')] = config;
+        } else {
+            state.iaItems[fullId] = config;
+        }
       }
     } else if (path.match(/\.(png|json|ogg)$/i)) {
       // Preserve assets from the IA content folder
@@ -210,4 +238,3 @@ export const sanitizePath = (path: string) => {
                .replace(/\s+/g, '_')
                .replace(/[^a-z0-9/._:-]/g, '');
 };
-

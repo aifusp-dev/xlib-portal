@@ -14,7 +14,8 @@ import {
   Coins,
   Clock,
   UserCircle,
-  Library
+  Library,
+  Settings2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -126,18 +127,32 @@ export default function Sidebar() {
           <h3 className="px-4 text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-3">
             Studio
           </h3>
-          <Link
-            href="/studio"
-            className={cn(
-              "flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-              pathname.startsWith("/studio") 
-                ? "bg-accent text-white shadow-lg shadow-accent/10" 
-                : "text-gray-400 hover:text-white hover:bg-white/5"
-            )}
-          >
-            <Zap className="w-4 h-4" />
-            Dashboard Pro
-          </Link>
+          <div className="space-y-1">
+            <Link
+              href="/studio"
+              className={cn(
+                "flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                pathname.startsWith("/studio") 
+                  ? "bg-accent text-white shadow-lg shadow-accent/10" 
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
+              )}
+            >
+              <Zap className="w-4 h-4" />
+              Dashboard Pro
+            </Link>
+            <Link
+              href="/ia-config"
+              className={cn(
+                "flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                pathname.startsWith("/ia-config") 
+                  ? "bg-yellow-400 text-black shadow-lg shadow-yellow-400/10" 
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
+              )}
+            >
+              <Settings2 className="w-4 h-4" />
+              ItemsAdder Config
+            </Link>
+          </div>
         </div>
       </nav>
 
