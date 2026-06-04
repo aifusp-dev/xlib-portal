@@ -23,7 +23,8 @@ import {
   Search,
   Cloud,
   ChefHat,
-  Sprout
+  Sprout,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateZIP, parseUploadedFiles, EcosystemState, stringifyYaml, sanitizePath, StudioFile } from "@/lib/studio";
@@ -166,7 +167,7 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
   const [activeEditor, setActiveEditor] = useState<'ia' | 'xfoods' | 'xcrops' | 'xmachines'>('xfoods');
-  const [activeCategory, setActiveCategory] = useState<string>("items"); // For IA
+  const [activeCategory, setActiveCategory] = useState<string>("items"); 
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -183,7 +184,6 @@ export default function StudioWorkspace() {
     setMounted(true);
   }, []);
 
-  // -- NAMESPACE SELECTOR LOGIC --
   const availableNamespaces = useMemo(() => {
     if (!projectState) return [];
     const nss = new Set<string>();
@@ -199,7 +199,6 @@ export default function StudioWorkspace() {
     }
   }, [availableNamespaces, selectedNamespace]);
 
-  // -- SYNC LOGIC --
   const handleSyncToBridge = async () => {
     if (!projectState) return null;
     const blob = await generateZIP(projectState);
@@ -253,7 +252,6 @@ export default function StudioWorkspace() {
     }
   }, [projectState, isAutoImporting, mounted]);
 
-  // -- DATA HANDLERS --
   const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     try {
@@ -268,7 +266,6 @@ export default function StudioWorkspace() {
     if (!projectState || !selectedItem) return;
     const newState = { ...projectState };
     
-    // IA Path Logic
     if (activeEditor === 'ia' && iaFullKey) {
         let targetMap: any;
         if (activeCategory === 'items') targetMap = newState.iaItems;
@@ -286,7 +283,6 @@ export default function StudioWorkspace() {
         }
         current[keys[keys.length - 1]] = value;
     } 
-    // xFoods Path Logic
     else {
         const entry = activeEditor === 'xfoods' ? newState.foods[selectedItem] : 
                       (activeEditor === 'xcrops' ? newState.crops[selectedItem] : newState.machines[selectedItem]);
@@ -296,16 +292,16 @@ export default function StudioWorkspace() {
         } else if (path === 'ia-toggle') {
             const item = entry.config;
             if (value) {
-                if (!item.item && activeEditor === 'xfoods') item.item = {};
-                if (!item.seed && activeEditor === 'xcrops') item.seed = {};
+                if (!(item as any).item && activeEditor === 'xfoods') (item as any).item = {};
+                if (!(item as any).seed && activeEditor === 'xcrops') (item as any).seed = {};
                 
-                const target = activeEditor === 'xfoods' ? item.item : item.seed;
+                const target = activeEditor === 'xfoods' ? (item as any).item : (item as any).seed;
                 const subfolder = activeEditor === 'xfoods' ? 'food' : 'crops';
                 (target as Record<string, unknown>)['itemsadder-id'] = `${newState.projectName}:${selectedItem}`;
                 
                 const iaItems: Record<string, unknown> = {
                     [selectedItem]: {
-                        display_name: item['display-name'] || "Nuevo Ítem",
+                        display_name: (item as any)['display-name'] || "Nuevo Ítem",
                         permission: `${newState.projectName.toLowerCase()}.${selectedItem}`,
                         resource: { 
                             material: (target as Record<string, string>)?.material || "PAPER",
@@ -321,8 +317,8 @@ export default function StudioWorkspace() {
                     items: iaItems 
                 };
             } else {
-                if (activeEditor === 'xfoods' && item.item) delete (item.item as Record<string, unknown>)['itemsadder-id'];
-                if (activeEditor === 'xcrops' && item.seed) delete (item.seed as Record<string, unknown>)['itemsadder-id'];
+                if (activeEditor === 'xfoods' && (item as any).item) delete (item as any).item['itemsadder-id'];
+                if (activeEditor === 'xcrops' && (item as any).seed) delete (item as any).seed['itemsadder-id'];
                 delete newState.iaItems[`${newState.projectName}/${selectedItem}`];
             }
         } else {
@@ -332,7 +328,6 @@ export default function StudioWorkspace() {
                 if (!current[keys[i]]) current[keys[i]] = {};
                 current = current[keys[i]];
             }
-            // Handle lore as list
             if (keys[keys.length-1] === 'lore' && typeof value === 'string') {
                 current[keys[keys.length-1]] = value.split('\n');
             } else {
@@ -340,7 +335,6 @@ export default function StudioWorkspace() {
             }
         }
     }
-
     setProjectState(newState);
   };
 
@@ -348,9 +342,8 @@ export default function StudioWorkspace() {
     if (!projectState) return;
     const timestamp = Date.now();
     const newState = { ...projectState };
-
     if (activeEditor === 'ia') {
-        const id = prompt("Introduce el ID del nuevo objeto ItemsAdder:");
+        const id = prompt("ID del objeto ItemsAdder:");
         if (!id || !selectedNamespace) return;
         const sid = sanitizePath(id);
         const fullKey = `${selectedNamespace}/new_content`;
@@ -359,7 +352,6 @@ export default function StudioWorkspace() {
         if (activeCategory === 'items') { targetMap = newState.iaItems; keyName = "items"; }
         else if (activeCategory === 'blocks') { targetMap = newState.iaBlocks; keyName = "blocks"; }
         else { targetMap = newState.iaFurnitures; keyName = "furnitures"; }
-
         if (!targetMap[fullKey]) targetMap[fullKey] = { info: { namespace: selectedNamespace }, [keyName]: {} };
         targetMap[fullKey][keyName][sid] = { display_name: id, resource: { material: "PAPER", generate: true, textures: [`${selectedNamespace}:item/${sid}`] } };
         setProjectState(newState);
@@ -378,19 +370,20 @@ export default function StudioWorkspace() {
     e.stopPropagation();
     if (!projectState) return;
     const newState = { ...projectState };
-    const currentMap = activeEditor === 'xfoods' ? newState.foods : 
-                     (activeEditor === 'xcrops' ? newState.crops : newState.machines);
+    const currentMap = activeEditor === 'xfoods' ? newState.foods : (activeEditor === 'xcrops' ? newState.crops : newState.machines);
     const originalEntry = currentMap[id];
     if (!originalEntry) return;
     let finalId = sanitizePath(`${id}_copy`);
     let counter = 1;
     while (currentMap[finalId]) { finalId = sanitizePath(`${id}_copy_${counter++}`); }
-    newState.foods[finalId] = JSON.parse(JSON.stringify(originalEntry));
+    const copy = JSON.parse(JSON.stringify(originalEntry));
+    if (activeEditor === 'xfoods') newState.foods[finalId] = copy;
+    else if (activeEditor === 'xcrops') newState.crops[finalId] = copy;
+    else newState.machines[finalId] = copy;
     setProjectState(newState);
     setSelectedItem(finalId);
   };
 
-  // -- GROUPING LOGIC --
   const filteredItems = useMemo(() => {
     if (!projectState) return [];
     if (activeEditor === 'ia') {
@@ -400,34 +393,26 @@ export default function StudioWorkspace() {
         if (activeCategory === 'items') targetMap = projectState.iaItems;
         else if (activeCategory === 'blocks') targetMap = projectState.iaBlocks;
         else targetMap = projectState.iaFurnitures;
-
         Object.entries(targetMap).forEach(([fullKey, config]: [string, any]) => {
             if (fullKey.startsWith(`${selectedNamespace}/`)) {
                 const subMap = config[activeCategory] || {};
                 Object.entries(subMap).forEach(([id, data]) => {
-                    if (!searchTerm || id.toLowerCase().includes(searchTerm.toLowerCase())) {
-                        result.push([id, { fullKey, data }]);
-                    }
+                    if (!searchTerm || id.toLowerCase().includes(searchTerm.toLowerCase())) result.push([id, { fullKey, data }]);
                 });
             }
         });
         return result;
     } else {
-        const targetMap = activeEditor === 'xfoods' ? projectState.foods : 
-                         (activeEditor === 'xcrops' ? projectState.crops : projectState.machines);
+        const targetMap = activeEditor === 'xfoods' ? projectState.foods : (activeEditor === 'xcrops' ? projectState.crops : projectState.machines);
         return Object.entries(targetMap).filter(([id]) => !searchTerm || id.toLowerCase().includes(searchTerm.toLowerCase()));
     }
   }, [projectState, activeEditor, activeCategory, selectedNamespace, searchTerm]);
 
   const selectedData = useMemo(() => {
     if (!selectedItem || !projectState) return null;
-    if (activeEditor === 'ia') {
-        return filteredItems.find(([id]) => id === selectedItem)?.[1];
-    } else {
-        const targetMap = activeEditor === 'xfoods' ? projectState.foods : 
-                         (activeEditor === 'xcrops' ? projectState.crops : projectState.machines);
-        return targetMap[selectedItem];
-    }
+    if (activeEditor === 'ia') return filteredItems.find(([id]) => id === selectedItem)?.[1];
+    const targetMap = activeEditor === 'xfoods' ? projectState.foods : (activeEditor === 'xcrops' ? projectState.crops : projectState.machines);
+    return targetMap[selectedItem];
   }, [selectedItem, filteredItems, activeEditor, projectState]);
 
   const groupedX = useMemo(() => {
@@ -450,10 +435,7 @@ export default function StudioWorkspace() {
   if (isAutoImporting) {
     return (
         <div className="h-screen flex flex-col items-center justify-center space-y-6 bg-[#0b0f19]">
-            <div className="relative">
-                <div className="w-24 h-24 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
-                <Cloud className="absolute inset-0 m-auto w-8 h-8 text-yellow-400 animate-pulse" />
-            </div>
+            <div className="relative"><div className="w-24 h-24 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" /><Cloud className="absolute inset-0 m-auto w-8 h-8 text-yellow-400 animate-pulse" /></div>
             <h2 className="text-xl font-bold text-white tracking-widest uppercase">Sincronizando...</h2>
         </div>
     );
@@ -463,21 +445,19 @@ export default function StudioWorkspace() {
     return (
       <div className="max-w-4xl mx-auto py-20 text-center space-y-12 animate-in fade-in zoom-in-95 duration-700">
         <div className="space-y-4">
-          <div className="bg-yellow-400/10 p-6 rounded-full w-fit mx-auto border border-yellow-400/20">
-             <Settings2 className="w-16 h-16 text-yellow-400" />
-          </div>
-          <h1 className="text-4xl font-extrabold text-white tracking-tight italic uppercase">Studio Pro Workspace</h1>
+          <div className="bg-yellow-400/10 p-6 rounded-full w-fit mx-auto border border-yellow-400/20"><Settings2 className="w-16 h-16 text-yellow-400" /></div>
+          <h1 className="text-4xl font-extrabold text-white tracking-tight italic uppercase">Studio Workspace</h1>
           <p className="text-gray-400 text-lg max-w-md mx-auto italic uppercase text-xs font-black tracking-widest">IA • XFOODS • XCROPS</p>
         </div>
         <div className="grid grid-cols-2 gap-8">
             <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-[#374151] rounded-3xl p-16 hover:border-yellow-400/10 hover:bg-yellow-400/5 transition-all cursor-pointer group">
                 <input type="file" ref={fileInputRef} onChange={handleFolderUpload} className="hidden" {...({ webkitdirectory: "", directory: "" } as any)} />
                 <Upload className="w-12 h-12 text-gray-500 mx-auto mb-6 group-hover:text-yellow-400 transition-colors" />
-                <p className="text-white font-bold text-xl uppercase tracking-tighter">Subir Carpeta de Configuración</p>
+                <p className="text-white font-bold text-xl uppercase tracking-tighter">Subir Carpeta</p>
             </div>
             <div onClick={() => setIsSyncModalOpen(true)} className="border-2 border-dashed border-blue-500/20 rounded-3xl p-16 hover:border-blue-500/10 hover:bg-blue-500/5 transition-all cursor-pointer group">
                 <Cloud className="w-12 h-12 text-gray-500 mx-auto mb-6 group-hover:text-blue-400 transition-colors" />
-                <p className="text-white font-bold text-xl uppercase tracking-tighter">Importar vía xLib Bridge</p>
+                <p className="text-white font-bold text-xl uppercase tracking-tighter">xLib Bridge</p>
             </div>
         </div>
         <SyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} onSync={handleSyncToBridge} onImport={handleImportFromBridge} />
@@ -487,45 +467,31 @@ export default function StudioWorkspace() {
 
   return (
     <div className="h-full flex flex-col space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-      {/* Top Header / Editor Switcher */}
       <header className="bg-[#111827] p-6 rounded-2xl border border-[#374151] flex justify-between items-center shadow-xl">
         <div className="flex items-center gap-8">
             <div className="flex bg-black/40 p-1.5 rounded-xl border border-white/5">
-                <button onClick={() => { setActiveEditor('xfoods'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xfoods' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-gray-500 hover:text-white")}>
-                    <ChefHat className="w-3.5 h-3.5" /> xFoods
-                </button>
-                <button onClick={() => { setActiveEditor('ia'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'ia' ? "bg-yellow-400 text-black shadow-lg shadow-yellow-400/20" : "text-gray-500 hover:text-white")}>
-                    <Settings2 className="w-3.5 h-3.5" /> ItemsAdder
-                </button>
-                <button onClick={() => { setActiveEditor('xcrops'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xcrops' ? "bg-green-500 text-white shadow-lg shadow-green-500/20" : "text-gray-500 hover:text-white")}>
-                    <Sprout className="w-3.5 h-3.5" /> xCrops
-                </button>
-                <button onClick={() => { setActiveEditor('xmachines'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xmachines' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-gray-500 hover:text-white")}>
-                    <Flame className="w-3.5 h-3.5" /> Estaciones
-                </button>
+                <button onClick={() => { setActiveEditor('xfoods'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xfoods' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-gray-500 hover:text-white")}><ChefHat className="w-3.5 h-3.5" /> xFoods</button>
+                <button onClick={() => { setActiveEditor('ia'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'ia' ? "bg-yellow-400 text-black shadow-lg shadow-yellow-400/20" : "text-gray-500 hover:text-white")}><Settings2 className="w-3.5 h-3.5" /> ItemsAdder</button>
+                <button onClick={() => { setActiveEditor('xcrops'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xcrops' ? "bg-green-500 text-white shadow-lg shadow-green-500/20" : "text-gray-500 hover:text-white")}><Sprout className="w-3.5 h-3.5" /> xCrops</button>
+                <button onClick={() => { setActiveEditor('xmachines'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xmachines' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-gray-500 hover:text-white")}><Flame className="w-3.5 h-3.5" /> Estaciones</button>
             </div>
-
             {activeEditor === 'ia' && selectedNamespace && (
                 <div className="flex flex-col border-l border-[#374151] pl-8">
-                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1 italic">Pack Seleccionado</label>
-                    <select value={selectedNamespace} onChange={(e) => { setSelectedNamespace(e.target.value); setSelectedItem(null); }} className="bg-transparent text-lg font-bold text-yellow-400 outline-none cursor-pointer tracking-tighter uppercase italic">
+                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1 italic">Pack</label>
+                    <select value={selectedNamespace} onChange={(e) => { setSelectedNamespace(e.target.value); setSelectedItem(null); }} className="bg-transparent text-lg font-bold text-yellow-400 outline-none cursor-pointer uppercase italic">
                         {availableNamespaces.map(ns => <option key={ns} value={ns} className="bg-[#111827] text-white">{ns}</option>)}
                     </select>
                 </div>
             )}
         </div>
-
         <div className="flex gap-3">
-          <button onClick={() => setIsSyncModalOpen(true)} className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-2.5 rounded-xl font-bold hover:bg-blue-500/20 transition-all border border-blue-500/20">
-            <Cloud className="w-4 h-4" /> Bridge
-          </button>
+          <button onClick={() => setIsSyncModalOpen(true)} className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-2.5 rounded-xl font-bold hover:bg-blue-500/20 transition-all border border-blue-500/20"><Cloud className="w-4 h-4" /> Bridge</button>
           <button onClick={() => { setProjectState(null); setSelectedItem(null); }} className="px-6 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-colors uppercase tracking-widest">Cerrar</button>
           <button onClick={() => exportEcosystem(projectState)} className="flex items-center gap-2 bg-accent text-white px-8 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"><Download className="w-4 h-4" /> ZIP</button>
         </div>
       </header>
 
       <div className="flex-1 grid grid-cols-12 gap-6 overflow-hidden">
-        {/* SIDEBAR */}
         <aside className="col-span-3 bg-[#111827] border border-[#374151] rounded-2xl flex flex-col overflow-hidden shadow-xl">
            {activeEditor === 'ia' && (
                <div className="p-4 border-b border-[#374151] flex gap-2 overflow-x-auto scrollbar-hide">
@@ -554,10 +520,7 @@ export default function StudioWorkspace() {
                     Object.entries(groupedX).map(([folder, items]) => (
                         <div key={folder} className="space-y-1">
                             <button onClick={() => setOpenFolders(prev => ({ ...prev, [folder]: !prev[folder] }))} className="w-full flex items-center justify-between px-2 py-1 hover:bg-white/5 rounded-lg transition-colors group">
-                                <div className="flex items-center gap-2">
-                                    {openFolders[folder] ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronRight className="w-3 h-3 text-gray-500" />}
-                                    <span className="text-[10px] font-black uppercase text-gray-500 group-hover:text-gray-300 tracking-widest">{folder}</span>
-                                </div>
+                                <div className="flex items-center gap-2">{openFolders[folder] ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronRight className="w-3 h-3 text-gray-500" />}<span className="text-[10px] font-black uppercase text-gray-500 group-hover:text-gray-300 tracking-widest">{folder}</span></div>
                             </button>
                             {(openFolders[folder] || folder === "Raíz") && (
                                 <div className="space-y-0.5 ml-2 border-l border-white/5 pl-2">
@@ -599,7 +562,6 @@ export default function StudioWorkspace() {
                 </div>
 
                 <div className="space-y-8">
-                    {/* Base Settings */}
                     <div className="space-y-6">
                         <div className="flex items-center gap-2 text-yellow-400"><Info className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Ajustes Base</h4></div>
                         <div className={cn("grid gap-6", activeEditor === 'ia' || activeEditor === 'xmachines' ? "grid-cols-2" : "grid-cols-3")}>
@@ -622,7 +584,6 @@ export default function StudioWorkspace() {
                         </div>
                     </div>
 
-                    {/* Specialized Sections for xFoods */}
                     {activeEditor === 'xfoods' && (
                         <>
                         <div className="grid grid-cols-4 gap-4">
@@ -632,131 +593,66 @@ export default function StudioWorkspace() {
                             <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Ticks Consumo</label><input type="number" value={selectedData.config.stats?.['consumption-ticks'] || 30} onChange={(e) => updateField('config.stats.consumption-ticks', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-1">Lore (Descripción)</label>
-                            <textarea rows={4} value={Array.isArray(selectedData.config.lore) ? selectedData.config.lore.join('\n') : ''} onChange={(e) => updateField('config.lore', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none resize-none text-sm focus:border-yellow-400 transition-colors" />
+                            <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-1">Lore</label>
+                            <textarea rows={4} value={Array.isArray(selectedData.config.lore) ? selectedData.config.lore.join('\n') : ''} onChange={(e) => updateField('config.lore', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none resize-none text-sm focus:border-yellow-400" />
                         </div>
                         <div className="space-y-6 pt-4 border-t border-[#374151]">
-                            <div className="flex items-center gap-2 text-orange-400"><Clock className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Expiración y Caducidad</h4></div>
+                            <div className="flex items-center gap-2 text-orange-400"><Clock className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Expiración</h4></div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Minutos hasta Expirar</label>
-                                    <input type="number" value={selectedData.config.stats?.['expiry-minutes'] || 0} onChange={(e) => updateField('config.stats.expiry-minutes', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="0 = nunca" />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase">ID al Caducar</label>
-                                    <AutocompleteInput value={selectedData.config.stats?.['expired-id'] || ''} onChange={(val) => updateField('config.stats.expired-id', val)} options={Object.keys(projectState.foods)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                </div>
+                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Minutos</label><input type="number" value={selectedData.config.stats?.['expiry-minutes'] || 0} onChange={(e) => updateField('config.stats.expiry-minutes', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">ID al Caducar</label><AutocompleteInput value={selectedData.config.stats?.['expired-id'] || ''} onChange={(val) => updateField('config.stats.expired-id', val)} options={Object.keys(projectState.foods)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
                             </div>
+                        </div>
+                        <div className="space-y-6 pt-4 border-t border-[#374151]">
+                            <div className="flex items-center gap-2 text-red-400"><Binary className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Integración RPXHealth</h4></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">ID Enfermedad</label><input type="text" value={selectedData.config.integration?.['disease-id'] || ''} onChange={(e) => updateField('config.integration.disease-id', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Probabilidad</label><input type="number" step="0.01" value={selectedData.config.integration?.['disease-chance'] || 0} onChange={(e) => updateField('config.integration.disease-chance', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                            </div>
+                        </div>
+                        <div className="space-y-6 pt-4 border-t border-[#374151]">
+                             <div className="flex justify-between items-center"><h4 className="text-xs font-black text-green-400 uppercase tracking-widest">Comandos</h4><button onClick={() => { const newState = {...projectState}; const food = newState.foods[selectedItem].config; if(!food.commands) food.commands = []; (food.commands as any).push(""); setProjectState(newState); }} className="text-[10px] font-bold text-green-400">+ AÑADIR</button></div>
+                             <div className="space-y-2">{(Array.isArray(selectedData.config.commands) ? selectedData.config.commands : []).map((cmd: string, idx: number) => (<div key={idx} className="flex gap-2"><input type="text" value={cmd} onChange={(e) => { const newState = {...projectState}; (newState.foods[selectedItem as string].config.commands as any)[idx] = e.target.value; setProjectState(newState); }} className="flex-1 bg-black/20 border border-white/5 rounded-xl px-4 py-2 text-white outline-none" /><button onClick={() => { const newState = {...projectState}; (newState.foods[selectedItem as string].config.commands as any).splice(idx, 1); setProjectState(newState); }} className="text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>))}</div>
                         </div>
                         </>
                     )}
 
-                    {/* Specialized Sections for xCrops */}
                     {activeEditor === 'xcrops' && (
                          <div className="space-y-8">
-                             <div className="flex justify-between items-center border-b border-[#374151] pb-4">
-                                <div className="flex items-center gap-2 text-green-400"><FolderSearch className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Etapas de Crecimiento</h4></div>
-                                <button onClick={() => { const crop = selectedData.config; if(!crop.growth.stages) crop.growth.stages = {}; const sid = `stage${Object.keys(crop.growth.stages).length}`; updateField(`config.growth.stages.${sid}`, { material: "FERN", scale: 1.0, duration: 60000 }); }} className="text-[10px] font-black uppercase bg-green-500/10 text-green-500 px-3 py-1.5 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-all flex items-center gap-2">+ Nueva Etapa</button>
-                             </div>
-                             <div className="grid gap-6">
-                                 {Object.entries((selectedData.config.growth?.stages as Record<string, any>) || {}).map(([sid, sData]) => (
-                                     <div key={sid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden">
-                                         <div className="bg-white/5 px-6 py-2 flex justify-between items-center border-b border-white/5">
-                                            <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">{sid}</span>
-                                            <button onClick={() => { const newState = {...projectState}; delete (newState.crops[selectedItem].config.growth.stages as any)[sid]; setProjectState(newState); }} className="text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>
-                                         </div>
-                                         <div className="p-6 grid grid-cols-3 gap-4">
-                                            <div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Material</label><input type="text" value={sData.material || ''} onChange={(e) => updateField(`config.growth.stages.${sid}.material`, e.target.value)} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div>
-                                            <div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Escala</label><input type="number" step="0.1" value={sData.scale || 1.0} onChange={(e) => updateField(`config.growth.stages.${sid}.scale`, parseFloat(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div>
-                                            <div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Duración (ms)</label><input type="number" value={sData.duration || 60000} onChange={(e) => updateField(`config.growth.stages.${sid}.duration`, parseInt(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div>
-                                         </div>
-                                     </div>
-                                 ))}
-                             </div>
+                             <div className="flex justify-between items-center border-b border-[#374151] pb-4"><div className="flex items-center gap-2 text-green-400"><FolderSearch className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Etapas</h4></div><button onClick={() => { const newState = {...projectState}; const crop = newState.crops[selectedItem as string].config; if(!(crop as any).growth) (crop as any).growth = { stages: {} }; if(!(crop as any).growth.stages) (crop as any).growth.stages = {}; const sid = `stage${Object.keys((crop as any).growth.stages).length}`; (crop as any).growth.stages[sid] = { material: "FERN", scale: 1.0, duration: 60000 }; setProjectState(newState); }} className="text-[10px] font-black uppercase bg-green-500/10 text-green-500 px-3 py-1.5 rounded-lg border border-green-500/20">+ Nueva Etapa</button></div>
+                             <div className="grid gap-6">{Object.entries((selectedData.config.growth?.stages as Record<string, any>) || {}).map(([sid, sData]) => (<div key={sid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden"><div className="bg-white/5 px-6 py-2 flex justify-between items-center border-b border-white/5"><span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">{sid}</span><button onClick={() => { const newState = {...projectState}; delete (newState.crops[selectedItem as string].config.growth as any).stages[sid]; setProjectState(newState); }} className="text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div><div className="p-6 grid grid-cols-3 gap-4"><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Material</label><input type="text" value={sData.material || ''} onChange={(e) => updateField(`config.growth.stages.${sid}.material`, e.target.value)} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Escala</label><input type="number" step="0.1" value={sData.scale || 1.0} onChange={(e) => updateField(`config.growth.stages.${sid}.scale`, parseFloat(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Duración</label><input type="number" value={sData.duration || 60000} onChange={(e) => updateField(`config.growth.stages.${sid}.duration`, parseInt(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div></div></div>))}</div>
                          </div>
                     )}
 
-                    {/* Specialized Sections for ItemsAdder */}
                     {activeEditor === 'ia' && (
                         <div className="space-y-8">
                             <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6">
-                                <div className="flex justify-between items-center">
-                                    <h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Recursos Técnicos</h4>
-                                    <button onClick={() => iaFileInputRef.current?.click()} className="flex items-center gap-2 bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase hover:bg-yellow-400/20 transition-all border border-yellow-400/20"><Upload className="w-3 h-3" /> Inyectar Archivos</button>
-                                    <input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple />
-                                </div>
+                                <div className="flex justify-between items-center"><h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Recursos</h4><button onClick={() => iaFileInputRef.current?.click()} className="bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border border-yellow-400/20">Inyectar</button><input type="file" ref={iaFileInputRef} onChange={() => {}} className="hidden" accept=".png,.json" multiple /></div>
                                 <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-gray-600 uppercase">Ruta del Modelo</label>
-                                        <input type="text" value={selectedData.data.resource?.model_path || ''} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.resource.model_path`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
-                                    </div>
-                                    <label className="flex items-center gap-3 cursor-pointer group/toggle">
-                                        <div className="relative">
-                                            <input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.resource.generate`, e.target.checked, selectedData.fullKey)} className="sr-only" />
-                                            <div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div>
-                                            <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div>
-                                        </div>
-                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Auto-Generar Textura 2D</span>
-                                    </label>
+                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ruta Modelo</label><input type="text" value={selectedData.data.resource?.model_path || ''} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.resource.model_path`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none text-xs" /></div>
+                                    <label className="flex items-center gap-3 cursor-pointer"><div className="relative"><input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.resource.generate`, e.target.checked, selectedData.fullKey)} className="sr-only" /><div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div><div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div></div><span className="text-[10px] font-black text-gray-500 uppercase">Auto-Gen 2D</span></label>
                                 </div>
                             </div>
                             {activeCategory === 'furnitures' && (
-                                <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6">
-                                    <h4 className="text-xs font-black uppercase text-blue-400 tracking-widest italic">Hitbox del Mueble</h4>
-                                    <div className="grid grid-cols-3 gap-3">
-                                        {['length', 'width', 'height'].map(dim => (
-                                            <div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5">
-                                                <label className="text-[8px] font-bold text-gray-500 uppercase block mb-1">{dim}</label>
-                                                <input type="number" step="0.1" value={selectedData.data.specific_properties?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.specific_properties.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-transparent text-white font-bold outline-none text-xs" />
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
+                                <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6"><h4 className="text-xs font-black uppercase text-blue-400 tracking-widest italic">Hitbox</h4><div className="grid grid-cols-3 gap-3">{['length', 'width', 'height'].map(dim => (<div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5"><label className="text-[8px] font-bold text-gray-500 uppercase block mb-1">{dim}</label><input type="number" step="0.1" value={selectedData.data.specific_properties?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.specific_properties.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-transparent text-white font-bold outline-none text-xs" /></div>))}</div></div>
                             )}
                         </div>
                     )}
                 </div>
 
-                {/* ItemsAdder Bridge for xPlugins */}
                 {(activeEditor === 'xfoods' || activeEditor === 'xcrops') && (
-                <div className={cn("p-8 rounded-3xl border transition-all", isIAEnabled ? "bg-yellow-400/5 border-yellow-400/20" : "bg-white/2 border-white/5")}>
-                    <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                            <Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-yellow-400" : "text-gray-600")} />
-                            <div><h4 className="text-md font-black text-white uppercase tracking-tighter italic">Vincular con ItemsAdder</h4><p className="text-[11px] text-gray-500 uppercase font-black tracking-widest">Permite usar modelos 3D y texturas custom</p></div>
-                        </div>
-                        <label className="switch"><input type="checkbox" checked={isIAEnabled} onChange={(e) => updateField('ia-toggle', e.target.checked)} /><span className="slider"></span></label>
-                    </div>
-                </div>
+                <div className={cn("p-8 rounded-3xl border transition-all", isIAEnabled ? "bg-yellow-400/5 border-yellow-400/20" : "bg-white/2 border-white/5")}><div className="flex justify-between items-center"><div className="flex items-center gap-3"><Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-yellow-400" : "text-gray-600")} /><div><h4 className="text-md font-black text-white uppercase tracking-tighter italic">ItemsAdder</h4><p className="text-[11px] text-gray-500 uppercase font-black tracking-widest">Modelos 3D y texturas</p></div></div><label className="switch"><input type="checkbox" checked={isIAEnabled} onChange={(e) => updateField('ia-toggle', e.target.checked)} /><span className="slider"></span></label></div></div>
                 )}
              </div>
            ) : (
-             <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-30 grayscale scale-95 transition-all py-20">
-                <div className="bg-white/5 p-10 rounded-full border border-white/5 animate-pulse"><Package className="w-20 h-20 text-gray-700" /></div>
-                <div className="space-y-2"><h3 className="text-2xl font-black text-gray-400 uppercase tracking-widest italic">Selecciona un elemento</h3><p className="text-sm text-gray-600 uppercase font-black tracking-tighter">Explora las categorías para iniciar la edición profesional.</p></div>
-             </div>
+             <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-30 grayscale scale-95 transition-all py-20"><div className="bg-white/5 p-10 rounded-full border border-white/5 animate-pulse"><Package className="w-20 h-20 text-gray-700" /></div><div className="space-y-2"><h3 className="text-2xl font-black text-gray-400 uppercase tracking-widest italic">Selecciona un elemento</h3><p className="text-sm text-gray-600 uppercase font-black tracking-tighter">Explora las categorías para iniciar la edición profesional.</p></div></div>
            )}
         </main>
 
         <section className="col-span-3 bg-black border border-[#374151] rounded-2xl overflow-hidden flex flex-col shadow-2xl lg:sticky lg:top-0 h-fit max-h-[90vh]">
-           <div className="bg-[#111827] px-4 py-3 border-b border-[#374151] flex items-center justify-between">
-              <div className="flex items-center gap-2"><Binary className="w-4 h-4 text-accent" /><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">Live Code</span></div>
-              <div className="flex gap-2">
-                 <button onClick={() => setActivePreview('plugin')} className={cn("text-[9px] font-black px-2 py-0.5 rounded border transition-all", activePreview === 'plugin' ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" : "text-gray-600 border-transparent")}>PLUGIN</button>
-                 <button disabled={!isIAEnabled && activeEditor !== 'ia'} onClick={() => setActivePreview('ia')} className={cn("text-[9px] font-black px-2 py-0.5 rounded border transition-all disabled:opacity-0", activePreview === 'ia' ? "text-blue-400 bg-blue-400/10 border-blue-400/20" : "text-gray-600 border-transparent")}>IA</button>
-              </div>
-           </div>
-           <div className="flex-1 p-6 overflow-auto font-mono text-[12px] text-blue-200 leading-relaxed scrollbar-hide">
-              <pre className="whitespace-pre-wrap break-words">
-                {selectedItem && selectedData ? (
-                  activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : 
-                  (activeEditor === 'ia' ? "# Modo IA Activo" : (projectState.iaItems[`${projectState.projectName}/${selectedItem}`] ? stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]) : "# No hay config de IA"))
-                ) : "# Selecciona un ítem..."}
-              </pre>
-           </div>
-           <div className="p-4 bg-[#111827] border-t border-[#374151]">
-              <button onClick={() => { if (selectedItem && selectedData) { const yaml = activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]); navigator.clipboard.writeText(yaml || ""); alert("Copiado"); } }} className="w-full bg-[#1f2937] hover:bg-[#374151] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-[#374151]">Copiar Código</button>
-           </div>
+           <div className="bg-[#111827] px-4 py-3 border-b border-[#374151] flex items-center justify-between"><div className="flex items-center gap-2"><Binary className="w-4 h-4 text-accent" /><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">Live Code</span></div><div className="flex gap-2"><button onClick={() => setActivePreview('plugin')} className={cn("text-[9px] font-black px-2 py-0.5 rounded border transition-all", activePreview === 'plugin' ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" : "text-gray-600 border-transparent")}>PLUGIN</button><button disabled={!isIAEnabled && activeEditor !== 'ia'} onClick={() => setActivePreview('ia')} className={cn("text-[9px] font-black px-2 py-0.5 rounded border transition-all disabled:opacity-0", activePreview === 'ia' ? "text-blue-400 bg-blue-400/10 border-blue-400/20" : "text-gray-600 border-transparent")}>IA</button></div></div>
+           <div className="flex-1 p-6 overflow-auto font-mono text-[12px] text-blue-200 leading-relaxed scrollbar-hide"><pre className="whitespace-pre-wrap break-words">{selectedItem && selectedData ? (activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : (activeEditor === 'ia' ? "# Modo IA Activo" : (projectState.iaItems[`${projectState.projectName}/${selectedItem}`] ? stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]) : "# No hay config de IA"))) : "# Selecciona un ítem..."}</pre></div>
+           <div className="p-4 bg-[#111827] border-t border-[#374151]"><button onClick={() => { if (selectedItem && selectedData) { const yaml = activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]); navigator.clipboard.writeText(yaml || ""); alert("Copiado"); } }} className="w-full bg-[#1f2937] hover:bg-[#374151] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-[#374151]">Copiar Código</button></div>
         </section>
       </div>
 
