@@ -138,19 +138,7 @@ export default function Sidebar() {
               )}
             >
               <Zap className="w-4 h-4" />
-              Dashboard Pro
-            </Link>
-            <Link
-              href="/ia-config"
-              className={cn(
-                "flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                pathname.startsWith("/ia-config") 
-                  ? "bg-yellow-400 text-black shadow-lg shadow-yellow-400/10" 
-                  : "text-gray-400 hover:text-white hover:bg-white/5"
-              )}
-            >
-              <Settings2 className="w-4 h-4" />
-              ItemsAdder Config
+              Studio Workspace
             </Link>
           </div>
         </div>
