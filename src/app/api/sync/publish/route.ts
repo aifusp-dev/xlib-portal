@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateToken, saveSyncFile } from '@/lib/bridge';
 
 export async function POST(req: NextRequest) {
+    console.log('[Bridge API] Received publish request');
     try {
         const formData = await req.formData();
-        const file = formData.get('file') as File;
+        const file = formData.get('file') as File | null;
 
         if (!file) {
+            console.error('[Bridge API] No file found in formData');
             return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
         }
 
@@ -14,6 +16,7 @@ export async function POST(req: NextRequest) {
         const token = generateToken('XLIB');
         
         await saveSyncFile(token, buffer);
+        console.log(`[Bridge API] Successfully published token: ${token}`);
 
         return NextResponse.json({ 
             success: true, 
