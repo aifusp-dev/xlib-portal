@@ -205,16 +205,28 @@ export default function StudioPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
+    
     if (token && !projectState && !isAutoImporting) {
         setIsAutoImporting(true);
+        console.log("[Bridge] Starting auto-import for token:", token);
+        
         handleImportFromBridge(token)
-            .then(() => {
+            .then((state) => {
+                setProjectState(state);
+                setTimeout(() => {
+                    window.history.replaceState({}, '', window.location.pathname);
+                }, 100);
+            })
+            .catch(err => {
+                console.error("[Bridge] Auto-import failed", err);
+                alert("Error al importar: El token no existe, ha expirado o el archivo está corrupto.");
                 window.history.replaceState({}, '', window.location.pathname);
             })
-            .catch(err => console.error("Auto-import failed", err))
-            .finally(() => setIsAutoImporting(false));
+            .finally(() => {
+                setIsAutoImporting(false);
+            });
     }
-  }, [projectState]);
+  }, [projectState, isAutoImporting]);
 
   const handleSyncToBridge = async () => {
     if (!projectState) return null;
@@ -247,8 +259,7 @@ export default function StudioPage() {
         files.push(new File([buffer], path, { type: 'application/octet-stream' }));
     }
 
-    const state = await parseUploadedFiles(files);
-    setProjectState(state);
+    return await parseUploadedFiles(files);
   };
 
   const activeTexturePath = useMemo(() => {

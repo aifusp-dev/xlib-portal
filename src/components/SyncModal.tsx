@@ -8,7 +8,7 @@ interface SyncModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSync: () => Promise<string | null>; // Returns token
-    onImport: (token: string) => Promise<void>;
+    onImport: (token: string) => Promise<any>;
 }
 
 export default function SyncModal({ isOpen, onClose, onSync, onImport }: SyncModalProps) {
