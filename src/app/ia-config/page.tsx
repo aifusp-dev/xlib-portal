@@ -12,12 +12,14 @@ import {
   Zap,
   Search,
   Maximize2,
-  Plus
+  Plus,
+  Cloud
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { parseUploadedFiles, EcosystemState, sanitizePath, StudioFile } from "@/lib/studio";
+import { parseUploadedFiles, generateZIP, EcosystemState, sanitizePath, StudioFile } from "@/lib/studio";
 import { exportEcosystem } from "@/lib/export";
 import { Model3DViewer } from "@/components/Model3DViewer";
+import SyncModal from "@/components/SyncModal";
 
 const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null, rawFiles: StudioFile[], namespace: string }) => {
     const [url, setUrl] = useState<string | null>(null);
