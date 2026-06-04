@@ -348,13 +348,14 @@ export default function StudioWorkspace() {
         const sid = sanitizePath(id);
         const targetFileId = activeCategory === 'furnitures' ? "created_furnitures" : (activeCategory === 'blocks' ? "created_blocks" : "created_items");
         const fullKey = `${selectedNamespace}/${targetFileId}`;
+        
         let targetMap: any;
         let keyName = "";
         if (activeCategory === 'items') { targetMap = newState.iaItems; keyName = "items"; }
         else if (activeCategory === 'blocks') { targetMap = newState.iaBlocks; keyName = "blocks"; }
         else { targetMap = newState.iaFurnitures; keyName = "furnitures"; }
 
-        // MANDATORY: IA files NEED an "info" section with namespace and type
+        // MANDATORY: Ensure info section exists with namespace and type
         if (!targetMap[fullKey]) {
             targetMap[fullKey] = { 
                 info: { 
