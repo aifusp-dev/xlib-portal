@@ -16,8 +16,8 @@ export async function GET(
 
         const fileBuffer = fs.readFileSync(filePath);
         
-        // Delete file after download for security (one-time use)
-        deleteSyncFile(token);
+        // Disable immediate deletion to allow for retries/auto-import issues
+        // deleteSyncFile(token);
 
         return new NextResponse(fileBuffer, {
             headers: {
