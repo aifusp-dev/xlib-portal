@@ -105,7 +105,7 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   return await zip.generateAsync({ type: 'blob' });
 };
 
-export const parseUploadedFiles = async (files: FileList | File[]): Promise<EcosystemState> => {
+export const parseUploadedFiles = async (files: FileList | File[] | any[]): Promise<EcosystemState> => {
   const state: EcosystemState = {
     projectName: 'xLib',
     foods: {},
@@ -121,7 +121,7 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
 
   // First pass: Detect project name (Namespace)
   for (const file of fileList) {
-    const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+    const path = (file as any).webkitRelativePath || file.name;
     const parts = path.split('/');
     
     // Priority: Find ItemsAdder namespace
@@ -143,55 +143,61 @@ export const parseUploadedFiles = async (files: FileList | File[]): Promise<Ecos
 
   // Second pass: Parse files
   for (const file of fileList) {
-    const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+    const path = (file as any).webkitRelativePath || file.name;
     
     if (path.endsWith('.yml') || path.endsWith('.yaml')) {
       const content = await file.text();
 
-      const loadedConfig = yaml.load(content);
-      const config = (loadedConfig && typeof loadedConfig === 'object') ? (loadedConfig as Record<string, unknown>) : {};
+      try {
+          // Use loadAll to handle multiple YAML documents in one file (common in ItemsAdder)
+          const docs = yaml.loadAll(content);
+          // If there are multiple docs, we take the first one that is an object
+          const config = (docs.find(d => d && typeof d === 'object') || {}) as Record<string, unknown>;
 
-      if (path.includes('xFoods/foods/')) {
-        const relativePath = path.split('xFoods/foods/')[1];
-        const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
-        const folderPath = fullId.split('/').slice(0, -1).join('/');
-        state.foods[fullId] = { config, folder: folderPath };
-      } else if (path.includes('xFoods/machines/')) {
-        const relativePath = path.split('xFoods/machines/')[1];
-        const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
-        const folderPath = fullId.split('/').slice(0, -1).join('/');
-        state.machines[fullId] = { config, folder: folderPath };
-      } else if (path.includes('xFoodsCrops/species/')) {
-        const relativePath = path.split('xFoodsCrops/species/')[1];
-        const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
-        const folderPath = fullId.split('/').slice(0, -1).join('/');
-        state.crops[fullId] = { config, folder: folderPath };
-      } else if (path.includes('ItemsAdder/contents/')) {
-        const iaPath = path.split('ItemsAdder/contents/')[1];
-        const iaParts = iaPath.split('/');
-        if (iaParts.length > 1 && iaParts[1] === 'configs') {
-          const relativeIdPath = iaParts.slice(2).join('/');
-          const fullId = sanitizePath(relativeIdPath.replace(/\.ya?ml$/, ''));
-          
-          if (path.includes('/configs/blocks/')) {
-            state.iaBlocks[fullId.replace('blocks/', '')] = config;
-          } else if (path.includes('/configs/furnitures/')) {
-            state.iaFurnitures[fullId.replace('furnitures/', '')] = config;
-          } else {
-            state.iaItems[fullId] = config;
+          if (path.includes('xFoods/foods/')) {
+            const relativePath = path.split('xFoods/foods/')[1];
+            const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
+            const folderPath = fullId.split('/').slice(0, -1).join('/');
+            state.foods[fullId] = { config, folder: folderPath };
+          } else if (path.includes('xFoods/machines/')) {
+            const relativePath = path.split('xFoods/machines/')[1];
+            const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
+            const folderPath = fullId.split('/').slice(0, -1).join('/');
+            state.machines[fullId] = { config, folder: folderPath };
+          } else if (path.includes('xFoodsCrops/species/')) {
+            const relativePath = path.split('xFoodsCrops/species/')[1];
+            const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
+            const folderPath = fullId.split('/').slice(0, -1).join('/');
+            state.crops[fullId] = { config, folder: folderPath };
+          } else if (path.includes('ItemsAdder/contents/')) {
+            const iaPath = path.split('ItemsAdder/contents/')[1];
+            const iaParts = iaPath.split('/');
+            if (iaParts.length > 1 && iaParts[1] === 'configs') {
+              const relativeIdPath = iaParts.slice(2).join('/');
+              const fullId = sanitizePath(relativeIdPath.replace(/\.ya?ml$/, ''));
+              
+              if (path.includes('/configs/blocks/')) {
+                state.iaBlocks[fullId.replace('blocks/', '')] = config;
+              } else if (path.includes('/configs/furnitures/')) {
+                state.iaFurnitures[fullId.replace('furnitures/', '')] = config;
+              } else {
+                state.iaItems[fullId] = config;
+              }
+            }
+          } else if (path.includes(`${state.projectName}/configs/`)) {
+            const relativeIdPath = path.split(`${state.projectName}/configs/`)[1];
+            const fullId = sanitizePath(relativeIdPath.replace(/\.ya?ml$/, ''));
+            
+            if (path.includes('/configs/blocks/')) {
+                state.iaBlocks[fullId.replace('blocks/', '')] = config;
+            } else if (path.includes('/configs/furnitures/')) {
+                state.iaFurnitures[fullId.replace('furnitures/', '')] = config;
+            } else {
+                state.iaItems[fullId] = config;
+            }
           }
-        }
-      } else if (path.includes(`${state.projectName}/configs/`)) {
-        const relativeIdPath = path.split(`${state.projectName}/configs/`)[1];
-        const fullId = sanitizePath(relativeIdPath.replace(/\.ya?ml$/, ''));
-        
-        if (path.includes('/configs/blocks/')) {
-            state.iaBlocks[fullId.replace('blocks/', '')] = config;
-        } else if (path.includes('/configs/furnitures/')) {
-            state.iaFurnitures[fullId.replace('furnitures/', '')] = config;
-        } else {
-            state.iaItems[fullId] = config;
-        }
+      } catch (e) {
+          console.error("Error parsing YAML file:", path, e);
       }
     } else if (path.match(/\.(png|json|ogg)$/i)) {
       // Preserve assets from the IA content folder
