@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { Cloud, CloudUpload, CloudDownload, X, Check, Copy, Loader2, Info } from 'lucide-react';
+import { Cloud, CloudUpload, CloudDownload, X, Check, Copy, Loader2, Info, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface SyncModalProps {
