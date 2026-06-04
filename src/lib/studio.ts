@@ -104,6 +104,7 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
                 const contentsIdx = parts.indexOf('contents');
                 if (contentsIdx !== -1 && parts.length > contentsIdx + 4) {
                     const ns = parts[contentsIdx + 1];
+                    // Correct IA path: namespace:subfolder/file (NO "textures/" prefix)
                     const actualSubfolder = parts.slice(contentsIdx + 4, -1).join('/'); // item/subfolder
                     model.textures[key] = `${ns}:${actualSubfolder}/${fileName}`;
                 }

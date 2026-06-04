@@ -495,6 +495,8 @@ export default function StudioWorkspace() {
                 Object.keys(model.textures).forEach(key => {
                     const texPath = model.textures[key] as string;
                     const fileName = sanitizePath(texPath.split('/').pop() || texPath).replace('.png', '');
+                    // IMPORTANT: ItemsAdder paths in JSON should NOT include "textures/"
+                    // Correct: namespace:furniture/file (points to assets/ns/textures/furniture/file.png)
                     if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
                         model.textures[key] = `${ns}:${subfolder}/${fileName}`;
                     }
