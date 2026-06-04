@@ -121,21 +121,31 @@ export default function IAConfigPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
+    
     if (token && !projectState && !isAutoImporting) {
         setIsAutoImporting(true);
         console.log("[Bridge] Starting auto-import for token:", token);
+        
         handleImportFromBridge(token)
-            .then(() => {
-                window.history.replaceState({}, '', window.location.pathname);
-                alert("¡Configuración cargada con éxito desde el servidor!");
+            .then((state) => {
+                console.log("[Bridge] Import successful, state length:", Object.keys(state.iaItems).length);
+                // Ensure state is set before doing anything else
+                setProjectState(state);
+                // We DON'T alert immediately to avoid blocking the render
+                setTimeout(() => {
+                    window.history.replaceState({}, '', window.location.pathname);
+                }, 100);
             })
             .catch(err => {
-                console.error("Auto-import failed", err);
-                alert("Error al importar: El token no existe o ha expirado.");
+                console.error("[Bridge] Auto-import failed", err);
+                alert("Error al importar: El token no existe, ha expirado o el archivo está corrupto.");
+                window.history.replaceState({}, '', window.location.pathname);
             })
-            .finally(() => setIsAutoImporting(false));
+            .finally(() => {
+                setIsAutoImporting(false);
+            });
     }
-  }, [projectState]);
+  }, [projectState, isAutoImporting]); // Add isAutoImporting to prevent loops
 
   if (isAutoImporting) {
     return (
@@ -181,8 +191,7 @@ export default function IAConfigPage() {
         files.push(new File([buffer], path, { type: 'application/octet-stream' }));
     }
 
-    const state = await parseUploadedFiles(files);
-    setProjectState(state);
+    return await parseUploadedFiles(files);
   };
 
   const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
