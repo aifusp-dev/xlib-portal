@@ -101,12 +101,15 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
             if (actualTexFile) {
                 // Extract subfolder and namespace from actual file path
                 const parts = actualTexFile.inferredPath.split('/');
-                const contentsIdx = parts.indexOf('contents');
-                if (contentsIdx !== -1 && parts.length > contentsIdx + 4) {
-                    const ns = parts[contentsIdx + 1];
-                    // Correct IA path: namespace:subfolder/file (NO "textures/" prefix)
-                    const actualSubfolder = parts.slice(contentsIdx + 4, -1).join('/'); // item/subfolder
-                    model.textures[key] = `${ns}:${actualSubfolder}/${fileName}`;
+                const assetsIdx = parts.indexOf('assets');
+                if (assetsIdx !== -1 && parts.length > assetsIdx + 3) {
+                    const ns = parts[assetsIdx + 1];
+                    const texturesIdx = parts.indexOf('textures', assetsIdx);
+                    if (texturesIdx !== -1) {
+                        // Extract everything AFTER "textures" up to the filename
+                        const actualSubfolder = parts.slice(texturesIdx + 1, -1).join('/'); 
+                        model.textures[key] = `${ns}:${actualSubfolder}/${fileName}`;
+                    }
                 }
             }
           });
