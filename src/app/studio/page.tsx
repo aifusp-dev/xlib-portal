@@ -24,7 +24,8 @@ import {
   Cloud,
   ChefHat,
   Sprout,
-  Loader2
+  Loader2,
+  CheckCircle2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateZIP, parseUploadedFiles, EcosystemState, stringifyYaml, sanitizePath, StudioFile } from "@/lib/studio";
@@ -184,7 +185,6 @@ export default function StudioWorkspace() {
     setMounted(true);
   }, []);
 
-  // -- NAMESPACE SELECTOR LOGIC --
   const availableNamespaces = useMemo(() => {
     if (!projectState) return [];
     const nss = new Set<string>();
@@ -200,7 +200,6 @@ export default function StudioWorkspace() {
     }
   }, [availableNamespaces, selectedNamespace]);
 
-  // -- SYNC LOGIC --
   const handleSyncToBridge = async () => {
     if (!projectState) return null;
     const blob = await generateZIP(projectState);
@@ -303,6 +302,7 @@ export default function StudioWorkspace() {
                 
                 const iaItems: Record<string, unknown> = {
                     [selectedItem]: {
+                        enabled: true,
                         display_name: (item as any)['display-name'] || "Nuevo Ítem",
                         permission: `${newState.projectName.toLowerCase()}.${selectedItem}`,
                         resource: { 
@@ -351,9 +351,10 @@ export default function StudioWorkspace() {
         const targetFileId = activeCategory === 'furnitures' ? "created_furnitures" : (activeCategory === 'blocks' ? "created_blocks" : "created_items");
         const fullKey = `${selectedNamespace}/${targetFileId}`;
         
-        let targetMap: any;
+        // IA Root Key: "items" for items/furniture, "blocks" for blocks.
         let keyName = activeCategory === 'blocks' ? "blocks" : "items"; 
         
+        let targetMap: any;
         if (activeCategory === 'items') targetMap = newState.iaItems;
         else if (activeCategory === 'blocks') targetMap = newState.iaBlocks;
         else targetMap = newState.iaFurnitures;
@@ -367,7 +368,9 @@ export default function StudioWorkspace() {
         if (!targetMap[fullKey][keyName]) targetMap[fullKey][keyName] = {};
 
         targetMap[fullKey][keyName][sid] = activeCategory === 'furnitures' ? {
+            enabled: true,
             display_name: id,
+            permission: `${selectedNamespace}.furniture.${sid}`,
             resource: { material: "PAPER", generate: true, model_path: `${selectedNamespace}:furniture/${sid}` },
             specific_properties: {
                 furniture: {
@@ -376,10 +379,16 @@ export default function StudioWorkspace() {
                     hitbox: { length: 1, width: 1, height: 1 }
                 }
             }
+        } : (activeCategory === 'blocks' ? {
+            enabled: true,
+            display_name: id,
+            resource: { material: "STONE", generate: true },
+            specific_properties: { block: { can_be_placed: true } }
         } : { 
+            enabled: true,
             display_name: id, 
             resource: { material: "PAPER", generate: true, textures: [`${selectedNamespace}:item/${sid}`] } 
-        };
+        });
         setProjectState(newState);
         setSelectedItem(sid);
     } else {
@@ -416,7 +425,7 @@ export default function StudioWorkspace() {
         if (!selectedNamespace) return [];
         const result: [string, any][] = [];
         let targetMap: any;
-        let keyName = activeCategory === 'blocks' ? "blocks" : "items";
+        const keyName = activeCategory === 'blocks' ? "blocks" : "items";
         if (activeCategory === 'items') targetMap = projectState.iaItems;
         else if (activeCategory === 'blocks') targetMap = projectState.iaBlocks;
         else targetMap = projectState.iaFurnitures;
@@ -455,14 +464,13 @@ export default function StudioWorkspace() {
     return groups;
   }, [projectState, activeEditor, searchTerm]);
 
-  const handleIAFileUpload = async (e: React.ChangeEvent<HTMLInputElement> | React.DragEvent) => {
+  const handleIAFileUpload = async (e: any) => {
     let filesList: File[] = [];
-    const event = e as any;
-    if (event.dataTransfer) {
-      event.preventDefault();
-      filesList = Array.from(event.dataTransfer.files);
-    } else if (event.target && (event.target as HTMLInputElement).files) {
-      filesList = Array.from((event.target as HTMLInputElement).files as FileList);
+    if (e.dataTransfer) {
+      e.preventDefault();
+      filesList = Array.from(e.dataTransfer.files as FileList);
+    } else if (e.target && e.target.files) {
+      filesList = Array.from(e.target.files);
     }
 
     if (filesList.length === 0 || !projectState || !selectedItem || !selectedNamespace || !selectedData) return;
@@ -723,10 +731,31 @@ export default function StudioWorkspace() {
                             <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6">
                                 <div className="flex justify-between items-center"><h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Recursos</h4><button onClick={() => iaFileInputRef.current?.click()} className="bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border border-yellow-400/20">Inyectar</button><input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple /></div>
                                 <div className="space-y-4">
-                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ruta Modelo</label><input type="text" value={selectedData.data.resource?.model_path || ''} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.model_path`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none text-xs" /></div>
+                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ruta Modelo</label><input type="text" value={selectedData.data.resource?.model_path || ''} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.model_path`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" /></div>
                                     <label className="flex items-center gap-3 cursor-pointer"><div className="relative"><input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.generate`, e.target.checked, selectedData.fullKey)} className="sr-only" /><div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div><div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div></div><span className="text-[10px] font-black text-gray-500 uppercase">Auto-Gen 2D</span></label>
                                 </div>
                             </div>
+
+                            <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6">
+                                <div className="flex items-center gap-2 text-green-400"><CheckCircle2 className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest italic">Estado y Permisos</h4></div>
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-gray-600 uppercase">Permiso de Colocación</label>
+                                        <input type="text" value={selectedData.data.permission || ''} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.permission`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
+                                    </div>
+                                    <div className="flex items-center h-full pt-6">
+                                        <label className="flex items-center gap-3 cursor-pointer group/enabled">
+                                            <div className="relative">
+                                                <input type="checkbox" checked={selectedData.data.enabled ?? true} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.enabled`, e.target.checked, selectedData.fullKey)} className="sr-only" />
+                                                <div className={cn("w-8 h-4 rounded-full transition-colors", (selectedData.data.enabled ?? true) ? "bg-green-500" : "bg-gray-700")}></div>
+                                                <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", (selectedData.data.enabled ?? true) ? "translate-x-4" : "")}></div>
+                                            </div>
+                                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Habilitado</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
                             {activeCategory === 'furnitures' && (
                                 <>
                                 <div className="grid grid-cols-2 gap-6">
@@ -734,7 +763,7 @@ export default function StudioWorkspace() {
                                         <h4 className="text-[10px] font-black uppercase text-yellow-400 tracking-widest italic">Tipo de Mueble</h4>
                                         <select 
                                             value={selectedData.data.specific_properties?.furniture?.furniture_type || 'ARMOR_STAND'} 
-                                            onChange={(e) => updateField(`items.${selectedItem}.specific_properties.furniture.furniture_type`, e.target.value, selectedData.fullKey)}
+                                            onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.furniture_type`, e.target.value, selectedData.fullKey)}
                                             className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs uppercase font-bold"
                                         >
                                             <option value="ARMOR_STAND">ARMOR_STAND (Entidad)</option>
@@ -748,7 +777,7 @@ export default function StudioWorkspace() {
                                             {['length', 'width', 'height'].map(dim => (
                                                 <div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5">
                                                     <label className="text-[8px] font-bold text-gray-500 uppercase block mb-1">{dim}</label>
-                                                    <input type="number" step="0.1" value={selectedData.data.specific_properties?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`items.${selectedItem}.specific_properties.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-transparent text-white font-bold outline-none text-xs" />
+                                                    <input type="number" step="0.1" value={selectedData.data.specific_properties?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-transparent text-white font-bold outline-none text-xs" />
                                                 </div>
                                             ))}
                                         </div>
@@ -769,7 +798,7 @@ export default function StudioWorkspace() {
                                                     <input 
                                                         type="checkbox" 
                                                         checked={selectedData.data.specific_properties?.furniture?.armor_stand?.[opt.id] ?? opt.default} 
-                                                        onChange={(e) => updateField(`items.${selectedItem}.specific_properties.furniture.armor_stand.${opt.id}`, e.target.checked, selectedData.fullKey)}
+                                                        onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.armor_stand.${opt.id}`, e.target.checked, selectedData.fullKey)}
                                                         className="rounded bg-black border-white/10 text-purple-400"
                                                     />
                                                     <span className="text-[10px] font-bold text-gray-500 uppercase group-hover/opt:text-white transition-colors">{opt.label}</span>
@@ -785,11 +814,11 @@ export default function StudioWorkspace() {
                                         <div className="space-y-4">
                                             <div className="space-y-1">
                                                 <label className="text-[8px] font-bold text-gray-600 uppercase block">Nivel Luz (0-15)</label>
-                                                <input type="number" min="0" max="15" value={selectedData.data.specific_properties?.furniture?.light_level || 0} onChange={(e) => updateField(`items.${selectedItem}.specific_properties.furniture.light_level`, parseInt(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
+                                                <input type="number" min="0" max="15" value={selectedData.data.specific_properties?.furniture?.light_level || 0} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.light_level`, parseInt(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-[8px] font-bold text-gray-600 uppercase block">Offset Asiento (Y)</label>
-                                                <input type="number" step="0.1" value={selectedData.data.specific_properties?.furniture?.seat?.y_offset || 0} onChange={(e) => updateField(`items.${selectedItem}.specific_properties.furniture.seat.y_offset`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" placeholder="0 = no seat" />
+                                                <input type="number" step="0.1" value={selectedData.data.specific_properties?.furniture?.seat?.y_offset || 0} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.seat.y_offset`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" placeholder="0 = no seat" />
                                             </div>
                                         </div>
                                     </div>
@@ -798,11 +827,11 @@ export default function StudioWorkspace() {
                                         <div className="space-y-4">
                                             <div className="space-y-1">
                                                 <label className="text-[8px] font-bold text-gray-600 uppercase block">Huecos (Slots)</label>
-                                                <input type="number" step="9" min="0" max="54" value={selectedData.data.specific_properties?.furniture?.container?.slots || 0} onChange={(e) => updateField(`items.${selectedItem}.specific_properties.furniture.container.slots`, parseInt(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
+                                                <input type="number" step="9" min="0" max="54" value={selectedData.data.specific_properties?.furniture?.container?.slots || 0} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.container.slots`, parseInt(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-[8px] font-bold text-gray-600 uppercase block">Título Inventario</label>
-                                                <input type="text" value={selectedData.data.specific_properties?.furniture?.container?.title || ''} onChange={(e) => updateField(`items.${selectedItem}.specific_properties.furniture.container.title`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
+                                                <input type="text" value={selectedData.data.specific_properties?.furniture?.container?.title || ''} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.container.title`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
                                             </div>
                                         </div>
                                     </div>
@@ -824,7 +853,17 @@ export default function StudioWorkspace() {
 
         <section className="col-span-3 bg-black border border-[#374151] rounded-2xl overflow-hidden flex flex-col shadow-2xl lg:sticky lg:top-0 h-fit max-h-[90vh]">
            <div className="bg-[#111827] px-4 py-3 border-b border-[#374151] flex items-center justify-between"><div className="flex items-center gap-2"><Binary className="w-4 h-4 text-accent" /><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">Live Code</span></div><div className="flex gap-2"><button onClick={() => setActivePreview('plugin')} className={cn("text-[9px] font-black px-2 py-0.5 rounded border transition-all", activePreview === 'plugin' ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" : "text-gray-600 border-transparent")}>PLUGIN</button><button disabled={!isIAEnabled && activeEditor !== 'ia'} onClick={() => setActivePreview('ia')} className={cn("text-[9px] font-black px-2 py-0.5 rounded border transition-all disabled:opacity-0", activePreview === 'ia' ? "text-blue-400 bg-blue-400/10 border-blue-400/20" : "text-gray-600 border-transparent")}>IA</button></div></div>
-           <div className="flex-1 p-6 overflow-auto font-mono text-[12px] text-blue-200 leading-relaxed scrollbar-hide"><pre className="whitespace-pre-wrap break-words">{selectedItem && selectedData ? (activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : (activeEditor === 'ia' ? "# Modo IA Activo" : (projectState.iaItems[`${projectState.projectName}/${selectedItem}`] ? stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]) : "# No hay config de IA"))) : "# Selecciona un ítem..."}</pre></div>
+           <div className="flex-1 p-6 overflow-auto font-mono text-[12px] text-blue-200 leading-relaxed scrollbar-hide">
+               <pre className="whitespace-pre-wrap break-words">
+                   {selectedItem && selectedData ? (
+                       activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : 
+                       (activeEditor === 'ia' ? stringifyYaml(
+                           activeCategory === 'items' ? projectState.iaItems[selectedData.fullKey] : 
+                           (activeCategory === 'blocks' ? projectState.iaBlocks[selectedData.fullKey] : projectState.iaFurnitures[selectedData.fullKey])
+                       ) : (projectState.iaItems[`${projectState.projectName}/${selectedItem}`] ? stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]) : "# No hay config de IA"))
+                   ) : "# Selecciona un ítem..."}
+               </pre>
+           </div>
            <div className="p-4 bg-[#111827] border-t border-[#374151]"><button onClick={() => { if (selectedItem && selectedData) { const yaml = activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]); navigator.clipboard.writeText(yaml || ""); alert("Copiado"); } }} className="w-full bg-[#1f2937] hover:bg-[#374151] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-[#374151]">Copiar Código</button></div>
         </section>
       </div>
