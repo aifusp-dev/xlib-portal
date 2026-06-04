@@ -165,7 +165,7 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
-  const [activeEditor, setActiveEditor] = useState<'ia' | 'xfoods' | 'xcrops' | 'xmachines'>('ia');
+  const [activeEditor, setActiveEditor] = useState<'ia' | 'xfoods' | 'xcrops' | 'xmachines'>('xfoods');
   const [activeCategory, setActiveCategory] = useState<string>("items"); // For IA
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null);
@@ -226,11 +226,10 @@ export default function StudioWorkspace() {
         const buffer = await zipEntry.async('arraybuffer');
         files.push(new File([buffer], path, { type: 'application/octet-stream' }));
     }
-
     const state = await parseUploadedFiles(files);
     setProjectState(state);
     return state;
-    };
+  };
 
   useEffect(() => {
     if (!mounted) return;
@@ -294,6 +293,38 @@ export default function StudioWorkspace() {
         
         if (path === 'folder') {
             entry.folder = value;
+        } else if (path === 'ia-toggle') {
+            const item = entry.config;
+            if (value) {
+                if (!item.item && activeEditor === 'xfoods') item.item = {};
+                if (!item.seed && activeEditor === 'xcrops') item.seed = {};
+                
+                const target = activeEditor === 'xfoods' ? item.item : item.seed;
+                const subfolder = activeEditor === 'xfoods' ? 'food' : 'crops';
+                (target as Record<string, unknown>)['itemsadder-id'] = `${newState.projectName}:${selectedItem}`;
+                
+                const iaItems: Record<string, unknown> = {
+                    [selectedItem]: {
+                        display_name: item['display-name'] || "Nuevo Ítem",
+                        permission: `${newState.projectName.toLowerCase()}.${selectedItem}`,
+                        resource: { 
+                            material: (target as Record<string, string>)?.material || "PAPER",
+                            generate: true, 
+                            textures: [`${newState.projectName}:item/${subfolder}/${selectedItem}`] 
+                        }
+                    }
+                };
+
+                const fullKey = `${newState.projectName}/${selectedItem}`;
+                newState.iaItems[fullKey] = { 
+                    info: { namespace: newState.projectName },
+                    items: iaItems 
+                };
+            } else {
+                if (activeEditor === 'xfoods' && item.item) delete (item.item as Record<string, unknown>)['itemsadder-id'];
+                if (activeEditor === 'xcrops' && item.seed) delete (item.seed as Record<string, unknown>)['itemsadder-id'];
+                delete newState.iaItems[`${newState.projectName}/${selectedItem}`];
+            }
         } else {
             const keys = path.split('.');
             let current: any = entry;
@@ -301,7 +332,12 @@ export default function StudioWorkspace() {
                 if (!current[keys[i]]) current[keys[i]] = {};
                 current = current[keys[i]];
             }
-            current[keys[keys.length - 1]] = value;
+            // Handle lore as list
+            if (keys[keys.length-1] === 'lore' && typeof value === 'string') {
+                current[keys[keys.length-1]] = value.split('\n');
+            } else {
+                current[keys[keys.length-1]] = value;
+            }
         }
     }
 
@@ -330,12 +366,28 @@ export default function StudioWorkspace() {
         setSelectedItem(sid);
     } else {
         const id = sanitizePath(`nuevo_${timestamp}`);
-        if (activeEditor === 'xfoods') newState.foods[id] = { config: { "display-name": "Nueva Comida", item: { material: "PORKCHOP" } }, folder: "" };
-        else if (activeEditor === 'xcrops') newState.crops[id] = { config: { "display-name": "Nuevo Cultivo", seed: { material: "WHEAT_SEEDS" } }, folder: "" };
+        if (activeEditor === 'xfoods') newState.foods[id] = { config: { "display-name": "Nueva Comida", stats: { "food-level": 4, saturation: 2.0, bites: 1 }, item: { material: "PORKCHOP" } }, folder: "" };
+        else if (activeEditor === 'xcrops') newState.crops[id] = { config: { "display-name": "Nuevo Cultivo", seed: { material: "WHEAT_SEEDS" }, growth: { stages: {} } }, folder: "" };
         else newState.machines[id] = { config: { "display-name": "Nueva Estación", recipes: {} }, folder: "" };
         setProjectState(newState);
         setSelectedItem(id);
     }
+  };
+
+  const handleCloneItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!projectState) return;
+    const newState = { ...projectState };
+    const currentMap = activeEditor === 'xfoods' ? newState.foods : 
+                     (activeEditor === 'xcrops' ? newState.crops : newState.machines);
+    const originalEntry = currentMap[id];
+    if (!originalEntry) return;
+    let finalId = sanitizePath(`${id}_copy`);
+    let counter = 1;
+    while (currentMap[finalId]) { finalId = sanitizePath(`${id}_copy_${counter++}`); }
+    newState.foods[finalId] = JSON.parse(JSON.stringify(originalEntry));
+    setProjectState(newState);
+    setSelectedItem(finalId);
   };
 
   // -- GROUPING LOGIC --
@@ -378,6 +430,21 @@ export default function StudioWorkspace() {
     }
   }, [selectedItem, filteredItems, activeEditor, projectState]);
 
+  const groupedX = useMemo(() => {
+    if (!projectState || activeEditor === 'ia') return {};
+    const targetMap = activeEditor === 'xfoods' ? projectState.foods : (activeEditor === 'xcrops' ? projectState.crops : projectState.machines);
+    const groups: Record<string, string[]> = {};
+    Object.entries(targetMap).forEach(([id, data]) => {
+        if (searchTerm && !id.toLowerCase().includes(searchTerm.toLowerCase())) return;
+        const folder = data.folder || "Raíz";
+        if (!groups[folder]) groups[folder] = [];
+        groups[folder].push(id);
+    });
+    return groups;
+  }, [projectState, activeEditor, searchTerm]);
+
+  const isIAEnabled = selectedItem && projectState ? !!projectState.iaItems[`${projectState.projectName}/${selectedItem}`] : false;
+
   if (!mounted) return null;
 
   if (isAutoImporting) {
@@ -387,7 +454,7 @@ export default function StudioWorkspace() {
                 <div className="w-24 h-24 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
                 <Cloud className="absolute inset-0 m-auto w-8 h-8 text-yellow-400 animate-pulse" />
             </div>
-            <h2 className="text-xl font-bold text-white">Sincronizando con xLib Bridge...</h2>
+            <h2 className="text-xl font-bold text-white tracking-widest uppercase">Sincronizando...</h2>
         </div>
     );
   }
@@ -399,8 +466,8 @@ export default function StudioWorkspace() {
           <div className="bg-yellow-400/10 p-6 rounded-full w-fit mx-auto border border-yellow-400/20">
              <Settings2 className="w-16 h-16 text-yellow-400" />
           </div>
-          <h1 className="text-4xl font-extrabold text-white tracking-tight italic">Studio Workspace</h1>
-          <p className="text-gray-400 text-lg max-w-md mx-auto italic">Gestiona ItemsAdder, xFoods y xCrops en un solo lugar.</p>
+          <h1 className="text-4xl font-extrabold text-white tracking-tight italic uppercase">Studio Pro Workspace</h1>
+          <p className="text-gray-400 text-lg max-w-md mx-auto italic uppercase text-xs font-black tracking-widest">IA • XFOODS • XCROPS</p>
         </div>
         <div className="grid grid-cols-2 gap-8">
             <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-[#374151] rounded-3xl p-16 hover:border-yellow-400/10 hover:bg-yellow-400/5 transition-all cursor-pointer group">
@@ -424,11 +491,11 @@ export default function StudioWorkspace() {
       <header className="bg-[#111827] p-6 rounded-2xl border border-[#374151] flex justify-between items-center shadow-xl">
         <div className="flex items-center gap-8">
             <div className="flex bg-black/40 p-1.5 rounded-xl border border-white/5">
-                <button onClick={() => { setActiveEditor('ia'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'ia' ? "bg-yellow-400 text-black shadow-lg shadow-yellow-400/20" : "text-gray-500 hover:text-white")}>
-                    <Settings2 className="w-3.5 h-3.5" /> ItemsAdder
-                </button>
                 <button onClick={() => { setActiveEditor('xfoods'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xfoods' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-gray-500 hover:text-white")}>
                     <ChefHat className="w-3.5 h-3.5" /> xFoods
+                </button>
+                <button onClick={() => { setActiveEditor('ia'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'ia' ? "bg-yellow-400 text-black shadow-lg shadow-yellow-400/20" : "text-gray-500 hover:text-white")}>
+                    <Settings2 className="w-3.5 h-3.5" /> ItemsAdder
                 </button>
                 <button onClick={() => { setActiveEditor('xcrops'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xcrops' ? "bg-green-500 text-white shadow-lg shadow-green-500/20" : "text-gray-500 hover:text-white")}>
                     <Sprout className="w-3.5 h-3.5" /> xCrops
@@ -440,8 +507,8 @@ export default function StudioWorkspace() {
 
             {activeEditor === 'ia' && selectedNamespace && (
                 <div className="flex flex-col border-l border-[#374151] pl-8">
-                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Pack Seleccionado</label>
-                    <select value={selectedNamespace} onChange={(e) => { setSelectedNamespace(e.target.value); setSelectedItem(null); }} className="bg-transparent text-lg font-bold text-yellow-400 outline-none cursor-pointer">
+                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1 italic">Pack Seleccionado</label>
+                    <select value={selectedNamespace} onChange={(e) => { setSelectedNamespace(e.target.value); setSelectedItem(null); }} className="bg-transparent text-lg font-bold text-yellow-400 outline-none cursor-pointer tracking-tighter uppercase italic">
                         {availableNamespaces.map(ns => <option key={ns} value={ns} className="bg-[#111827] text-white">{ns}</option>)}
                     </select>
                 </div>
@@ -450,10 +517,10 @@ export default function StudioWorkspace() {
 
         <div className="flex gap-3">
           <button onClick={() => setIsSyncModalOpen(true)} className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-2.5 rounded-xl font-bold hover:bg-blue-500/20 transition-all border border-blue-500/20">
-            <Cloud className="w-4 h-4" /> xLib Bridge
+            <Cloud className="w-4 h-4" /> Bridge
           </button>
-          <button onClick={() => { setProjectState(null); setSelectedItem(null); }} className="px-6 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-colors">Cerrar</button>
-          <button onClick={() => exportEcosystem(projectState)} className="flex items-center gap-2 bg-accent text-white px-8 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"><Download className="w-4 h-4" /> Exportar ZIP</button>
+          <button onClick={() => { setProjectState(null); setSelectedItem(null); }} className="px-6 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-colors uppercase tracking-widest">Cerrar</button>
+          <button onClick={() => exportEcosystem(projectState)} className="flex items-center gap-2 bg-accent text-white px-8 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"><Download className="w-4 h-4" /> ZIP</button>
         </div>
       </header>
 
@@ -473,21 +540,44 @@ export default function StudioWorkspace() {
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
                     <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." className="w-full bg-white/2 border border-[#374151] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none focus:border-yellow-400/30 transition-all" />
                 </div>
-                <button onClick={handleCreateNew} className="p-2.5 bg-yellow-400 text-black rounded-xl hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/10"><Plus className="w-5 h-5" /></button>
+                <button onClick={handleCreateNew} className="p-2.5 bg-accent text-white rounded-xl hover:opacity-90 transition-all shadow-lg shadow-accent/10"><Plus className="w-5 h-5" /></button>
               </div>
               <div className="space-y-1">
-                {filteredItems.map(([id, entry]) => (
-                    <div key={id} onClick={() => setSelectedItem(id)} className={cn("px-4 py-2.5 rounded-xl text-xs font-medium cursor-pointer transition-all border flex flex-col group", selectedItem === id ? "bg-yellow-400/10 border-yellow-400/50 text-white" : "border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5")}>
-                        <span>{id}</span>
-                        {activeEditor === 'ia' && <span className="text-[8px] text-gray-600 truncate">{entry.fullKey.split('/')[1]}.yml</span>}
-                    </div>
-                ))}
+                {activeEditor === 'ia' ? (
+                    filteredItems.map(([id, entry]) => (
+                        <div key={id} onClick={() => setSelectedItem(id)} className={cn("px-4 py-2.5 rounded-xl text-xs font-medium cursor-pointer transition-all border flex flex-col group", selectedItem === id ? "bg-yellow-400/10 border-yellow-400/50 text-white" : "border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5")}>
+                            <span>{id}</span>
+                            <span className="text-[8px] text-gray-600 truncate uppercase font-black tracking-widest">{entry.fullKey.split('/')[1]}.yml</span>
+                        </div>
+                    ))
+                ) : (
+                    Object.entries(groupedX).map(([folder, items]) => (
+                        <div key={folder} className="space-y-1">
+                            <button onClick={() => setOpenFolders(prev => ({ ...prev, [folder]: !prev[folder] }))} className="w-full flex items-center justify-between px-2 py-1 hover:bg-white/5 rounded-lg transition-colors group">
+                                <div className="flex items-center gap-2">
+                                    {openFolders[folder] ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronRight className="w-3 h-3 text-gray-500" />}
+                                    <span className="text-[10px] font-black uppercase text-gray-500 group-hover:text-gray-300 tracking-widest">{folder}</span>
+                                </div>
+                            </button>
+                            {(openFolders[folder] || folder === "Raíz") && (
+                                <div className="space-y-0.5 ml-2 border-l border-white/5 pl-2">
+                                    {items.map(id => (
+                                        <div key={id} onClick={() => setSelectedItem(id)} className={cn("px-4 py-2 rounded-xl text-xs font-medium cursor-pointer transition-all border flex items-center justify-between group", selectedItem === id ? "bg-accent/10 border-accent/50 text-white" : "border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5")}>
+                                            <span className="truncate">{id}</span>
+                                            <button onClick={(e) => handleCloneItem(id, e)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded-md transition-all"><Copy className="w-3 h-3 text-gray-500" /></button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ))
+                )}
               </div>
            </div>
         </aside>
 
         {/* EDITOR */}
-        <main className="col-span-9 bg-[#111827] border border-[#374151] rounded-2xl overflow-y-auto p-8 shadow-2xl custom-scrollbar space-y-10">
+        <main className="col-span-6 bg-[#111827] border border-[#374151] rounded-2xl overflow-y-auto p-8 shadow-2xl custom-scrollbar">
            {selectedItem && selectedData ? (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-10 pb-20">
                 <div className="flex justify-between items-start border-b border-[#374151] pb-8">
@@ -495,37 +585,106 @@ export default function StudioWorkspace() {
                       <VisualPreview 
                         mcPath={activeEditor === 'ia' ? (selectedData.data.resource?.model_path || selectedData.data.resource?.textures?.[0]) : (activeEditor === 'xfoods' ? selectedData.config.item?.material : selectedData.config.seed?.material)} 
                         rawFiles={projectState.rawFiles} 
-                        namespace={selectedNamespace || projectState.projectName}
+                        namespace={activeEditor === 'ia' ? (selectedNamespace || projectState.projectName) : projectState.projectName}
                       />
-                      <div className="space-y-1">
-                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Identificador Único</label>
-                         <h3 className="text-3xl font-bold text-yellow-400 italic tracking-tighter uppercase">{selectedItem}</h3>
+                      <div className="space-y-1 flex-1">
+                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Identificador del Ítem</label>
+                         <h3 className="text-3xl font-bold text-yellow-400 tracking-tighter uppercase italic">{selectedItem}</h3>
                       </div>
                    </div>
-                   <div className="flex gap-2">
-                        <button className="bg-red-500/10 text-red-500 p-3 rounded-xl border border-red-500/20 hover:bg-red-500/20 transition-all"><Trash2 className="w-5 h-5"/></button>
+                   <div className="flex flex-col gap-2">
+                        <button onClick={(e) => handleCloneItem(selectedItem, e)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"><Copy className="w-3 h-3"/> Clonar</button>
+                        <button className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-red-500/20"><Trash2 className="w-3 h-3"/> Borrar</button>
                    </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-10">
-                    <div className="space-y-8">
-                        <div className="space-y-2 text-yellow-400 flex items-center gap-2"><Info className="w-4 h-4"/><h4 className="text-xs font-black uppercase tracking-widest">Información Básica</h4></div>
-                        <div className="space-y-6">
+                <div className="space-y-8">
+                    {/* Base Settings */}
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-2 text-yellow-400"><Info className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Ajustes Base</h4></div>
+                        <div className={cn("grid gap-6", activeEditor === 'ia' || activeEditor === 'xmachines' ? "grid-cols-2" : "grid-cols-3")}>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Nombre en Pantalla</label>
-                                <input type="text" value={(activeEditor === 'ia' ? selectedData.data.display_name : selectedData.config['display-name']) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `config.${activeCategory}.${selectedItem}.display_name` : 'config.display-name', e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400 transition-colors" />
+                                <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Nombre Display</label>
+                                <input type="text" value={(activeEditor === 'ia' ? selectedData.data.display_name : selectedData.config['display-name']) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `config.${activeCategory}.${selectedItem}.display_name` : 'config.display-name', e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Material Base</label>
-                                <input type="text" value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xfoods' ? selectedData.config.item?.material : selectedData.config.seed?.material)) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `config.${activeCategory}.${selectedItem}.resource.material` : (activeEditor === 'xfoods' ? 'config.item.material' : 'config.seed.material'), e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400 transition-colors" />
-                            </div>
+                            {activeEditor !== 'xmachines' && (
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Material</label>
+                                    <input type="text" value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xfoods' ? selectedData.config.item?.material : selectedData.config.seed?.material)) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `config.${activeCategory}.${selectedItem}.resource.material` : (activeEditor === 'xfoods' ? 'config.item.material' : 'config.seed.material'), e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
+                                </div>
+                            )}
+                            {(activeEditor === 'xfoods' || activeEditor === 'xcrops') && (
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Custom Model Data</label>
+                                    <input type="number" value={(activeEditor === 'xfoods' ? selectedData.config.item?.['custom-model-data'] : selectedData.config.seed?.['custom-model-data']) || 0} onChange={(e) => updateField(activeEditor === 'xfoods' ? 'config.item.custom-model-data' : 'config.seed.custom-model-data', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <div className="space-y-8">
-                        {activeEditor === 'ia' && (
+                    {/* Specialized Sections for xFoods */}
+                    {activeEditor === 'xfoods' && (
+                        <>
+                        <div className="grid grid-cols-4 gap-4">
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Nivel Comida</label><input type="number" value={selectedData.config.stats?.['food-level'] || 0} onChange={(e) => updateField('config.stats.food-level', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Saturación</label><input type="number" step="0.1" value={selectedData.config.stats?.saturation || 0} onChange={(e) => updateField('config.stats.saturation', parseFloat(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Mordiscos</label><input type="number" value={selectedData.config.stats?.bites || 1} onChange={(e) => updateField('config.stats.bites', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Ticks Consumo</label><input type="number" value={selectedData.config.stats?.['consumption-ticks'] || 30} onChange={(e) => updateField('config.stats.consumption-ticks', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-1">Lore (Descripción)</label>
+                            <textarea rows={4} value={Array.isArray(selectedData.config.lore) ? selectedData.config.lore.join('\n') : ''} onChange={(e) => updateField('config.lore', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none resize-none text-sm focus:border-yellow-400 transition-colors" />
+                        </div>
+                        <div className="space-y-6 pt-4 border-t border-[#374151]">
+                            <div className="flex items-center gap-2 text-orange-400"><Clock className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Expiración y Caducidad</h4></div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Minutos hasta Expirar</label>
+                                    <input type="number" value={selectedData.config.stats?.['expiry-minutes'] || 0} onChange={(e) => updateField('config.stats.expiry-minutes', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" placeholder="0 = nunca" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase">ID al Caducar</label>
+                                    <AutocompleteInput value={selectedData.config.stats?.['expired-id'] || ''} onChange={(val) => updateField('config.stats.expired-id', val)} options={Object.keys(projectState.foods)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                </div>
+                            </div>
+                        </div>
+                        </>
+                    )}
+
+                    {/* Specialized Sections for xCrops */}
+                    {activeEditor === 'xcrops' && (
+                         <div className="space-y-8">
+                             <div className="flex justify-between items-center border-b border-[#374151] pb-4">
+                                <div className="flex items-center gap-2 text-green-400"><FolderSearch className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Etapas de Crecimiento</h4></div>
+                                <button onClick={() => { const crop = selectedData.config; if(!crop.growth.stages) crop.growth.stages = {}; const sid = `stage${Object.keys(crop.growth.stages).length}`; updateField(`config.growth.stages.${sid}`, { material: "FERN", scale: 1.0, duration: 60000 }); }} className="text-[10px] font-black uppercase bg-green-500/10 text-green-500 px-3 py-1.5 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-all flex items-center gap-2">+ Nueva Etapa</button>
+                             </div>
+                             <div className="grid gap-6">
+                                 {Object.entries((selectedData.config.growth?.stages as Record<string, any>) || {}).map(([sid, sData]) => (
+                                     <div key={sid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden">
+                                         <div className="bg-white/5 px-6 py-2 flex justify-between items-center border-b border-white/5">
+                                            <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">{sid}</span>
+                                            <button onClick={() => { const newState = {...projectState}; delete (newState.crops[selectedItem].config.growth.stages as any)[sid]; setProjectState(newState); }} className="text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>
+                                         </div>
+                                         <div className="p-6 grid grid-cols-3 gap-4">
+                                            <div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Material</label><input type="text" value={sData.material || ''} onChange={(e) => updateField(`config.growth.stages.${sid}.material`, e.target.value)} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div>
+                                            <div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Escala</label><input type="number" step="0.1" value={sData.scale || 1.0} onChange={(e) => updateField(`config.growth.stages.${sid}.scale`, parseFloat(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div>
+                                            <div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Duración (ms)</label><input type="number" value={sData.duration || 60000} onChange={(e) => updateField(`config.growth.stages.${sid}.duration`, parseInt(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div>
+                                         </div>
+                                     </div>
+                                 ))}
+                             </div>
+                         </div>
+                    )}
+
+                    {/* Specialized Sections for ItemsAdder */}
+                    {activeEditor === 'ia' && (
+                        <div className="space-y-8">
                             <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6">
-                                <h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Ajustes Técnicos IA</h4>
+                                <div className="flex justify-between items-center">
+                                    <h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Recursos Técnicos</h4>
+                                    <button onClick={() => iaFileInputRef.current?.click()} className="flex items-center gap-2 bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase hover:bg-yellow-400/20 transition-all border border-yellow-400/20"><Upload className="w-3 h-3" /> Inyectar Archivos</button>
+                                    <input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple />
+                                </div>
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-gray-600 uppercase">Ruta del Modelo</label>
@@ -537,23 +696,39 @@ export default function StudioWorkspace() {
                                             <div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div>
                                             <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div>
                                         </div>
-                                        <span className="text-[10px] font-black text-gray-500 uppercase">Auto-Generar (2D)</span>
+                                        <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Auto-Generar Textura 2D</span>
                                     </label>
                                 </div>
                             </div>
-                        )}
-                        
-                        {activeEditor === 'xfoods' && (
-                             <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6">
-                                <h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Estadísticas Comida</h4>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-1"><label className="text-[9px] font-bold text-gray-600 uppercase">Food Level</label><input type="number" value={selectedData.config.stats?.['food-level'] || 0} onChange={(e) => updateField('config.stats.food-level', parseInt(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none" /></div>
-                                    <div className="space-y-1"><label className="text-[9px] font-bold text-gray-600 uppercase">Saturation</label><input type="number" step="0.1" value={selectedData.config.stats?.saturation || 0} onChange={(e) => updateField('config.stats.saturation', parseFloat(e.target.value))} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none" /></div>
+                            {activeCategory === 'furnitures' && (
+                                <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6">
+                                    <h4 className="text-xs font-black uppercase text-blue-400 tracking-widest italic">Hitbox del Mueble</h4>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {['length', 'width', 'height'].map(dim => (
+                                            <div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5">
+                                                <label className="text-[8px] font-bold text-gray-500 uppercase block mb-1">{dim}</label>
+                                                <input type="number" step="0.1" value={selectedData.data.specific_properties?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`config.${activeCategory}.${selectedItem}.specific_properties.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-transparent text-white font-bold outline-none text-xs" />
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                             </div>
-                        )}
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* ItemsAdder Bridge for xPlugins */}
+                {(activeEditor === 'xfoods' || activeEditor === 'xcrops') && (
+                <div className={cn("p-8 rounded-3xl border transition-all", isIAEnabled ? "bg-yellow-400/5 border-yellow-400/20" : "bg-white/2 border-white/5")}>
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-yellow-400" : "text-gray-600")} />
+                            <div><h4 className="text-md font-black text-white uppercase tracking-tighter italic">Vincular con ItemsAdder</h4><p className="text-[11px] text-gray-500 uppercase font-black tracking-widest">Permite usar modelos 3D y texturas custom</p></div>
+                        </div>
+                        <label className="switch"><input type="checkbox" checked={isIAEnabled} onChange={(e) => updateField('ia-toggle', e.target.checked)} /><span className="slider"></span></label>
                     </div>
                 </div>
+                )}
              </div>
            ) : (
              <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-30 grayscale scale-95 transition-all py-20">
@@ -562,6 +737,27 @@ export default function StudioWorkspace() {
              </div>
            )}
         </main>
+
+        <section className="col-span-3 bg-black border border-[#374151] rounded-2xl overflow-hidden flex flex-col shadow-2xl lg:sticky lg:top-0 h-fit max-h-[90vh]">
+           <div className="bg-[#111827] px-4 py-3 border-b border-[#374151] flex items-center justify-between">
+              <div className="flex items-center gap-2"><Binary className="w-4 h-4 text-accent" /><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">Live Code</span></div>
+              <div className="flex gap-2">
+                 <button onClick={() => setActivePreview('plugin')} className={cn("text-[9px] font-black px-2 py-0.5 rounded border transition-all", activePreview === 'plugin' ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" : "text-gray-600 border-transparent")}>PLUGIN</button>
+                 <button disabled={!isIAEnabled && activeEditor !== 'ia'} onClick={() => setActivePreview('ia')} className={cn("text-[9px] font-black px-2 py-0.5 rounded border transition-all disabled:opacity-0", activePreview === 'ia' ? "text-blue-400 bg-blue-400/10 border-blue-400/20" : "text-gray-600 border-transparent")}>IA</button>
+              </div>
+           </div>
+           <div className="flex-1 p-6 overflow-auto font-mono text-[12px] text-blue-200 leading-relaxed scrollbar-hide">
+              <pre className="whitespace-pre-wrap break-words">
+                {selectedItem && selectedData ? (
+                  activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : 
+                  (activeEditor === 'ia' ? "# Modo IA Activo" : (projectState.iaItems[`${projectState.projectName}/${selectedItem}`] ? stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]) : "# No hay config de IA"))
+                ) : "# Selecciona un ítem..."}
+              </pre>
+           </div>
+           <div className="p-4 bg-[#111827] border-t border-[#374151]">
+              <button onClick={() => { if (selectedItem && selectedData) { const yaml = activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]); navigator.clipboard.writeText(yaml || ""); alert("Copiado"); } }} className="w-full bg-[#1f2937] hover:bg-[#374151] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-[#374151]">Copiar Código</button>
+           </div>
+        </section>
       </div>
 
       <SyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} onSync={handleSyncToBridge} onImport={handleImportFromBridge} />
