@@ -97,7 +97,6 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
 
         const [ns, path] = mcPath.includes(':') ? mcPath.split(':') : [namespace, mcPath];
 
-        // 1. TRY LOAD 3D MODEL
         const targetModel = `resource_pack/assets/${ns}/models/${path}.json`;
         const modelFile = rawFiles.find(f => f.inferredPath.endsWith(targetModel));
 
@@ -126,7 +125,6 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
             }
         }
 
-        // 2. FALLBACK TO 2D TEXTURE
         if (!isCurrent3D) {
             const targetTex = `resource_pack/assets/${ns}/textures/${path}.png`;
             const file = rawFiles.find(f => f.inferredPath.endsWith(targetTex));
@@ -218,8 +216,6 @@ export default function StudioPage() {
     
     if (token && !projectState && !isAutoImporting) {
         setIsAutoImporting(true);
-        console.log("[Bridge] Starting auto-import for token:", token);
-        
         handleImportFromBridge(token)
             .then((state) => {
                 setProjectState(state);
@@ -362,17 +358,17 @@ export default function StudioPage() {
     delete targetMap[selectedItem];
 
     // Rename in IA items if exists
-    if (newState.iaItems[selectedItem]) {
-        newState.iaItems[sanitizedId] = newState.iaItems[selectedItem];
-        delete newState.iaItems[selectedItem];
+    const iaKey = `${newState.projectName}/${selectedItem}`;
+    const newIaKey = `${newState.projectName}/${sanitizedId}`;
+    if (newState.iaItems[iaKey]) {
+        newState.iaItems[newIaKey] = newState.iaItems[iaKey];
+        delete newState.iaItems[iaKey];
         
-        // Update references inside iaItems
-        const iaConfig = newState.iaItems[sanitizedId];
+        const iaConfig = newState.iaItems[newIaKey];
         if (iaConfig.items && (iaConfig.items as Record<string, unknown>)[selectedItem]) {
             (iaConfig.items as Record<string, unknown>)[sanitizedId] = (iaConfig.items as Record<string, unknown>)[selectedItem];
             delete (iaConfig.items as Record<string, unknown>)[selectedItem];
             
-            // Update permissions and textures
             const itemData = (iaConfig.items as Record<string, any>)[sanitizedId];
             if (itemData.permission) itemData.permission = itemData.permission.replace(selectedItem, sanitizedId);
             if (itemData.resource && itemData.resource.textures) {
@@ -420,42 +416,20 @@ export default function StudioPage() {
                 }
             };
 
-            // Add stages for crops
-            if (activeView === 'xcrops' && item.growth && (item.growth as Record<string, Record<string, unknown>>).stages) {
-                Object.entries((item.growth as Record<string, Record<string, unknown>>).stages).forEach(([sid, sData]) => {
-                    if (sData && typeof sData === 'object') {
-                        const iaId = (sData as Record<string, unknown>)['itemsadder-id'] as string;
-                        if (iaId && iaId.includes(':')) {
-                            const [ns, id] = iaId.split(':');
-                            if (ns === newState.projectName) {
-                                iaItems[id] = {
-                                    display_name: `${item['display-name']} (${sid})`,
-                                    resource: { 
-                                        material: (sData as Record<string, string>)?.material || "PAPER",
-                                        generate: true, 
-                                        textures: [`${newState.projectName}:item/crops/${id}`] 
-                                    }
-                                };
-                            }
-                        }
-                    }
-                });
-            }
-
-            newState.iaItems[selectedItem] = { 
+            const fullKey = `${newState.projectName}/${selectedItem}`;
+            newState.iaItems[fullKey] = { 
                 info: { namespace: newState.projectName },
                 items: iaItems 
             };
         } else {
             if (activeView === 'xfoods' && item.item) delete (item.item as Record<string, unknown>)['itemsadder-id'];
             if (activeView === 'xcrops' && item.seed) delete (item.seed as Record<string, unknown>)['itemsadder-id'];
-            delete newState.iaItems[selectedItem];
+            delete newState.iaItems[`${newState.projectName}/${selectedItem}`];
         }
         setProjectState(newState);
         return;
     }
 
-    // Standard nested path update
     const keys = path.split('.');
     let current: Record<string, unknown> = entry as unknown as Record<string, unknown>;
     
@@ -468,8 +442,8 @@ export default function StudioPage() {
     const lastKey = keys[keys.length - 1];
     current[lastKey] = value;
 
-    // Trigger IA Sync if enabled and relevant fields changed
-    if (newState.iaItems[selectedItem] && (path.includes('itemsadder-id') || path.includes('display-name') || path.includes('material'))) {
+    const iaKey = `${newState.projectName}/${selectedItem}`;
+    if (newState.iaItems[iaKey] && (path.includes('itemsadder-id') || path.includes('display-name') || path.includes('material'))) {
         const item = entry.config;
         const subfolder = activeView === 'xfoods' ? 'food' : 'crops';
         const target = activeView === 'xfoods' ? item.item : item.seed;
@@ -485,33 +459,12 @@ export default function StudioPage() {
             }
         };
 
-        if (activeView === 'xcrops' && item.growth && (item.growth as Record<string, Record<string, unknown>>).stages) {
-            Object.entries((item.growth as Record<string, Record<string, unknown>>).stages).forEach(([sid, sData]) => {
-                if (sData && typeof sData === 'object') {
-                    const iaId = (sData as Record<string, unknown>)['itemsadder-id'] as string;
-                    if (iaId && iaId.includes(':')) {
-                        const [ns, id] = iaId.split(':');
-                        if (ns === newState.projectName) {
-                            iaItems[id] = {
-                                display_name: `${item['display-name']} (${sid})`,
-                                resource: { 
-                                    material: (sData as Record<string, string>)?.material || "PAPER",
-                                    generate: true, 
-                                    textures: [`${newState.projectName}:item/crops/${id}`] 
-                                }
-                            };
-                        }
-                    }
-                }
-            });
-        }
-        newState.iaItems[selectedItem] = {
+        newState.iaItems[iaKey] = {
             info: { namespace: newState.projectName },
             items: iaItems
         };
     }
 
-    // Handle lore as list
     if (path.endsWith('.lore') && typeof value === 'string') {
         current[lastKey] = value.split('\n');
     }
@@ -550,19 +503,16 @@ export default function StudioPage() {
         hasModel = true;
         modelName = sanitizedFileName.replace(".json", "");
         
-        // --- REMAP JSON TEXTURES ---
         try {
             const text = new TextDecoder().decode(buffer);
             const model = JSON.parse(text);
             if (model.textures) {
                 Object.keys(model.textures).forEach(key => {
                     const texPath = model.textures[key] as string;
-                    // If it belongs to our namespace or has no namespace, sanitize it
                     if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
                         const cleanName = sanitizePath(texPath.split('/').pop() || texPath);
                         model.textures[key] = `${ns}:item/${subfolder}/${cleanName}`;
                     } else {
-                        // For other namespaces, at least lowercase and replace spaces
                         model.textures[key] = sanitizePath(texPath);
                     }
                 });
@@ -574,32 +524,29 @@ export default function StudioPage() {
         }
       }
 
-      // Determine where to put it in the resource pack
       const assetType = isJson ? 'models' : 'textures';
-      const inferredPath = `${assetType}/item/${subfolder}/${sanitizedFileName}`;
+      const inferredPath = `resource_pack/assets/${ns}/${assetType}/item/${subfolder}/${sanitizedFileName}`;
 
       newState.rawFiles.push({
         name: sanitizedFileName,
         content: buffer,
         type: 'raw',
-        inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/${inferredPath}`
+        inferredPath: `plugins/ItemsAdder/contents/${ns}/${inferredPath}`
       });
     }
 
-    // Update IA Config based on what was uploaded
-    if (newState.iaItems[selectedItem]) {
-      const iaItem = (newState.iaItems[selectedItem].items as Record<string, IAItemConfig>)[selectedItem];
+    const iaKey = `${ns}/${selectedItem}`;
+    if (newState.iaItems[iaKey]) {
+      const iaItem = (newState.iaItems[iaKey].items as Record<string, IAItemConfig>)[selectedItem];
       const currentResource = iaItem.resource || {};
       const alreadyHasModel = !!currentResource.model_path;
 
       if (hasModel) {
-        // If this batch has a model, we definitely want to use it
         iaItem.resource = { 
           generate: false, 
           model_path: `${ns}:item/${subfolder}/${modelName}` 
         };
       } else if (!alreadyHasModel) {
-        // Only switch to texture-based if there isn't a model already configured
         const firstPng = filesList.find(f => f.name.endsWith('.png'));
         if (firstPng) {
           const texName = sanitizePath(firstPng.name.replace(".png", ""));
@@ -612,7 +559,7 @@ export default function StudioPage() {
     }
 
     setProjectState(newState);
-    alert(`¡${filesList.length} archivos vinculados con éxito!`);
+    alert(`¡Archivos vinculados con éxito!`);
   };
 
   if (!mounted) return null;
@@ -660,7 +607,7 @@ export default function StudioPage() {
                         <Cloud className="w-10 h-10 text-blue-400" />
                     </div>
                     <p className="text-white font-bold text-xl">Importar vía xLib Bridge</p>
-                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest leading-relaxed">Usa un Token SYNC generado<br/>desde el servidor</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest leading-relaxed">Usa un Token SYNC generado desde el servidor</p>
                 </div>
             </div>
         </div>
@@ -685,7 +632,7 @@ export default function StudioPage() {
   });
 
   const currentItem = selectedItem ? currentMap[selectedItem] : null;
-  const isIAEnabled = currentItem ? (activeView === 'xfoods' ? !!(currentItem.config.item as Record<string, unknown>)?.['itemsadder-id'] : !!(currentItem.config.seed as Record<string, unknown>)?.['itemsadder-id']) : false;
+  const isIAEnabled = currentItem ? !!projectState.iaItems[`${projectState.projectName}/${selectedItem}`] : false;
 
   return (
     <div className="h-full flex flex-col space-y-6 animate-in slide-in-from-bottom-4 duration-500">
@@ -1235,20 +1182,21 @@ export default function StudioPage() {
                             {/* Mode Indicator */}
                             <div className="flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5">
                                 <div className="flex items-center gap-3">
-                                    <div className={cn("p-2 rounded-lg", (projectState.iaItems[selectedItem]?.items as Record<string, IAItemConfig>)?.[selectedItem]?.resource?.generate ? "bg-green-400/10 text-green-400" : "bg-blue-400/10 text-blue-400")}>
-                                        {(projectState.iaItems[selectedItem]?.items as Record<string, IAItemConfig>)?.[selectedItem]?.resource?.generate ? <Zap className="w-4 h-4"/> : <Maximize2 className="w-4 h-4"/>}
+                                    <div className={cn("p-2 rounded-lg", (projectState.iaItems[`${projectState.projectName}/${selectedItem}`]?.items as Record<string, IAItemConfig>)?.[selectedItem]?.resource?.generate ? "bg-green-400/10 text-green-400" : "bg-blue-400/10 text-blue-400")}>
+                                        {(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]?.items as Record<string, IAItemConfig>)?.[selectedItem]?.resource?.generate ? <Zap className="w-4 h-4"/> : <Maximize2 className="w-4 h-4"/>}
                                     </div>
                                     <div>
                                         <p className="text-[10px] font-black uppercase text-gray-500">Modo de Renderizado</p>
                                         <h5 className="text-xs font-bold text-white">
-                                            {(projectState.iaItems[selectedItem]?.items as Record<string, IAItemConfig>)?.[selectedItem]?.resource?.generate ? "Imagen 2D (Auto-generada)" : "Modelo 3D (Custom JSON)"}
+                                            {(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]?.items as Record<string, IAItemConfig>)?.[selectedItem]?.resource?.generate ? "Imagen 2D (Auto-generada)" : "Modelo 3D (Custom JSON)"}
                                         </h5>
                                     </div>
                                 </div>
                                 <button 
                                     onClick={() => {
                                         const newState = { ...projectState };
-                                        const iaItem = (newState.iaItems[selectedItem].items as Record<string, IAItemConfig>)[selectedItem];
+                                        const iaKey = `${newState.projectName}/${selectedItem}`;
+                                        const iaItem = (newState.iaItems[iaKey].items as Record<string, IAItemConfig>)[selectedItem];
                                             if (iaItem.resource) {
                                                 iaItem.resource.generate = !iaItem.resource.generate;
                                                 if (iaItem.resource.generate) delete iaItem.resource.model_path;
@@ -1344,12 +1292,12 @@ export default function StudioPage() {
            <div className="flex-1 p-6 overflow-auto font-mono text-[12px] text-blue-200 leading-relaxed scrollbar-hide">
               <pre className="whitespace-pre-wrap break-words">
                 {selectedItem && currentItem ? (
-                  activePreview === 'plugin' ? stringifyYaml(currentItem.config) : (projectState.iaItems[selectedItem] ? stringifyYaml(projectState.iaItems[selectedItem]) : "# No hay config de IA")
+                  activePreview === 'plugin' ? stringifyYaml(currentItem.config) : (projectState.iaItems[`${projectState.projectName}/${selectedItem}`] ? stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]) : "# No hay config de IA")
                 ) : "# Selecciona un ítem..."}
               </pre>
            </div>
            <div className="p-4 bg-[#111827] border-t border-[#374151]">
-              <button onClick={() => { if (selectedItem && currentItem) { navigator.clipboard.writeText(activePreview === 'plugin' ? stringifyYaml(currentItem.config) : stringifyYaml(projectState.iaItems[selectedItem])); alert("Copiado"); } }} className="w-full bg-[#1f2937] hover:bg-[#374151] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-[#374151]">Copiar Código</button>
+              <button onClick={() => { if (selectedItem && currentItem) { const yaml = activePreview === 'plugin' ? stringifyYaml(currentItem.config) : stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]); navigator.clipboard.writeText(yaml || ""); alert("Copiado"); } }} className="w-full bg-[#1f2937] hover:bg-[#374151] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-[#374151]">Copiar Código</button>
            </div>
         </section>
       </div>

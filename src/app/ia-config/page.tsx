@@ -13,7 +13,8 @@ import {
   Search,
   Maximize2,
   Plus,
-  Cloud
+  Cloud,
+  ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseUploadedFiles, generateZIP, EcosystemState, sanitizePath, StudioFile } from "@/lib/studio";
@@ -43,7 +44,6 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
 
         const [ns, path] = mcPath.includes(':') ? mcPath.split(':') : [namespace, mcPath];
 
-        // 1. TRY LOAD 3D MODEL
         const targetModel = `resource_pack/assets/${ns}/models/${path}.json`;
         const modelFile = rawFiles.find(f => f.inferredPath.endsWith(targetModel));
 
@@ -72,7 +72,6 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
             }
         }
 
-        // 2. FALLBACK TO 2D TEXTURE
         if (!isCurrent3D) {
             const targetTex = `resource_pack/assets/${ns}/textures/${path}.png`;
             const file = rawFiles.find(f => f.inferredPath.endsWith(targetTex));
@@ -111,6 +110,7 @@ export default function IAConfigPage() {
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("items");
+  const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isAutoImporting, setIsAutoImporting] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -121,6 +121,21 @@ export default function IAConfigPage() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iaFileInputRef = useRef<HTMLInputElement>(null);
+
+  const availableNamespaces = useMemo(() => {
+    if (!projectState) return [];
+    const nss = new Set<string>();
+    Object.keys(projectState.iaItems).forEach(k => nss.add(k.split('/')[0]));
+    Object.keys(projectState.iaBlocks).forEach(k => nss.add(k.split('/')[0]));
+    Object.keys(projectState.iaFurnitures).forEach(k => nss.add(k.split('/')[0]));
+    return Array.from(nss).filter(n => n !== '__iainternal').sort();
+  }, [projectState]);
+
+  useEffect(() => {
+    if (availableNamespaces.length > 0 && !selectedNamespace) {
+        setSelectedNamespace(availableNamespaces[0]);
+    }
+  }, [availableNamespaces, selectedNamespace]);
 
   const handleSyncToBridge = async () => {
     if (!projectState) return null;
@@ -154,7 +169,6 @@ export default function IAConfigPage() {
     return await parseUploadedFiles(files);
   };
 
-  // Auto-import from URL
   useEffect(() => {
     if (!mounted) return;
     const params = new URLSearchParams(window.location.search);
@@ -162,11 +176,8 @@ export default function IAConfigPage() {
     
     if (token && !projectState && !isAutoImporting) {
         setIsAutoImporting(true);
-        console.log("[Bridge] Starting auto-import for token:", token);
-        
         handleImportFromBridge(token)
             .then((state) => {
-                console.log("[Bridge] Import successful, state length:", Object.keys(state.iaItems).length);
                 setProjectState(state);
                 setTimeout(() => {
                     window.history.replaceState({}, '', window.location.pathname);
@@ -198,7 +209,7 @@ export default function IAConfigPage() {
     await exportEcosystem(projectState);
   };
 
-  const updateIAField = (fileId: string, path: string, value: any) => {
+  const updateIAField = (fullKey: string, path: string, value: any) => {
     if (!projectState) return;
     const newState = { ...projectState };
     
@@ -207,7 +218,7 @@ export default function IAConfigPage() {
     else if (activeCategory === 'blocks') targetMap = newState.iaBlocks;
     else targetMap = newState.iaFurnitures;
 
-    const config = targetMap[fileId];
+    const config = targetMap[fullKey];
     if (!config) return;
 
     const keys = path.split('.');
@@ -221,7 +232,7 @@ export default function IAConfigPage() {
   };
 
   const groupedIA = useMemo(() => {
-    if (!projectState) return { items: {}, blocks: {}, furnitures: {} };
+    if (!projectState || !selectedNamespace) return { items: {}, blocks: {}, furnitures: {} };
     
     const result: Record<string, Record<string, any>> = {
         items: {},
@@ -229,18 +240,25 @@ export default function IAConfigPage() {
         furnitures: {}
     };
 
-    Object.entries(projectState.iaItems).forEach(([fileId, config]: [string, any]) => {
-        if (config.items) Object.entries(config.items).forEach(([id, d]) => result.items[id] = { fileId, data: d });
+    // Filter Items by namespace prefix
+    Object.entries(projectState.iaItems).forEach(([fullKey, config]: [string, any]) => {
+        if (fullKey.startsWith(`${selectedNamespace}/`)) {
+            if (config.items) Object.entries(config.items).forEach(([id, d]) => result.items[id] = { fullKey, data: d });
+        }
     });
-    Object.entries(projectState.iaBlocks).forEach(([fileId, config]: [string, any]) => {
-        if (config.blocks) Object.entries(config.blocks).forEach(([id, d]) => result.blocks[id] = { fileId, data: d });
+    Object.entries(projectState.iaBlocks).forEach(([fullKey, config]: [string, any]) => {
+        if (fullKey.startsWith(`${selectedNamespace}/`)) {
+            if (config.blocks) Object.entries(config.blocks).forEach(([id, d]) => result.blocks[id] = { fullKey, data: d });
+        }
     });
-    Object.entries(projectState.iaFurnitures).forEach(([fileId, config]: [string, any]) => {
-        if (config.furnitures) Object.entries(config.furnitures).forEach(([id, d]) => result.furnitures[id] = { fileId, data: d });
+    Object.entries(projectState.iaFurnitures).forEach(([fullKey, config]: [string, any]) => {
+        if (fullKey.startsWith(`${selectedNamespace}/`)) {
+            if (config.furnitures) Object.entries(config.furnitures).forEach(([id, d]) => result.furnitures[id] = { fullKey, data: d });
+        }
     });
 
     return result;
-  }, [projectState]);
+  }, [projectState, selectedNamespace]);
 
   const currentCategoryMap = groupedIA[activeCategory as keyof typeof groupedIA] || {};
   const filteredItems = Object.entries(currentCategoryMap).filter(([id]) => 
@@ -250,12 +268,12 @@ export default function IAConfigPage() {
   const selectedData = selectedItem ? currentCategoryMap[selectedItem] : null;
 
   const handleCreateNew = () => {
-    if (!projectState) return;
+    if (!projectState || !selectedNamespace) return;
     const id = prompt("Introduce el ID del nuevo objeto:");
     if (!id) return;
     const sanitizedId = sanitizePath(id);
     const newState = { ...projectState };
-    const ns = newState.projectName;
+    const ns = selectedNamespace;
 
     const defaultData = {
         display_name: id,
@@ -266,60 +284,50 @@ export default function IAConfigPage() {
         }
     };
 
-    let targetFile = "";
-    if (activeCategory === 'items') {
-        targetFile = Object.keys(newState.iaItems)[0] || "items";
-        if (!newState.iaItems[targetFile]) newState.iaItems[targetFile] = { info: { namespace: ns }, items: {} };
-        const items = newState.iaItems[targetFile].items as Record<string, any>;
-        items[sanitizedId] = defaultData;
-    } else if (activeCategory === 'blocks') {
-        targetFile = Object.keys(newState.iaBlocks)[0] || "blocks";
-        if (!newState.iaBlocks[targetFile]) newState.iaBlocks[targetFile] = { info: { namespace: ns }, blocks: {} };
-        const blocks = newState.iaBlocks[targetFile].blocks as Record<string, any>;
-        blocks[sanitizedId] = defaultData;
-    } else {
-        targetFile = Object.keys(newState.iaFurnitures)[0] || "furnitures";
-        if (!newState.iaFurnitures[targetFile]) newState.iaFurnitures[targetFile] = { info: { namespace: ns }, furnitures: {} };
-        const furnitures = newState.iaFurnitures[targetFile].furnitures as Record<string, any>;
-        furnitures[sanitizedId] = {
-            ...defaultData,
-            resource: { ...defaultData.resource, model_path: `${ns}:furniture/${sanitizedId}` },
-            specific_properties: {
-                furniture: {
-                    furniture_type: "ARMOR_STAND",
-                    armor_stand: { invisible: true, small: true },
-                    hitbox: { length: 1, width: 1, height: 1 }
-                }
+    const targetFileId = "new_content";
+    const fullKey = `${ns}/${targetFileId}`;
+    
+    let targetMap: any;
+    let keyName = "";
+    if (activeCategory === 'items') { targetMap = newState.iaItems; keyName = "items"; }
+    else if (activeCategory === 'blocks') { targetMap = newState.iaBlocks; keyName = "blocks"; }
+    else { targetMap = newState.iaFurnitures; keyName = "furnitures"; }
+
+    if (!targetMap[fullKey]) targetMap[fullKey] = { info: { namespace: ns }, [keyName]: {} };
+    targetMap[fullKey][keyName][sanitizedId] = activeCategory === 'furnitures' ? {
+        ...defaultData,
+        resource: { ...defaultData.resource, model_path: `${ns}:furniture/${sanitizedId}` },
+        specific_properties: {
+            furniture: {
+                furniture_type: "ARMOR_STAND",
+                armor_stand: { invisible: true, small: true },
+                hitbox: { length: 1, width: 1, height: 1 }
             }
-        };
-    }
+        }
+    } : defaultData;
 
     setProjectState(newState);
     setSelectedItem(sanitizedId);
   };
 
   const handleIAFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !projectState || !selectedItem) return;
+    if (!e.target.files || !projectState || !selectedItem || !selectedNamespace) return;
     const filesList = Array.from(e.target.files);
     const newState = { ...projectState };
-    const ns = sanitizePath(projectState.projectName);
+    const ns = selectedNamespace;
     
     const subfolder = activeCategory === 'furnitures' ? 'furniture' : (activeCategory === 'blocks' ? 'block' : 'item');
 
-    const uploadedTextures: string[] = [];
     for (const file of filesList) {
         if (file.name.endsWith('.png')) {
             const buffer = await file.arrayBuffer();
             const sanitizedFileName = sanitizePath(file.name);
-            const inferredPath = `resource_pack/assets/${ns}/textures/${subfolder}/${sanitizedFileName}`;
-            
             newState.rawFiles.push({
                 name: sanitizedFileName,
                 content: buffer,
                 type: 'raw',
-                inferredPath: `plugins/ItemsAdder/contents/${ns}/${inferredPath}`
+                inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/${subfolder}/${sanitizedFileName}`
             });
-            uploadedTextures.push(sanitizedFileName.replace('.png', ''));
         }
     }
 
@@ -346,21 +354,20 @@ export default function IAConfigPage() {
                 console.error("Error remapping JSON", err);
             }
 
-            const inferredPath = `resource_pack/assets/${ns}/models/${subfolder}/${sanitizedFileName}`;
             newState.rawFiles.push({
                 name: sanitizedFileName,
                 content: buffer,
                 type: 'raw',
-                inferredPath: `plugins/ItemsAdder/contents/${ns}/${inferredPath}`
+                inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/models/${subfolder}/${sanitizedFileName}`
             });
 
-            updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.resource.model_path`, `${ns}:${subfolder}/${modelName}`);
-            updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.resource.generate`, false);
+            updateIAField(selectedData.fullKey, `${activeCategory}.${selectedItem}.resource.model_path`, `${ns}:${subfolder}/${modelName}`);
+            updateIAField(selectedData.fullKey, `${activeCategory}.${selectedItem}.resource.generate`, false);
         }
     }
 
     setProjectState(newState);
-    alert(`¡${filesList.length} archivos vinculados con éxito!`);
+    alert(`¡Archivos vinculados!`);
   };
 
   if (!mounted) return null;
@@ -408,7 +415,7 @@ export default function IAConfigPage() {
                         <Cloud className="w-10 h-10 text-blue-400" />
                     </div>
                     <p className="text-white font-bold text-xl">Importar vía xLib Bridge</p>
-                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest leading-relaxed">Usa un Token SYNC generado<br/>desde el servidor</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest leading-relaxed">Usa un Token SYNC generado desde el servidor</p>
                 </div>
             </div>
         </div>
@@ -428,13 +435,27 @@ export default function IAConfigPage() {
       <header className="flex justify-between items-center bg-[#111827] p-6 rounded-2xl border border-[#374151]">
         <div className="flex items-center gap-6">
           <div className="bg-yellow-400 p-2 rounded-lg text-black font-black text-xs">IA</div>
-          <h2 className="text-xl font-bold text-white tracking-tight">Namespace: <span className="text-yellow-400">{projectState.projectName}</span></h2>
+          <div className="flex flex-col">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Selector de Pack (Namespace)</label>
+              <div className="flex items-center gap-2">
+                <select 
+                    value={selectedNamespace || ""} 
+                    onChange={(e) => { setSelectedNamespace(e.target.value); setSelectedItem(null); }}
+                    className="bg-transparent text-xl font-bold text-white outline-none border-none cursor-pointer hover:text-yellow-400 transition-colors"
+                >
+                    {availableNamespaces.map(ns => (
+                        <option key={ns} value={ns} className="bg-[#111827] text-white font-bold">{ns}</option>
+                    ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-gray-500" />
+              </div>
+          </div>
         </div>
         <div className="flex gap-3">
           <button onClick={() => setIsSyncModalOpen(true)} className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-2.5 rounded-xl font-bold hover:bg-blue-500/20 transition-all border border-blue-500/20 group">
             <Cloud className="w-4 h-4 group-hover:animate-bounce" /> xLib Bridge
           </button>
-          <button onClick={() => { setProjectState(null); setSelectedItem(null); }} className="px-6 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-colors">Cerrar</button>
+          <button onClick={() => { setProjectState(null); setSelectedItem(null); setSelectedNamespace(null); }} className="px-6 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-colors">Cerrar</button>
           <button onClick={handleExport} className="flex items-center gap-2 bg-yellow-400 text-black px-8 py-2.5 rounded-xl font-bold hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/20"><Download className="w-4 h-4" /> Exportar ZIP</button>
         </div>
       </header>
@@ -465,11 +486,7 @@ export default function IAConfigPage() {
                         className="w-full bg-white/2 border border-[#374151] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none focus:border-yellow-400/30 focus:bg-yellow-400/5 transition-all"
                     />
                 </div>
-                <button 
-                    onClick={handleCreateNew}
-                    title="Crear Nuevo"
-                    className="p-2.5 bg-yellow-400 text-black rounded-xl hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/10"
-                >
+                <button onClick={handleCreateNew} title="Crear Nuevo" className="p-2.5 bg-yellow-400 text-black rounded-xl hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/10">
                     <Plus className="w-5 h-5" />
                 </button>
               </div>
@@ -485,7 +502,7 @@ export default function IAConfigPage() {
                     >
                         <div className="flex flex-col">
                             <span className="truncate">{id}</span>
-                            <span className="text-[8px] text-gray-600 truncate">{entry.fileId}.yml</span>
+                            <span className="text-[8px] text-gray-600 truncate">{entry.fullKey.split('/')[1]}.yml</span>
                         </div>
                     </div>
                 ))}
@@ -501,7 +518,7 @@ export default function IAConfigPage() {
                       <VisualPreview 
                         mcPath={selectedData.data.resource?.model_path || (selectedData.data.resource?.textures?.[0] || null)} 
                         rawFiles={projectState.rawFiles} 
-                        namespace={projectState.projectName}
+                        namespace={selectedNamespace || ""}
                       />
                       <div className="space-y-1 flex-1">
                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">ID Único</label>
@@ -520,7 +537,7 @@ export default function IAConfigPage() {
                             <input 
                                 type="text" 
                                 value={selectedData.data.display_name || ''} 
-                                onChange={(e) => updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.display_name`, e.target.value)}
+                                onChange={(e) => updateIAField(selectedData.fullKey, `${activeCategory}.${selectedItem}.display_name`, e.target.value)}
                                 className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400 transition-colors" 
                             />
                         </div>
@@ -529,7 +546,7 @@ export default function IAConfigPage() {
                             <input 
                                 type="text" 
                                 value={selectedData.data.resource?.material || ''} 
-                                onChange={(e) => updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.resource.material`, e.target.value)}
+                                onChange={(e) => updateIAField(selectedData.fullKey, `${activeCategory}.${selectedItem}.resource.material`, e.target.value)}
                                 className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400 transition-colors" 
                             />
                         </div>
@@ -538,7 +555,7 @@ export default function IAConfigPage() {
                             <textarea 
                                 rows={4}
                                 value={Array.isArray(selectedData.data.lore) ? selectedData.data.lore.join('\n') : ''} 
-                                onChange={(e) => updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.lore`, e.target.value.split('\n'))}
+                                onChange={(e) => updateIAField(selectedData.fullKey, `${activeCategory}.${selectedItem}.lore`, e.target.value.split('\n'))}
                                 className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400 transition-colors resize-none text-sm" 
                             />
                         </div>
@@ -560,14 +577,14 @@ export default function IAConfigPage() {
                                     <input 
                                         type="text" 
                                         value={selectedData.data.resource?.model_path || ''} 
-                                        onChange={(e) => updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.resource.model_path`, e.target.value)}
+                                        onChange={(e) => updateIAField(selectedData.fullKey, `${activeCategory}.${selectedItem}.resource.model_path`, e.target.value)}
                                         className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-colors text-xs" 
                                         placeholder="namespace:modelo"
                                     />
                                 </div>
                                 <label className="flex items-center gap-3 cursor-pointer group/toggle">
                                     <div className="relative">
-                                        <input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.resource.generate`, e.target.checked)} className="sr-only" />
+                                        <input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateIAField(selectedData.fullKey, `${activeCategory}.${selectedItem}.resource.generate`, e.target.checked)} className="sr-only" />
                                         <div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div>
                                         <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div>
                                     </div>
@@ -586,7 +603,7 @@ export default function IAConfigPage() {
                                             <input 
                                                 type="number" step="0.1" 
                                                 value={selectedData.data.specific_properties?.furniture?.hitbox?.[dim] || 1} 
-                                                onChange={(e) => updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.specific_properties.furniture.hitbox.${dim}`, parseFloat(e.target.value))} 
+                                                onChange={(e) => updateIAField(selectedData.fullKey, `${activeCategory}.${selectedItem}.specific_properties.furniture.hitbox.${dim}`, parseFloat(e.target.value))} 
                                                 className="w-full bg-transparent text-white font-bold outline-none text-xs" 
                                             />
                                         </div>
