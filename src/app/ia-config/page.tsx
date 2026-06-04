@@ -178,6 +178,57 @@ export default function IAConfigPage() {
 
   const selectedData = selectedItem ? currentCategoryMap[selectedItem] : null;
 
+  const handleCreateNew = () => {
+    if (!projectState) return;
+    const id = prompt("Introduce el ID del nuevo objeto:");
+    if (!id) return;
+    const sanitizedId = sanitizePath(id);
+    const newState = { ...projectState };
+    const ns = newState.projectName;
+
+    // Default configuration template
+    const defaultData = {
+        display_name: id,
+        resource: {
+            material: "PAPER",
+            generate: true,
+            textures: [`${ns}:item/${sanitizedId}`]
+        }
+    };
+
+    // Find or create a default config file
+    let targetFile = "";
+    if (activeCategory === 'items') {
+        targetFile = Object.keys(newState.iaItems)[0] || "items";
+        if (!newState.iaItems[targetFile]) newState.iaItems[targetFile] = { info: { namespace: ns }, items: {} };
+        const items = newState.iaItems[targetFile].items as Record<string, any>;
+        items[sanitizedId] = defaultData;
+    } else if (activeCategory === 'blocks') {
+        targetFile = Object.keys(newState.iaBlocks)[0] || "blocks";
+        if (!newState.iaBlocks[targetFile]) newState.iaBlocks[targetFile] = { info: { namespace: ns }, blocks: {} };
+        const blocks = newState.iaBlocks[targetFile].blocks as Record<string, any>;
+        blocks[sanitizedId] = defaultData;
+    } else {
+        targetFile = Object.keys(newState.iaFurnitures)[0] || "furnitures";
+        if (!newState.iaFurnitures[targetFile]) newState.iaFurnitures[targetFile] = { info: { namespace: ns }, furnitures: {} };
+        const furnitures = newState.iaFurnitures[targetFile].furnitures as Record<string, any>;
+        furnitures[sanitizedId] = {
+            ...defaultData,
+            resource: { ...defaultData.resource, model_path: `${ns}:furniture/${sanitizedId}` },
+            specific_properties: {
+                furniture: {
+                    furniture_type: "ARMOR_STAND",
+                    armor_stand: { invisible: true, small: true },
+                    hitbox: { length: 1, width: 1, height: 1 }
+                }
+            }
+        };
+    }
+
+    setProjectState(newState);
+    setSelectedItem(sanitizedId);
+  };
+
   const handleIAFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !projectState || !selectedItem) return;
     const filesList = Array.from(e.target.files);
@@ -186,29 +237,66 @@ export default function IAConfigPage() {
     
     const subfolder = activeCategory === 'furnitures' ? 'furniture' : (activeCategory === 'blocks' ? 'block' : 'item');
 
+    // 1. Process Textures first so we can remap models
+    const uploadedTextures: string[] = [];
     for (const file of filesList) {
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        if (ext !== 'png' && ext !== 'json') continue;
-        const buffer = await file.arrayBuffer();
-        const sanitizedFileName = sanitizePath(file.name);
-        const assetType = ext === 'json' ? 'models' : 'textures';
-        const inferredPath = `resource_pack/assets/${ns}/${assetType}/${subfolder}/${sanitizedFileName}`;
+        if (file.name.endsWith('.png')) {
+            const buffer = await file.arrayBuffer();
+            const sanitizedFileName = sanitizePath(file.name);
+            const inferredPath = `resource_pack/assets/${ns}/textures/${subfolder}/${sanitizedFileName}`;
+            
+            newState.rawFiles.push({
+                name: sanitizedFileName,
+                content: buffer,
+                type: 'raw',
+                inferredPath: `plugins/ItemsAdder/contents/${ns}/${inferredPath}`
+            });
+            uploadedTextures.push(sanitizedFileName.replace('.png', ''));
+        }
+    }
 
-        newState.rawFiles.push({
-            name: sanitizedFileName,
-            content: buffer,
-            type: 'raw',
-            inferredPath: `plugins/ItemsAdder/contents/${ns}/${inferredPath}`
-        });
+    // 2. Process Models and link
+    for (const file of filesList) {
+        if (file.name.endsWith('.json')) {
+            let buffer = await file.arrayBuffer();
+            const sanitizedFileName = sanitizePath(file.name);
+            const modelName = sanitizedFileName.replace('.json', '');
 
-        // Auto-link if JSON
-        if (ext === 'json') {
-            updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.resource.model_path`, `${ns}:${subfolder}/${sanitizedFileName.replace('.json', '')}`);
+            // REMAP TEXTURES IN JSON
+            try {
+                const text = new TextDecoder().decode(buffer);
+                const model = JSON.parse(text);
+                if (model.textures) {
+                    Object.keys(model.textures).forEach(key => {
+                        const texPath = model.textures[key] as string;
+                        // If texture was in this batch or belongs to our namespace, remap it
+                        const fileName = sanitizePath(texPath.split('/').pop() || texPath).replace('.png', '');
+                        if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
+                            model.textures[key] = `${ns}:${subfolder}/${fileName}`;
+                        }
+                    });
+                    buffer = new TextEncoder().encode(JSON.stringify(model, null, 2)).buffer;
+                }
+            } catch (err) {
+                console.error("Error remapping JSON", err);
+            }
+
+            const inferredPath = `resource_pack/assets/${ns}/models/${subfolder}/${sanitizedFileName}`;
+            newState.rawFiles.push({
+                name: sanitizedFileName,
+                content: buffer,
+                type: 'raw',
+                inferredPath: `plugins/ItemsAdder/contents/${ns}/${inferredPath}`
+            });
+
+            // Update Config
+            updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.resource.model_path`, `${ns}:${subfolder}/${modelName}`);
             updateIAField(selectedData.fileId, `${activeCategory}.${selectedItem}.resource.generate`, false);
         }
     }
+
     setProjectState(newState);
-    alert(`¡${filesList.length} archivos vinculados!`);
+    alert(`¡${filesList.length} archivos vinculados con éxito!`);
   };
 
   if (!projectState) {
@@ -256,15 +344,24 @@ export default function IAConfigPage() {
               <button onClick={() => { setActiveCategory('furnitures'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-black uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'furnitures' ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300")}>Muebles</button>
            </div>
            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              <div className="relative group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
-                <input 
-                    type="text" 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Buscar ID..." 
-                    className="w-full bg-white/2 border border-[#374151] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none focus:border-yellow-400/30 focus:bg-yellow-400/5 transition-all"
-                />
+              <div className="flex gap-2">
+                <div className="relative group flex-1">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
+                    <input 
+                        type="text" 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Buscar ID..." 
+                        className="w-full bg-white/2 border border-[#374151] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none focus:border-yellow-400/30 focus:bg-yellow-400/5 transition-all"
+                    />
+                </div>
+                <button 
+                    onClick={handleCreateNew}
+                    title="Crear Nuevo"
+                    className="p-2.5 bg-yellow-400 text-black rounded-xl hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/10"
+                >
+                    <Plus className="w-5 h-5" />
+                </button>
               </div>
               <div className="space-y-1">
                 {filteredItems.map(([id, entry]) => (
