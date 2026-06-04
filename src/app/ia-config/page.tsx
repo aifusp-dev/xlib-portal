@@ -123,15 +123,34 @@ export default function IAConfigPage() {
     const token = params.get('token');
     if (token && !projectState && !isAutoImporting) {
         setIsAutoImporting(true);
+        console.log("[Bridge] Starting auto-import for token:", token);
         handleImportFromBridge(token)
             .then(() => {
-                // Clear URL param after success
                 window.history.replaceState({}, '', window.location.pathname);
+                alert("¡Configuración cargada con éxito desde el servidor!");
             })
-            .catch(err => console.error("Auto-import failed", err))
+            .catch(err => {
+                console.error("Auto-import failed", err);
+                alert("Error al importar: El token no existe o ha expirado.");
+            })
             .finally(() => setIsAutoImporting(false));
     }
   }, [projectState]);
+
+  if (isAutoImporting) {
+    return (
+        <div className="h-screen flex flex-col items-center justify-center space-y-6 bg-[#0b0f19]">
+            <div className="relative">
+                <div className="w-24 h-24 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" />
+                <Cloud className="absolute inset-0 m-auto w-8 h-8 text-yellow-400 animate-pulse" />
+            </div>
+            <div className="text-center space-y-2">
+                <h2 className="text-xl font-bold text-white">Sincronizando con xLib Bridge...</h2>
+                <p className="text-gray-500 text-sm animate-pulse px-4">Estamos descargando y procesando tu configuración directamente desde el servidor.</p>
+            </div>
+        </div>
+    );
+  }
 
   const handleSyncToBridge = async () => {
     if (!projectState) return null;
