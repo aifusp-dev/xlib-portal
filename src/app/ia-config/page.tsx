@@ -11,7 +11,8 @@ import {
   FolderOpen,
   Zap,
   Search,
-  Maximize2
+  Maximize2,
+  Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseUploadedFiles, EcosystemState, sanitizePath, StudioFile } from "@/lib/studio";
