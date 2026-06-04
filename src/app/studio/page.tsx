@@ -20,11 +20,13 @@ import {
   Maximize2,
   Zap,
   Copy,
-  Search
+  Search,
+  Cloud
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { parseUploadedFiles, EcosystemState, stringifyYaml, sanitizePath, StudioFile } from "@/lib/studio";
+import { generateZIP, parseUploadedFiles, EcosystemState, stringifyYaml, sanitizePath, StudioFile } from "@/lib/studio";
 import { exportEcosystem } from "@/lib/export";
+import SyncModal from "@/components/SyncModal";
 
 interface IAItemConfig {
   resource?: {
@@ -196,6 +198,42 @@ export default function StudioPage() {
   const [activePreview, setActivePreview] = useState<'plugin' | 'ia'>('plugin');
   const [searchTerm, setSearchTerm] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+
+  const handleSyncToBridge = async () => {
+    if (!projectState) return null;
+    const blob = await generateZIP(projectState);
+    const formData = new FormData();
+    formData.append('file', blob, 'sync.zip');
+
+    const res = await fetch('/api/sync/publish', {
+        method: 'POST',
+        body: formData
+    });
+    const data = await res.json();
+    return data.token;
+  };
+
+  const handleImportFromBridge = async (token: string) => {
+    const res = await fetch(`/api/sync/download/${token}`);
+    if (!res.ok) throw new Error('Token invalid');
+    
+    const blob = await res.blob();
+    
+    // JSZip to extract and parse
+    const JSZip = (await import('jszip')).default;
+    const zip = await JSZip.loadAsync(blob);
+    const files: File[] = [];
+    
+    for (const [path, zipEntry] of Object.entries(zip.files)) {
+        if (zipEntry.dir) continue;
+        const buffer = await zipEntry.async('arraybuffer');
+        files.push(new File([buffer], path, { type: 'application/octet-stream' }));
+    }
+
+    const state = await parseUploadedFiles(files);
+    setProjectState(state);
+  };
 
   const activeTexturePath = useMemo(() => {
     if (!projectState || !selectedItem) return null;
@@ -686,17 +724,37 @@ export default function StudioPage() {
              <FolderSearch className="w-16 h-16 text-yellow-400" />
           </div>
           <h1 className="text-4xl font-extrabold text-white tracking-tight">Studio Pro Engine</h1>
-          <p className="text-gray-400 text-lg max-w-md mx-auto">Sube tu carpeta de proyecto para gestionar la jerarquía.</p>
+          <p className="text-gray-400 text-lg max-w-md mx-auto">Sube tu carpeta de proyecto o importa desde el servidor.</p>
         </div>
-        <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-[#374151] rounded-3xl p-20 hover:border-yellow-400/5 hover:bg-yellow-400/5 transition-all cursor-pointer group">
-          <input type="file" ref={fileInputRef} onChange={handleFolderUpload} className="hidden" {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
-          <div className="space-y-6">
-            <div className="bg-white/5 p-5 rounded-2xl w-fit mx-auto group-hover:scale-110 transition-transform duration-300">
-              <Upload className="w-10 h-10 text-gray-400 group-hover:text-yellow-400" />
+        
+        <div className="grid grid-cols-2 gap-6">
+            <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-[#374151] rounded-3xl p-16 hover:border-yellow-400/5 hover:bg-yellow-400/5 transition-all cursor-pointer group">
+                <input type="file" ref={fileInputRef} onChange={handleFolderUpload} className="hidden" {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} />
+                <div className="space-y-6">
+                    <div className="bg-white/5 p-5 rounded-2xl w-fit mx-auto group-hover:scale-110 transition-transform duration-300">
+                        <Upload className="w-10 h-10 text-gray-400 group-hover:text-yellow-400" />
+                    </div>
+                    <p className="text-white font-bold text-xl">Seleccionar Carpeta</p>
+                </div>
             </div>
-            <p className="text-white font-bold text-xl">Seleccionar Carpeta</p>
-          </div>
+
+            <div onClick={() => setIsSyncModalOpen(true)} className="border-2 border-dashed border-blue-500/20 rounded-3xl p-16 hover:border-blue-500/40 hover:bg-blue-500/5 transition-all cursor-pointer group">
+                <div className="space-y-6">
+                    <div className="bg-blue-500/10 p-5 rounded-2xl w-fit mx-auto group-hover:scale-110 transition-transform duration-300">
+                        <Cloud className="w-10 h-10 text-blue-400" />
+                    </div>
+                    <p className="text-white font-bold text-xl">Importar vía xLib Bridge</p>
+                    <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest leading-relaxed">Usa un Token SYNC generado<br/>desde el servidor</p>
+                </div>
+            </div>
         </div>
+
+        <SyncModal 
+            isOpen={isSyncModalOpen} 
+            onClose={() => setIsSyncModalOpen(false)}
+            onSync={handleSyncToBridge}
+            onImport={handleImportFromBridge}
+        />
       </div>
     );
   }
@@ -721,10 +779,20 @@ export default function StudioPage() {
           <h2 className="text-xl font-bold text-white tracking-tight">Proyecto: <span className="text-yellow-400">{projectState.projectName}</span></h2>
         </div>
         <div className="flex gap-3">
+          <button onClick={() => setIsSyncModalOpen(true)} className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-2.5 rounded-xl font-bold hover:bg-blue-500/20 transition-all border border-blue-500/20 group">
+            <Cloud className="w-4 h-4 group-hover:animate-bounce" /> xLib Bridge
+          </button>
           <button onClick={() => { setProjectState(null); setSelectedItem(null); }} className="px-6 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-colors">Cerrar</button>
-          <button onClick={handleExport} className="flex items-center gap-2 bg-yellow-400 text-black px-8 py-2.5 rounded-xl font-bold hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/20"><Download className="w-4 h-4" /> Descargar Todo (.zip)</button>
+          <button onClick={handleExport} className="flex items-center gap-2 bg-yellow-400 text-black px-8 py-2.5 rounded-xl font-bold hover:bg-yellow-500 transition-all shadow-lg shadow-yellow-400/20"><Download className="w-4 h-4" /> Exportar ZIP</button>
         </div>
       </header>
+
+      <SyncModal 
+        isOpen={isSyncModalOpen} 
+        onClose={() => setIsSyncModalOpen(false)}
+        onSync={handleSyncToBridge}
+        onImport={handleImportFromBridge}
+      />
 
       <div className="flex-1 grid grid-cols-12 gap-6 overflow-hidden">
         <aside className="col-span-3 bg-[#111827] border border-[#374151] rounded-2xl flex flex-col overflow-hidden shadow-xl">
