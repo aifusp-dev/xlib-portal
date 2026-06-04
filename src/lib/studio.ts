@@ -21,7 +21,7 @@ export interface EcosystemState {
 
 export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   const zip = new JSZip();
-  const ns = state.projectName || 'xLib';
+  const defaultNs = state.projectName || 'xLib';
   
   // 1. Pack xFoods
   Object.entries(state.foods).forEach(([id, data]) => {
@@ -39,19 +39,40 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   });
 
   // 4. Pack ItemsAdder (MODULAR STRUCTURE)
-  // General configs
-  Object.entries(state.iaItems).forEach(([id, data]) => {
-    zip.file(`ItemsAdder/contents/${ns}/configs/${id}.yml`, stringifyYaml(data));
+  // General configs - Key is "namespace/fileId"
+  Object.entries(state.iaItems).forEach(([fullId, data]) => {
+    const parts = fullId.split('/');
+    if (parts.length > 1) {
+        const ns = parts[0];
+        const fileId = parts.slice(1).join('/');
+        zip.file(`ItemsAdder/contents/${ns}/configs/${fileId}.yml`, stringifyYaml(data));
+    } else {
+        zip.file(`ItemsAdder/contents/${defaultNs}/configs/${fullId}.yml`, stringifyYaml(data));
+    }
   });
 
   // Blocks
-  Object.entries(state.iaBlocks).forEach(([id, data]) => {
-    zip.file(`ItemsAdder/contents/${ns}/configs/blocks/${id}.yml`, stringifyYaml(data));
+  Object.entries(state.iaBlocks).forEach(([fullId, data]) => {
+    const parts = fullId.split('/');
+    if (parts.length > 1) {
+        const ns = parts[0];
+        const fileId = parts.slice(1).join('/');
+        zip.file(`ItemsAdder/contents/${ns}/configs/blocks/${fileId}.yml`, stringifyYaml(data));
+    } else {
+        zip.file(`ItemsAdder/contents/${defaultNs}/configs/blocks/${fullId}.yml`, stringifyYaml(data));
+    }
   });
 
   // Furnitures
-  Object.entries(state.iaFurnitures).forEach(([id, data]) => {
-    zip.file(`ItemsAdder/contents/${ns}/configs/furnitures/${id}.yml`, stringifyYaml(data));
+  Object.entries(state.iaFurnitures).forEach(([fullId, data]) => {
+    const parts = fullId.split('/');
+    if (parts.length > 1) {
+        const ns = parts[0];
+        const fileId = parts.slice(1).join('/');
+        zip.file(`ItemsAdder/contents/${ns}/configs/furnitures/${fileId}.yml`, stringifyYaml(data));
+    } else {
+        zip.file(`ItemsAdder/contents/${defaultNs}/configs/furnitures/${fullId}.yml`, stringifyYaml(data));
+    }
   });
 
   // 5. Pack original raw files (textures/models) with final JSON remapping
@@ -59,7 +80,7 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
     const cleanPath = file.inferredPath.replace(/^plugins\//, '');
     let finalContent: string | ArrayBuffer | Blob = file.content;
 
-    // IF JSON model, perform final texture remapping to ensure 100% correctness
+    // IF JSON model, perform final texture remapping
     if (file.name.endsWith('.json')) {
       try {
         const text = new TextDecoder().decode(file.content as ArrayBuffer);
@@ -68,28 +89,24 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
         if (model.textures) {
           Object.keys(model.textures).forEach(key => {
             const texPath = model.textures[key] as string;
-            // Only remap if it's our project or has no namespace
-            if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
-              // Extract just the filename and sanitize it
-              const fileName = sanitizePath(texPath.split('/').pop() || texPath);
-              
-              // Find where this texture actually is in our project
-              const actualTexFile = state.rawFiles.find(f => 
-                f.name.toLowerCase() === `${fileName}.png` || 
-                f.name.toLowerCase() === fileName
-              );
+            // Extract just the filename and sanitize it
+            const fileName = sanitizePath(texPath.split('/').pop() || texPath);
+            
+            // Find where this texture actually is in our project
+            const actualTexFile = state.rawFiles.find(f => 
+              f.name.toLowerCase() === `${fileName}.png` || 
+              f.name.toLowerCase() === fileName
+            );
 
-              if (actualTexFile) {
-                // Extract subfolder from actual file path
+            if (actualTexFile) {
+                // Extract subfolder and namespace from actual file path
                 const parts = actualTexFile.inferredPath.split('/');
-                const assetsIdx = parts.indexOf('assets');
-                if (assetsIdx !== -1 && parts.length > assetsIdx + 4) {
-                   const actualSubfolder = parts.slice(assetsIdx + 3, -1).join('/'); // item/subfolder
-                   model.textures[key] = `${ns}:${actualSubfolder}/${fileName}`;
-                } else {
-                   model.textures[key] = `${ns}:item/food/${fileName}`;
+                const contentsIdx = parts.indexOf('contents');
+                if (contentsIdx !== -1 && parts.length > contentsIdx + 4) {
+                    const ns = parts[contentsIdx + 1];
+                    const actualSubfolder = parts.slice(contentsIdx + 4, -1).join('/'); // item/subfolder
+                    model.textures[key] = `${ns}:${actualSubfolder}/${fileName}`;
                 }
-              }
             }
           });
           finalContent = new TextEncoder().encode(JSON.stringify(model, null, 2)).buffer;
@@ -119,25 +136,14 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
 
   const fileList = Array.from(files);
 
-  // First pass: Detect project name (Namespace)
+  // First pass: Detect project name (Namespace) - Just use the first valid ItemsAdder namespace found as default
   for (const file of fileList) {
     const path = (file as any).webkitRelativePath || file.name;
     const parts = path.split('/');
-    
-    // Priority: Find ItemsAdder namespace
     const iaIdx = parts.indexOf('ItemsAdder');
-    if (iaIdx !== -1 && parts[iaIdx + 1] === 'contents' && parts[iaIdx + 2]) {
+    if (iaIdx !== -1 && parts[iaIdx + 1] === 'contents' && parts[iaIdx + 2] && parts[iaIdx + 2] !== '__iainternal') {
       state.projectName = sanitizePath(parts[iaIdx + 2]);
       break;
-    }
-
-    // Fallback: Look for a folder that isn't xFoods, xFoodsCrops or plugins
-    if (parts.length > 1) {
-      const topFolder = parts[0];
-      if (!['xFoods', 'xFoodsCrops', 'plugins', 'ItemsAdder'].includes(topFolder)) {
-        state.projectName = sanitizePath(topFolder);
-        // Don't break yet, ItemsAdder might be found later and is more reliable
-      }
     }
   }
 
@@ -149,9 +155,7 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
       const content = await file.text();
 
       try {
-          // Use loadAll to handle multiple YAML documents in one file (common in ItemsAdder)
           const docs = yaml.loadAll(content);
-          // If there are multiple docs, we take the first one that is an object
           const config = (docs.find(d => d && typeof d === 'object') || {}) as Record<string, unknown>;
 
           if (path.includes('xFoods/foods/')) {
@@ -172,43 +176,37 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
           } else if (path.includes('ItemsAdder/contents/')) {
             const iaPath = path.split('ItemsAdder/contents/')[1];
             const iaParts = iaPath.split('/');
+            const namespace = sanitizePath(iaParts[0]);
+            
+            // Skip internal namespace
+            if (namespace === '__iainternal') continue;
+
             if (iaParts.length > 1 && iaParts[1] === 'configs') {
               const relativeIdPath = iaParts.slice(2).join('/');
-              const fullId = sanitizePath(relativeIdPath.replace(/\.ya?ml$/, ''));
+              const fileId = sanitizePath(relativeIdPath.replace(/\.ya?ml$/, ''));
+              const fullKey = `${namespace}/${fileId}`;
               
               if (path.includes('/configs/blocks/')) {
-                state.iaBlocks[fullId.replace('blocks/', '')] = config;
+                state.iaBlocks[fullKey.replace('blocks/', '')] = config;
               } else if (path.includes('/configs/furnitures/')) {
-                state.iaFurnitures[fullId.replace('furnitures/', '')] = config;
+                state.iaFurnitures[fullKey.replace('furnitures/', '')] = config;
               } else {
-                state.iaItems[fullId] = config;
+                state.iaItems[fullKey] = config;
               }
-            }
-          } else if (path.includes(`${state.projectName}/configs/`)) {
-            const relativeIdPath = path.split(`${state.projectName}/configs/`)[1];
-            const fullId = sanitizePath(relativeIdPath.replace(/\.ya?ml$/, ''));
-            
-            if (path.includes('/configs/blocks/')) {
-                state.iaBlocks[fullId.replace('blocks/', '')] = config;
-            } else if (path.includes('/configs/furnitures/')) {
-                state.iaFurnitures[fullId.replace('furnitures/', '')] = config;
-            } else {
-                state.iaItems[fullId] = config;
             }
           }
       } catch (e) {
           console.error("Error parsing YAML file:", path, e);
       }
     } else if (path.match(/\.(png|json|ogg)$/i)) {
-      // Preserve assets from the IA content folder
       if (path.includes('ItemsAdder/contents/')) {
         const buffer = await file.arrayBuffer();
         const iaPath = path.split('ItemsAdder/contents/')[1];
         const iaParts = iaPath.split('/');
         const ns = sanitizePath(iaParts[0]);
-        const relativeToNamespace = sanitizePath(iaParts.slice(1).join('/'));
+        if (ns === '__iainternal') continue;
 
-        // Normalize resourcepack -> resource_pack if needed
+        const relativeToNamespace = sanitizePath(iaParts.slice(1).join('/'));
         const normalizedPath = relativeToNamespace.replace(/^resourcepack\//, 'resource_pack/');
 
         state.rawFiles.push({
@@ -216,17 +214,6 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
           content: buffer,
           type: 'raw',
           inferredPath: `plugins/ItemsAdder/contents/${ns}/${normalizedPath}`
-        });
-      } else if (path.includes(`${state.projectName}/resourcepack/`) || path.includes(`${state.projectName}/resource_pack/`)) {
-        const buffer = await file.arrayBuffer();
-        const isLegacy = path.includes('/resourcepack/');
-        const relativeToNamespace = sanitizePath(path.split(isLegacy ? '/resourcepack/' : '/resource_pack/')[1]);
-        
-        state.rawFiles.push({
-          name: sanitizePath(file.name),
-          content: buffer,
-          type: 'raw',
-          inferredPath: `plugins/ItemsAdder/contents/${state.projectName}/resource_pack/${relativeToNamespace}`
         });
       }
     }
