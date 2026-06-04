@@ -4,10 +4,10 @@ import fs from 'fs';
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: Promise<{ token: string }> }
+    context: { params: Promise<{ token: string }> }
 ) {
     try {
-        const { token } = await params;
+        const { token } = await context.params;
         const filePath = getSyncFile(token);
 
         if (!filePath) {
