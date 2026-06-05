@@ -762,12 +762,28 @@ export default function StudioWorkspace() {
                                         <h4 className="text-[10px] font-black uppercase text-yellow-400 tracking-widest italic">Tipo de Mueble</h4>
                                         <select 
                                             value={selectedData.data.behaviours?.furniture?.furniture_type || 'ARMOR_STAND'} 
-                                            onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.furniture_type`, e.target.value, selectedData.fullKey)}
+                                            onChange={(e) => {
+                                                const newType = e.target.value;
+                                                const newState = { ...projectState } as EcosystemState;
+                                                const config = newState.iaFurnitures[selectedData.fullKey];
+                                                const item = config.items[selectedItem];
+                                                
+                                                if (!item.behaviours) item.behaviours = { furniture: {} };
+                                                item.behaviours.furniture.furniture_type = newType;
+
+                                                // CLEANUP: IA only wants armor_stand keys if type is ARMOR_STAND
+                                                if (newType !== 'ARMOR_STAND') {
+                                                    delete item.behaviours.furniture.armor_stand;
+                                                } else {
+                                                    item.behaviours.furniture.armor_stand = { invisible: true, small: true };
+                                                }
+                                                setProjectState(newState);
+                                            }}
                                             className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs uppercase font-bold"
                                         >
-                                            <option value="ARMOR_STAND">ARMOR_STAND (Entidad)</option>
-                                            <option value="ITEM_FRAME">ITEM_FRAME (Marco)</option>
-                                            <option value="GLOW_ITEM_FRAME">GLOW_ITEM_FRAME (Marco Brillante)</option>
+                                            <option value="ARMOR_STAND">ARMOR_STAND (Suelo/Cajas)</option>
+                                            <option value="ITEM_FRAME">ITEM_FRAME (Pared/Planos)</option>
+                                            <option value="GLOW_ITEM_FRAME">GLOW_ITEM_FRAME (Pared Brillante)</option>
                                         </select>
                                     </div>
                                     <div className="bg-[#0b0f19] p-6 rounded-2xl border border-white/5 space-y-4">
