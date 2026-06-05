@@ -765,8 +765,8 @@ export default function StudioWorkspace() {
                                             onChange={(e) => {
                                                 const newType = e.target.value;
                                                 const newState = { ...projectState } as EcosystemState;
-                                                const config = newState.iaFurnitures[selectedData.fullKey];
-                                                const item = config.items[selectedItem];
+                                                const config = newState.iaFurnitures[selectedData.fullKey] as Record<string, any>;
+                                                const item = config.items[selectedItem as string];
                                                 
                                                 if (!item.behaviours) item.behaviours = { furniture: {} };
                                                 item.behaviours.furniture.furniture_type = newType;
