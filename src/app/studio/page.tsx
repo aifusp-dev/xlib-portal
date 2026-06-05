@@ -478,16 +478,23 @@ export default function StudioWorkspace() {
     const ns = selectedNamespace;
     const subfolder = activeCategory === 'furnitures' ? 'furniture' : (activeCategory === 'blocks' ? 'block' : 'item');
 
+    // Helper to add or replace raw file
+    const upsertRawFile = (name: string, content: ArrayBuffer, inferredPath: string) => {
+        const existingIdx = newState.rawFiles.findIndex(f => f.inferredPath === inferredPath);
+        const newFile: StudioFile = { name, content, type: 'raw', inferredPath };
+        if (existingIdx !== -1) {
+            newState.rawFiles[existingIdx] = newFile;
+        } else {
+            newState.rawFiles.push(newFile);
+        }
+    };
+
     for (const file of filesList) {
       if (file.name.endsWith('.png')) {
         const buffer = await file.arrayBuffer();
         const sanitizedFileName = sanitizePath(file.name);
-        newState.rawFiles.push({
-          name: sanitizedFileName,
-          content: buffer,
-          type: 'raw',
-          inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/${subfolder}/${sanitizedFileName}`
-        });
+        const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/${subfolder}/${sanitizedFileName}`;
+        upsertRawFile(sanitizedFileName, buffer, targetPath);
       }
     }
 
@@ -511,12 +518,8 @@ export default function StudioWorkspace() {
             }
         } catch (err) { console.error("Error processing JSON model", err); }
 
-        newState.rawFiles.push({
-          name: sanitizedFileName,
-          content: buffer,
-          type: 'raw',
-          inferredPath: `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/models/${subfolder}/${sanitizedFileName}`
-        });
+        const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/models/${subfolder}/${sanitizedFileName}`;
+        upsertRawFile(sanitizedFileName, buffer, targetPath);
 
         const keyName = activeCategory === 'blocks' ? "blocks" : "items";
         updateField(`${keyName}.${selectedItem}.resource.model_path`, `${ns}:${subfolder}/${modelName}`, selectedData.fullKey);
