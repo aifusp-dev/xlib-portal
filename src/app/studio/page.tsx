@@ -351,7 +351,6 @@ export default function StudioWorkspace() {
         const targetFileId = activeCategory === 'furnitures' ? "created_furnitures" : (activeCategory === 'blocks' ? "created_blocks" : "created_items");
         const fullKey = `${selectedNamespace}/${targetFileId}`;
         
-        // IA Root Key: "items" for items/furniture, "blocks" for blocks.
         let keyName = activeCategory === 'blocks' ? "blocks" : "items"; 
         
         let targetMap: any;
@@ -372,7 +371,7 @@ export default function StudioWorkspace() {
             display_name: id,
             permission: `${selectedNamespace}.furniture.${sid}`,
             resource: { material: "PAPER", generate: true, model_path: `${selectedNamespace}:furniture/${sid}` },
-            specific_properties: {
+            behaviours: {
                 furniture: {
                     furniture_type: "ARMOR_STAND",
                     armor_stand: { invisible: true, small: true },
@@ -762,8 +761,8 @@ export default function StudioWorkspace() {
                                     <div className="bg-[#0b0f19] p-6 rounded-2xl border border-white/5 space-y-4">
                                         <h4 className="text-[10px] font-black uppercase text-yellow-400 tracking-widest italic">Tipo de Mueble</h4>
                                         <select 
-                                            value={selectedData.data.specific_properties?.furniture?.furniture_type || 'ARMOR_STAND'} 
-                                            onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.furniture_type`, e.target.value, selectedData.fullKey)}
+                                            value={selectedData.data.behaviours?.furniture?.furniture_type || 'ARMOR_STAND'} 
+                                            onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.furniture_type`, e.target.value, selectedData.fullKey)}
                                             className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs uppercase font-bold"
                                         >
                                             <option value="ARMOR_STAND">ARMOR_STAND (Entidad)</option>
@@ -777,14 +776,14 @@ export default function StudioWorkspace() {
                                             {['length', 'width', 'height'].map(dim => (
                                                 <div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5">
                                                     <label className="text-[8px] font-bold text-gray-500 uppercase block mb-1">{dim}</label>
-                                                    <input type="number" step="0.1" value={selectedData.data.specific_properties?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-transparent text-white font-bold outline-none text-xs" />
+                                                    <input type="number" step="0.1" value={selectedData.data.behaviours?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-transparent text-white font-bold outline-none text-xs" />
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                 </div>
 
-                                {selectedData.data.specific_properties?.furniture?.furniture_type === 'ARMOR_STAND' && (
+                                {selectedData.data.behaviours?.furniture?.furniture_type === 'ARMOR_STAND' && (
                                     <div className="bg-[#0b0f19] p-6 rounded-3xl border border-white/5 space-y-6 animate-in slide-in-from-top-2">
                                         <h4 className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Ajustes Armor Stand</h4>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -797,8 +796,8 @@ export default function StudioWorkspace() {
                                                 <label key={opt.id} className="flex items-center gap-2 cursor-pointer group/opt">
                                                     <input 
                                                         type="checkbox" 
-                                                        checked={selectedData.data.specific_properties?.furniture?.armor_stand?.[opt.id] ?? opt.default} 
-                                                        onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.armor_stand.${opt.id}`, e.target.checked, selectedData.fullKey)}
+                                                        checked={selectedData.data.behaviours?.furniture?.armor_stand?.[opt.id] ?? opt.default} 
+                                                        onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.armor_stand.${opt.id}`, e.target.checked, selectedData.fullKey)}
                                                         className="rounded bg-black border-white/10 text-purple-400"
                                                     />
                                                     <span className="text-[10px] font-bold text-gray-500 uppercase group-hover/opt:text-white transition-colors">{opt.label}</span>
@@ -814,11 +813,11 @@ export default function StudioWorkspace() {
                                         <div className="space-y-4">
                                             <div className="space-y-1">
                                                 <label className="text-[8px] font-bold text-gray-600 uppercase block">Nivel Luz (0-15)</label>
-                                                <input type="number" min="0" max="15" value={selectedData.data.specific_properties?.furniture?.light_level || 0} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.light_level`, parseInt(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
+                                                <input type="number" min="0" max="15" value={selectedData.data.behaviours?.furniture?.light_level || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.light_level`, parseInt(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-[8px] font-bold text-gray-600 uppercase block">Offset Asiento (Y)</label>
-                                                <input type="number" step="0.1" value={selectedData.data.specific_properties?.furniture?.seat?.y_offset || 0} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.seat.y_offset`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" placeholder="0 = no seat" />
+                                                <input type="number" step="0.1" value={selectedData.data.behaviours?.furniture?.seat?.y_offset || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.seat.y_offset`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" placeholder="0 = no seat" />
                                             </div>
                                         </div>
                                     </div>
@@ -827,11 +826,11 @@ export default function StudioWorkspace() {
                                         <div className="space-y-4">
                                             <div className="space-y-1">
                                                 <label className="text-[8px] font-bold text-gray-600 uppercase block">Huecos (Slots)</label>
-                                                <input type="number" step="9" min="0" max="54" value={selectedData.data.specific_properties?.furniture?.container?.slots || 0} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.container.slots`, parseInt(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
+                                                <input type="number" step="9" min="0" max="54" value={selectedData.data.behaviours?.furniture?.container?.slots || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.container.slots`, parseInt(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-[8px] font-bold text-gray-600 uppercase block">Título Inventario</label>
-                                                <input type="text" value={selectedData.data.specific_properties?.furniture?.container?.title || ''} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.specific_properties.furniture.container.title`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
+                                                <input type="text" value={selectedData.data.behaviours?.furniture?.container?.title || ''} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.container.title`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
                                             </div>
                                         </div>
                                     </div>
