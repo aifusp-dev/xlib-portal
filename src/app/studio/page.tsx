@@ -489,30 +489,27 @@ export default function StudioWorkspace() {
         }
     };
 
-    for (const file of filesList) {
-      if (file.name.endsWith('.png')) {
-        const buffer = await file.arrayBuffer();
-        const sanitizedFileName = sanitizePath(file.name);
-        const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/${subfolder}/${sanitizedFileName}`;
-        upsertRawFile(sanitizedFileName, buffer, targetPath);
-      }
-    }
+    // El nombre del furniture/ítem manda: tanto la textura como el modelo se renombran a este nombre
+    const modelName = sanitizePath(selectedItem);
+
+    // Mapa de nombre de textura original (referenciado en el JSON) -> nuevo nombre basado en el ID del furniture
+    const textureRenameMap: Record<string, string> = {};
 
     for (const file of filesList) {
       if (file.name.endsWith('.json')) {
         let buffer = await file.arrayBuffer();
-        const sanitizedFileName = sanitizePath(file.name);
-        const modelName = sanitizedFileName.replace(".json", "");
+        const sanitizedFileName = `${modelName}.json`;
         try {
             const text = new TextDecoder().decode(buffer);
             const model = JSON.parse(text);
             if (model.textures) {
-                Object.keys(model.textures).forEach(key => {
+                const textureKeys = Object.keys(model.textures);
+                textureKeys.forEach(key => {
                     const texPath = model.textures[key] as string;
-                    const fileName = sanitizePath(texPath.split('/').pop() || texPath).replace('.png', '');
-                    if (!texPath.includes(':') || texPath.startsWith(`${ns}:`)) {
-                        model.textures[key] = `${ns}:${subfolder}/${fileName}`;
-                    }
+                    const originalName = sanitizePath(texPath.split('/').pop() || texPath).replace('.png', '');
+                    const newName = textureKeys.length > 1 ? `${modelName}_${originalName}` : modelName;
+                    textureRenameMap[originalName] = newName;
+                    model.textures[key] = `${ns}:${subfolder}/${newName}`;
                 });
                 buffer = new TextEncoder().encode(JSON.stringify(model, null, 2)).buffer;
             }
@@ -524,6 +521,17 @@ export default function StudioWorkspace() {
         const keyName = activeCategory === 'blocks' ? "blocks" : "items";
         updateField(`${keyName}.${selectedItem}.resource.model_path`, `${ns}:${subfolder}/${modelName}`, selectedData.fullKey);
         updateField(`${keyName}.${selectedItem}.resource.generate`, false, selectedData.fullKey);
+      }
+    }
+
+    for (const file of filesList) {
+      if (file.name.endsWith('.png')) {
+        const buffer = await file.arrayBuffer();
+        const originalName = sanitizePath(file.name).replace('.png', '');
+        const newName = textureRenameMap[originalName] || modelName;
+        const finalFileName = `${newName}.png`;
+        const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/${subfolder}/${finalFileName}`;
+        upsertRawFile(finalFileName, buffer, targetPath);
       }
     }
     setProjectState(newState);
