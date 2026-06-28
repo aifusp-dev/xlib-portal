@@ -867,7 +867,7 @@ export default function DocPage({ params }: { params: Promise<{ plugin: string }
   const badgeCls = badgeColors[doc.badge ?? "default"] ?? badgeColors.default;
 
   return (
-    <div className="flex animate-wiki">
+    <div className="flex animate-wiki max-w-5xl mx-auto w-full">
       {/* ── Article ── */}
       <article className="flex-1 min-w-0 px-8 py-10 max-w-3xl">
         {/* Breadcrumb */}

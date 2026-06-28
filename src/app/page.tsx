@@ -43,7 +43,7 @@ const colorMap: Record<string, { border: string; text: string; bg: string }> = {
 
 export default function Home() {
   return (
-    <div className="max-w-4xl mx-auto px-8 py-14 animate-wiki">
+    <div className="max-w-4xl mx-auto w-full px-8 py-14 animate-wiki">
       {/* Hero */}
       <div className="mb-14">
         <div className="inline-flex items-center gap-2 text-xs font-mono text-yellow-400/70 bg-yellow-400/8 border border-yellow-400/20 px-3 py-1 rounded-full mb-5">
