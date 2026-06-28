@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   Home, Book, Zap, ChefHat, Sprout, Shield,
   HeartPulse, Coins, Clock, UserCircle, Library,
-  Smartphone, Album, Users, Search, ChevronDown, ChevronRight, Gavel, Hammer
+  Smartphone, Album, Users, Search, ChevronDown, ChevronRight,
+  Gavel, Hammer, Swords, Building2, Wrench, Car, Briefcase
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -49,11 +50,16 @@ const navigation: NavGroup[] = [
       { label: "RPX Economy", href: "/docs/rpx-economy", icon: Coins },
       { label: "RPX Health", href: "/docs/rpx-health", icon: HeartPulse },
       { label: "RPX ClockIn", href: "/docs/rpx-clockin", icon: Clock },
-      { label: "RPXCourt", href: "/docs/rpxcourt", icon: Gavel },
-      { label: "RPXCrafting", href: "/docs/rpxcrafting", icon: Hammer },
-      { label: "Police RPX", href: "/docs/rpx-police", icon: Shield },
-      { label: "Biblio RPX", href: "/docs/rpx-biblio", icon: Library },
-      { label: "RPX Names", href: "/docs/rpx-names", icon: UserCircle },
+      { label: "Police RPX",    href: "/docs/rpx-police",     icon: Shield },
+      { label: "RPX Gangs",     href: "/docs/rpx-gangs",      icon: Swords },
+      { label: "RPX RealState", href: "/docs/rpx-realstate",  icon: Building2 },
+      { label: "RPX Utils",     href: "/docs/rpx-utils",      icon: Wrench },
+      { label: "RPX Vehicles",  href: "/docs/rpx-vehicles",   icon: Car },
+      { label: "RPX SimpleJobs",href: "/docs/rpx-simplejobs", icon: Briefcase },
+      { label: "RPXCourt",      href: "/docs/rpxcourt",       icon: Gavel },
+      { label: "RPXCrafting",   href: "/docs/rpxcrafting",    icon: Hammer },
+      { label: "Biblio RPX",    href: "/docs/rpx-biblio",     icon: Library },
+      { label: "RPX Names",     href: "/docs/rpx-names",      icon: UserCircle },
     ],
   },
   {
