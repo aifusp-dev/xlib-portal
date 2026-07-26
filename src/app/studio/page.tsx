@@ -32,6 +32,9 @@ import { generateZIP, parseUploadedFiles, EcosystemState, stringifyYaml, sanitiz
 import { exportEcosystem } from "@/lib/export";
 import SyncModal from "@/components/SyncModal";
 import { Model3DViewer } from "@/components/Model3DViewer";
+import AutocompleteInput from "@/components/AutocompleteInput";
+import CropStagesEditor from "@/components/CropStagesEditor";
+import MachineRecipesEditor from "@/components/MachineRecipesEditor";
 
 // --- TYPES ---
 interface IAItemConfig {
@@ -43,43 +46,6 @@ interface IAItemConfig {
 }
 
 // --- COMPONENTS ---
-const AutocompleteInput = ({ value, onChange, options, placeholder, className }: { 
-    value: string, 
-    onChange: (val: string) => void, 
-    options: string[], 
-    placeholder?: string, 
-    className?: string 
-}) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const filtered = options.filter(opt => opt.toLowerCase().includes(value.toLowerCase()));
-
-    return (
-        <div className="relative w-full">
-            <input 
-                type="text" 
-                value={value} 
-                onChange={(e) => onChange(e.target.value)} 
-                onFocus={() => setIsOpen(true)}
-                onBlur={() => setTimeout(() => setIsOpen(false), 200)}
-                className={className} 
-                placeholder={placeholder}
-            />
-            {isOpen && filtered.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-[#111827] border border-[#374151] rounded-xl shadow-2xl max-h-40 overflow-y-auto overflow-x-hidden custom-scrollbar">
-                    {filtered.map(opt => (
-                        <div 
-                            key={opt} 
-                            onClick={() => { onChange(opt); setIsOpen(false); }}
-                            className="px-4 py-2 text-[10px] text-gray-300 hover:bg-white/5 cursor-pointer uppercase font-bold"
-                        >
-                            {opt}
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
 
 const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null, rawFiles: StudioFile[], namespace: string }) => {
     const [url, setUrl] = useState<string | null>(null);
@@ -337,6 +303,20 @@ export default function StudioWorkspace() {
             }
         }
     }
+    setProjectState(newState);
+  };
+
+  // Permite a los editores de recetas/etapas (que tienen listas dinámicas: añadir/quitar
+  // ingredientes, requisitos, etc.) mutar directamente el config del ítem seleccionado,
+  // sin tener que pasar por el sistema de rutas plano de updateField().
+  const mutateSelectedConfig = (mutator: (config: any) => void) => {
+    if (!projectState || !selectedItem) return;
+    const newState = { ...projectState };
+    const targetMap = activeEditor === 'xfoods' ? newState.foods :
+                      (activeEditor === 'xcrops' ? newState.crops : newState.machines);
+    const entry = targetMap[selectedItem];
+    if (!entry) return;
+    mutator(entry.config);
     setProjectState(newState);
   };
 
@@ -764,9 +744,41 @@ export default function StudioWorkspace() {
 
                     {activeEditor === 'xcrops' && (
                          <div className="space-y-8">
-                             <div className="flex justify-between items-center border-b border-[#374151] pb-4"><div className="flex items-center gap-2 text-green-400"><FolderSearch className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Etapas</h4></div><button onClick={() => { const newState = {...projectState}; const crop = newState.crops[selectedItem as string].config; if(!(crop as any).growth) (crop as any).growth = { stages: {} }; if(!(crop as any).growth.stages) (crop as any).growth.stages = {}; const sid = `stage${Object.keys((crop as any).growth.stages).length}`; (crop as any).growth.stages[sid] = { material: "FERN", scale: 1.0, duration: 60 }; setProjectState(newState); }} className="text-[10px] font-black uppercase bg-green-500/10 text-green-500 px-3 py-1.5 rounded-lg border border-green-500/20">+ Nueva Etapa</button></div>
-                             <div className="grid gap-6">{Object.entries((selectedData.config.growth?.stages as Record<string, any>) || {}).map(([sid, sData]) => (<div key={sid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden"><div className="bg-white/5 px-6 py-2 flex justify-between items-center border-b border-white/5"><span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">{sid}</span><button onClick={() => { const newState = {...projectState}; delete (newState.crops[selectedItem as string].config.growth as any).stages[sid]; setProjectState(newState); }} className="text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div><div className="p-6 grid grid-cols-3 gap-4"><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Material</label><input type="text" value={sData.material || ''} onChange={(e) => updateField(`config.growth.stages.${sid}.material`, e.target.value)} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Escala</label><input type="number" step="0.1" value={sData.scale || 1.0} onChange={(e) => updateField(`config.growth.stages.${sid}.scale`, parseFloat(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Duración (segundos)</label><input type="number" value={sData.duration ?? 60} onChange={(e) => updateField(`config.growth.stages.${sid}.duration`, parseInt(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div></div></div>))}</div>
-                             <div className="space-y-6 pt-4 border-t border-[#374151]">
+                             <div className="space-y-6 pb-6 border-b border-[#374151]">
+                                <div className="flex items-center gap-2 text-lime-400"><Sprout className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Semilla</h4></div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Nombre de la Semilla</label><input type="text" value={selectedData.config.seed?.['display-name'] || ''} onChange={(e) => updateField('config.seed.display-name', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">ItemsAdder ID (semilla)</label><input type="text" value={selectedData.config.seed?.['itemsadder-id'] || ''} onChange={(e) => updateField('config.seed.itemsadder-id', e.target.value)} placeholder="opcional" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                </div>
+                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Lore de la Semilla</label><textarea rows={3} value={Array.isArray(selectedData.config.seed?.lore) ? selectedData.config.seed.lore.join('\n') : ''} onChange={(e) => updateField('config.seed.lore', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none resize-none text-sm" /></div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase">ID de Vínculo (requirements.seed-nbt)</label>
+                                    <input type="text" value={selectedData.config.requirements?.['seed-nbt'] || ''} onChange={(e) => updateField('config.requirements.seed-nbt', e.target.value)} placeholder={selectedItem || ''} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <p className="text-[10px] text-gray-600 italic">Debe coincidir exactamente con el identificador &quot;{selectedItem}&quot; de este cultivo: es lo que el plugin compara al plantar la semilla.</p>
+                                </div>
+                             </div>
+
+                             <div className="space-y-6 pb-6 border-b border-[#374151]">
+                                <div className="flex items-center gap-2 text-green-400"><FolderSearch className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Etapas de Crecimiento</h4></div>
+                                <CropStagesEditor
+                                    stages={(selectedData.config.growth?.stages as Record<string, any>) || {}}
+                                    mutate={(fn) => mutateSelectedConfig((cfg) => {
+                                        if (!cfg.growth) cfg.growth = {};
+                                        if (!cfg.growth.stages) cfg.growth.stages = {};
+                                        fn(cfg.growth.stages);
+                                    })}
+                                />
+                             </div>
+
+                             <div className="space-y-6 pb-6 border-b border-[#374151]">
+                                <div className="flex items-center gap-2 text-purple-400"><Clock className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Marchitamiento y Visuales</h4></div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Marchita sin nutrientes tras (segundos)</label><input type="number" value={selectedData.config.growth?.['wither-time'] ?? 2400} onChange={(e) => updateField('config.growth.wither-time', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Título del Holograma</label><input type="text" value={selectedData.config.visuals?.['hologram-title'] || ''} onChange={(e) => updateField('config.visuals.hologram-title', e.target.value)} placeholder="&fPlanta" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                </div>
+                             </div>
+
+                             <div className="space-y-6">
                                 <div className="flex items-center gap-2 text-yellow-400"><Sprout className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Cosecha</h4></div>
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="space-y-2 col-span-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ítem xFoods al Cosechar</label><AutocompleteInput value={selectedData.config.harvest?.['xfoods-id'] || ''} onChange={(val) => updateField('config.harvest.xfoods-id', val)} options={Object.keys(projectState.foods)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
@@ -774,6 +786,17 @@ export default function StudioWorkspace() {
                                 </div>
                                 <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Mensaje al Cosechar</label><input type="text" value={selectedData.config.harvest?.message || ''} onChange={(e) => updateField('config.harvest.message', e.target.value)} placeholder="&aCosechado." className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
                              </div>
+                         </div>
+                    )}
+
+                    {activeEditor === 'xmachines' && (
+                         <div className="space-y-8">
+                            <div className="flex items-center gap-2 text-orange-400"><Flame className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Recetas de la Estación</h4></div>
+                            <MachineRecipesEditor
+                                config={selectedData.config as { 'is-refrigerator'?: boolean; recipes?: Record<string, any> }}
+                                mutate={mutateSelectedConfig}
+                                foodOptions={Object.keys(projectState.foods)}
+                            />
                          </div>
                     )}
 
