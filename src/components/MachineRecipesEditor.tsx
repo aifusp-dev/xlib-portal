@@ -4,6 +4,7 @@ import { Trash2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { sanitizePath } from "@/lib/studio";
 import AutocompleteInput from "@/components/AutocompleteInput";
+import Field from "@/components/Field";
 
 interface MachineIngredient { id?: string; amount?: number; }
 interface MachineRecipe {
@@ -31,15 +32,6 @@ interface MachineRecipesEditorProps {
 }
 
 const inputCls = "w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-yellow-400/50";
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <label className="text-[9px] font-bold text-gray-600 uppercase block">{label}</label>
-      {children}
-    </div>
-  );
-}
 
 export default function MachineRecipesEditor({ config, mutate, foodOptions }: MachineRecipesEditorProps) {
   const isRefrigerator = !!config['is-refrigerator'];

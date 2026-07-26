@@ -35,6 +35,8 @@ import { Model3DViewer } from "@/components/Model3DViewer";
 import AutocompleteInput from "@/components/AutocompleteInput";
 import CropStagesEditor from "@/components/CropStagesEditor";
 import MachineRecipesEditor from "@/components/MachineRecipesEditor";
+import PotionEffectsEditor, { PotionConfig } from "@/components/PotionEffectsEditor";
+import CommandActionRow from "@/components/CommandActionRow";
 
 // --- TYPES ---
 interface IAItemConfig {
@@ -736,8 +738,27 @@ export default function StudioWorkspace() {
                             </div>
                         </div>
                         <div className="space-y-6 pt-4 border-t border-[#374151]">
+                            <div className="flex items-center gap-2 text-pink-400"><Zap className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Efectos de Poción (Subidón / Bajón)</h4></div>
+                            <PotionEffectsEditor
+                                potion={(selectedData.config.effects?.potion as PotionConfig) || {}}
+                                mutate={(fn) => mutateSelectedConfig((cfg) => {
+                                    if (!cfg.effects) cfg.effects = {};
+                                    if (!cfg.effects.potion) cfg.effects.potion = {};
+                                    fn(cfg.effects.potion);
+                                })}
+                            />
+                        </div>
+                        <div className="space-y-6 pt-4 border-t border-[#374151]">
                              <div className="flex justify-between items-center"><h4 className="text-xs font-black text-green-400 uppercase tracking-widest">Comandos</h4><button onClick={() => { const newState = {...projectState}; const food = (newState.foods[selectedItem as string].config as any); if(!food.commands) food.commands = []; (food.commands as any).push(""); setProjectState(newState); }} className="text-[10px] font-bold text-green-400">+ AÑADIR</button></div>
-                             <div className="space-y-2">{(Array.isArray(selectedData.config.commands) ? selectedData.config.commands : []).map((cmd: string, idx: number) => (<div key={idx} className="flex gap-2"><input type="text" value={cmd} onChange={(e) => { const newState = {...projectState}; (newState.foods[selectedItem as string].config.commands as any)[idx] = e.target.value; setProjectState(newState); }} className="flex-1 bg-black/20 border border-white/5 rounded-xl px-4 py-2 text-white outline-none" /><button onClick={() => { const newState = {...projectState}; (newState.foods[selectedItem as string].config.commands as any).splice(idx, 1); setProjectState(newState); }} className="text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div>))}</div>
+                             <p className="text-[10px] text-gray-600 italic -mt-2">Para dar efectos de poción usa la sección de arriba. Usa esto solo para mensajes u otros comandos (dar ítems, dinero, teletransportar, etc.).</p>
+                             <div className="space-y-2">{(Array.isArray(selectedData.config.commands) ? selectedData.config.commands : []).map((cmd: string, idx: number) => (
+                                <CommandActionRow
+                                    key={idx}
+                                    value={cmd}
+                                    onChange={(newRaw) => { const newState = {...projectState}; (newState.foods[selectedItem as string].config.commands as any)[idx] = newRaw; setProjectState(newState); }}
+                                    onRemove={() => { const newState = {...projectState}; (newState.foods[selectedItem as string].config.commands as any).splice(idx, 1); setProjectState(newState); }}
+                                />
+                             ))}</div>
                         </div>
                         </>
                     )}

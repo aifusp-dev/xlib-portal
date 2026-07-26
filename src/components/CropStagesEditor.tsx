@@ -2,6 +2,7 @@
 
 import { Trash2, Plus } from "lucide-react";
 import { sanitizePath } from "@/lib/studio";
+import Field from "@/components/Field";
 
 interface StageRequirement {
   type?: 'NUTRIENT' | 'LIGHT';
@@ -29,15 +30,6 @@ interface CropStagesEditorProps {
 }
 
 const inputCls = "w-full bg-black/20 border border-white/5 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-yellow-400/50";
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <label className="text-[8px] font-bold text-gray-600 uppercase block">{label}</label>
-      {children}
-    </div>
-  );
-}
 
 export default function CropStagesEditor({ stages, mutate }: CropStagesEditorProps) {
   const addStage = () => {
