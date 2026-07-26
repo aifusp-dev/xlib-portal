@@ -467,16 +467,42 @@ export default function StudioWorkspace() {
     let filesList: File[] = [];
     if (e.dataTransfer) {
       e.preventDefault();
+      e.stopPropagation();
       filesList = Array.from(e.dataTransfer.files as FileList);
     } else if (e.target && e.target.files) {
       filesList = Array.from(e.target.files);
     }
 
-    if (filesList.length === 0 || !projectState || !selectedItem || !selectedNamespace || !selectedData) return;
-    
+    if (filesList.length === 0 || !projectState || !selectedItem) return;
+
+    // La sección de xFoods/xCrops sube archivos directamente al ítem de ItemsAdder
+    // que quedó vinculado al activar el switch "ItemsAdder" para ese ítem.
+    const isFoodContext = activeEditor === 'xfoods' || activeEditor === 'xcrops';
+
+    if (isFoodContext) {
+        if (!isIAEnabled) {
+            alert("Activa primero la integración con ItemsAdder para este ítem.");
+            return;
+        }
+    } else if (!selectedNamespace || !selectedData) {
+        return;
+    }
+
     const newState = { ...projectState };
-    const ns = selectedNamespace;
-    const subfolder = activeCategory === 'furnitures' ? 'furniture' : (activeCategory === 'blocks' ? 'block' : 'item');
+    const ns = isFoodContext ? newState.projectName : (selectedNamespace as string);
+    const fullKey = isFoodContext ? `${newState.projectName}/${selectedItem}` : (selectedData as any).fullKey;
+    const keyName = isFoodContext ? "items" : currentIAKeyName;
+    const targetMap: Record<string, any> = isFoodContext
+        ? newState.iaItems
+        : (activeCategory === 'items' ? newState.iaItems : (activeCategory === 'blocks' ? newState.iaBlocks : newState.iaFurnitures));
+
+    const iaEntry = targetMap[fullKey];
+    if (!iaEntry || !iaEntry[keyName] || !iaEntry[keyName][selectedItem]) return;
+
+    const subfolder = isFoodContext
+        ? (activeEditor === 'xfoods' ? 'food' : 'crops')
+        : (activeCategory === 'furnitures' ? 'furniture' : (activeCategory === 'blocks' ? 'block' : 'item'));
+    const modelFolder = isFoodContext ? `item/${subfolder}` : subfolder;
 
     // Helper to add or replace raw file
     const upsertRawFile = (name: string, content: ArrayBuffer, inferredPath: string) => {
@@ -489,11 +515,13 @@ export default function StudioWorkspace() {
         }
     };
 
-    // El nombre del furniture/ítem manda: tanto la textura como el modelo se renombran a este nombre
+    // El nombre del ítem manda: tanto la textura como el modelo se renombran a este nombre
     const modelName = sanitizePath(selectedItem);
 
-    // Mapa de nombre de textura original (referenciado en el JSON) -> nuevo nombre basado en el ID del furniture
+    // Mapa de nombre de textura original (referenciado en el JSON) -> nuevo nombre basado en el ID del ítem
     const textureRenameMap: Record<string, string> = {};
+    const resource = iaEntry[keyName][selectedItem].resource = iaEntry[keyName][selectedItem].resource || {};
+    let hasModelJson = false;
 
     for (const file of filesList) {
       if (file.name.endsWith('.json')) {
@@ -509,18 +537,18 @@ export default function StudioWorkspace() {
                     const originalName = sanitizePath(texPath.split('/').pop() || texPath).replace('.png', '');
                     const newName = textureKeys.length > 1 ? `${modelName}_${originalName}` : modelName;
                     textureRenameMap[originalName] = newName;
-                    model.textures[key] = `${ns}:${subfolder}/${newName}`;
+                    model.textures[key] = `${ns}:${modelFolder}/${newName}`;
                 });
                 buffer = new TextEncoder().encode(JSON.stringify(model, null, 2)).buffer;
             }
         } catch (err) { console.error("Error processing JSON model", err); }
 
-        const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/models/${subfolder}/${sanitizedFileName}`;
+        const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/models/${modelFolder}/${sanitizedFileName}`;
         upsertRawFile(sanitizedFileName, buffer, targetPath);
 
-        const keyName = activeCategory === 'blocks' ? "blocks" : "items";
-        updateField(`${keyName}.${selectedItem}.resource.model_path`, `${ns}:${subfolder}/${modelName}`, selectedData.fullKey);
-        updateField(`${keyName}.${selectedItem}.resource.generate`, false, selectedData.fullKey);
+        resource.model_path = `${ns}:${modelFolder}/${modelName}`;
+        resource.generate = false;
+        hasModelJson = true;
       }
     }
 
@@ -530,8 +558,13 @@ export default function StudioWorkspace() {
         const originalName = sanitizePath(file.name).replace('.png', '');
         const newName = textureRenameMap[originalName] || modelName;
         const finalFileName = `${newName}.png`;
-        const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/${subfolder}/${finalFileName}`;
+        const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/${modelFolder}/${finalFileName}`;
         upsertRawFile(finalFileName, buffer, targetPath);
+
+        if (!hasModelJson) {
+            resource.generate = true;
+            resource.textures = [`${ns}:${modelFolder}/${newName}`];
+        }
       }
     }
     setProjectState(newState);
@@ -731,15 +764,27 @@ export default function StudioWorkspace() {
 
                     {activeEditor === 'xcrops' && (
                          <div className="space-y-8">
-                             <div className="flex justify-between items-center border-b border-[#374151] pb-4"><div className="flex items-center gap-2 text-green-400"><FolderSearch className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Etapas</h4></div><button onClick={() => { const newState = {...projectState}; const crop = newState.crops[selectedItem as string].config; if(!(crop as any).growth) (crop as any).growth = { stages: {} }; if(!(crop as any).growth.stages) (crop as any).growth.stages = {}; const sid = `stage${Object.keys((crop as any).growth.stages).length}`; (crop as any).growth.stages[sid] = { material: "FERN", scale: 1.0, duration: 60000 }; setProjectState(newState); }} className="text-[10px] font-black uppercase bg-green-500/10 text-green-500 px-3 py-1.5 rounded-lg border border-green-500/20">+ Nueva Etapa</button></div>
-                             <div className="grid gap-6">{Object.entries((selectedData.config.growth?.stages as Record<string, any>) || {}).map(([sid, sData]) => (<div key={sid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden"><div className="bg-white/5 px-6 py-2 flex justify-between items-center border-b border-white/5"><span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">{sid}</span><button onClick={() => { const newState = {...projectState}; delete (newState.crops[selectedItem as string].config.growth as any).stages[sid]; setProjectState(newState); }} className="text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div><div className="p-6 grid grid-cols-3 gap-4"><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Material</label><input type="text" value={sData.material || ''} onChange={(e) => updateField(`config.growth.stages.${sid}.material`, e.target.value)} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Escala</label><input type="number" step="0.1" value={sData.scale || 1.0} onChange={(e) => updateField(`config.growth.stages.${sid}.scale`, parseFloat(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Duración</label><input type="number" value={sData.duration || 60000} onChange={(e) => updateField(`config.growth.stages.${sid}.duration`, parseInt(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div></div></div>))}</div>
+                             <div className="flex justify-between items-center border-b border-[#374151] pb-4"><div className="flex items-center gap-2 text-green-400"><FolderSearch className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Etapas</h4></div><button onClick={() => { const newState = {...projectState}; const crop = newState.crops[selectedItem as string].config; if(!(crop as any).growth) (crop as any).growth = { stages: {} }; if(!(crop as any).growth.stages) (crop as any).growth.stages = {}; const sid = `stage${Object.keys((crop as any).growth.stages).length}`; (crop as any).growth.stages[sid] = { material: "FERN", scale: 1.0, duration: 60 }; setProjectState(newState); }} className="text-[10px] font-black uppercase bg-green-500/10 text-green-500 px-3 py-1.5 rounded-lg border border-green-500/20">+ Nueva Etapa</button></div>
+                             <div className="grid gap-6">{Object.entries((selectedData.config.growth?.stages as Record<string, any>) || {}).map(([sid, sData]) => (<div key={sid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden"><div className="bg-white/5 px-6 py-2 flex justify-between items-center border-b border-white/5"><span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">{sid}</span><button onClick={() => { const newState = {...projectState}; delete (newState.crops[selectedItem as string].config.growth as any).stages[sid]; setProjectState(newState); }} className="text-gray-600 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div><div className="p-6 grid grid-cols-3 gap-4"><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Material</label><input type="text" value={sData.material || ''} onChange={(e) => updateField(`config.growth.stages.${sid}.material`, e.target.value)} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Escala</label><input type="number" step="0.1" value={sData.scale || 1.0} onChange={(e) => updateField(`config.growth.stages.${sid}.scale`, parseFloat(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div><div className="space-y-1"><label className="text-[8px] font-bold text-gray-600 uppercase">Duración (segundos)</label><input type="number" value={sData.duration ?? 60} onChange={(e) => updateField(`config.growth.stages.${sid}.duration`, parseInt(e.target.value))} className="w-full bg-black/20 border border-white/5 rounded px-2 py-1 text-xs text-white outline-none" /></div></div></div>))}</div>
+                             <div className="space-y-6 pt-4 border-t border-[#374151]">
+                                <div className="flex items-center gap-2 text-yellow-400"><Sprout className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Cosecha</h4></div>
+                                <div className="grid grid-cols-3 gap-4">
+                                    <div className="space-y-2 col-span-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ítem xFoods al Cosechar</label><AutocompleteInput value={selectedData.config.harvest?.['xfoods-id'] || ''} onChange={(val) => updateField('config.harvest.xfoods-id', val)} options={Object.keys(projectState.foods)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Cantidad</label><input type="number" min={1} value={selectedData.config.harvest?.amount ?? 1} onChange={(e) => updateField('config.harvest.amount', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                </div>
+                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Mensaje al Cosechar</label><input type="text" value={selectedData.config.harvest?.message || ''} onChange={(e) => updateField('config.harvest.message', e.target.value)} placeholder="&aCosechado." className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                             </div>
                          </div>
                     )}
 
                     {activeEditor === 'ia' && (
                         <div className="space-y-8">
-                            <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6">
-                                <div className="flex justify-between items-center"><h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Recursos</h4><button onClick={() => iaFileInputRef.current?.click()} className="bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border border-yellow-400/20">Inyectar</button><input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple /></div>
+                            <div
+                                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                onDrop={handleIAFileUpload}
+                                className="bg-[#0b0f19] p-8 rounded-3xl border-2 border-dashed border-white/5 space-y-6 transition-colors hover:border-yellow-400/30"
+                            >
+                                <div className="flex justify-between items-center"><h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Recursos <span className="text-gray-600 normal-case font-medium">(arrastra .png / .json aquí)</span></h4><button onClick={() => iaFileInputRef.current?.click()} className="bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border border-yellow-400/20">Inyectar</button><input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple /></div>
                                 <div className="space-y-4">
                                     <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ruta Modelo</label><input type="text" value={selectedData.data.resource?.model_path || ''} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.model_path`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" /></div>
                                     <label className="flex items-center gap-3 cursor-pointer"><div className="relative"><input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.generate`, e.target.checked, selectedData.fullKey)} className="sr-only" /><div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div><div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div></div><span className="text-[10px] font-black text-gray-500 uppercase">Auto-Gen 2D</span></label>
@@ -869,7 +914,28 @@ export default function StudioWorkspace() {
                 </div>
 
                 {(activeEditor === 'xfoods' || activeEditor === 'xcrops') && (
-                <div className={cn("p-8 rounded-3xl border transition-all", isIAEnabled ? "bg-yellow-400/5 border-yellow-400/20" : "bg-white/2 border-white/5")}><div className="flex justify-between items-center"><div className="flex items-center gap-3"><Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-yellow-400" : "text-gray-600")} /><div><h4 className="text-md font-black text-white uppercase tracking-tighter italic">ItemsAdder</h4><p className="text-[11px] text-gray-500 uppercase font-black tracking-widest">Modelos 3D y texturas</p></div></div><label className="switch"><input type="checkbox" checked={isIAEnabled} onChange={(e) => updateField('ia-toggle', e.target.checked)} /><span className="slider"></span></label></div></div>
+                <div className={cn("p-8 rounded-3xl border transition-all space-y-6", isIAEnabled ? "bg-yellow-400/5 border-yellow-400/20" : "bg-white/2 border-white/5")}>
+                    <div className="flex justify-between items-center"><div className="flex items-center gap-3"><Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-yellow-400" : "text-gray-600")} /><div><h4 className="text-md font-black text-white uppercase tracking-tighter italic">ItemsAdder</h4><p className="text-[11px] text-gray-500 uppercase font-black tracking-widest">Modelos 3D y texturas</p></div></div><label className="switch"><input type="checkbox" checked={isIAEnabled} onChange={(e) => updateField('ia-toggle', e.target.checked)} /><span className="slider"></span></label></div>
+                    {isIAEnabled && (
+                        <div
+                            onClick={() => iaFileInputRef.current?.click()}
+                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onDrop={handleIAFileUpload}
+                            className="border-2 border-dashed border-yellow-400/20 rounded-2xl p-10 text-center hover:border-yellow-400/40 hover:bg-yellow-400/5 transition-all group cursor-pointer relative"
+                        >
+                            <input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple />
+                            <div className="bg-yellow-400/10 p-4 rounded-full w-fit mx-auto mb-4 group-hover:scale-110 transition-transform"><Upload className="w-8 h-8 text-yellow-400" /></div>
+                            <h4 className="text-white font-bold text-sm">Cargar Modelo / Textura / JSON</h4>
+                            <p className="text-[10px] text-gray-500 mt-2 uppercase font-black tracking-widest leading-relaxed">
+                                Arrastra o haz clic para subir .png / .json <br/>
+                                <span className="text-yellow-400/50">se auto-configura para "{selectedItem}"</span>
+                            </p>
+                            {(projectState.iaItems[`${projectState.projectName}/${selectedItem}`] as any)?.items?.[selectedItem as string]?.resource?.model_path && (
+                                <p className="mt-4 text-[10px] font-mono text-green-400 truncate">{(projectState.iaItems[`${projectState.projectName}/${selectedItem}`] as any).items[selectedItem as string].resource.model_path}</p>
+                            )}
+                        </div>
+                    )}
+                </div>
                 )}
              </div>
            ) : (
