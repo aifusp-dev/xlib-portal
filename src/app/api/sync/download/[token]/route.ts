@@ -8,6 +8,11 @@ export async function GET(
 ) {
     try {
         const { token } = await context.params;
+
+        if (!/^[A-Z]+-[A-F0-9]+$/.test(token)) {
+            return NextResponse.json({ error: 'Token invalid or expired' }, { status: 404 });
+        }
+
         const filePath = getSyncFile(token);
 
         if (!filePath) {

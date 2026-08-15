@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateToken, saveSyncFile } from '@/lib/bridge';
+import { generateToken, saveSyncFile, MAX_UPLOAD_BYTES } from '@/lib/bridge';
 
 export async function POST(req: NextRequest) {
     console.log('[Bridge API] Received upload request from server');
@@ -10,6 +10,11 @@ export async function POST(req: NextRequest) {
         if (!file) {
             console.error('[Bridge API] No file found in formData from server');
             return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+        }
+
+        if (file.size > MAX_UPLOAD_BYTES) {
+            console.error(`[Bridge API] Upload rejected: ${file.size} bytes exceeds limit`);
+            return NextResponse.json({ error: 'File too large' }, { status: 413 });
         }
 
         const buffer = Buffer.from(await file.arrayBuffer());
