@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:roundtrip": "tsx scripts/roundtrip.test.mts",
+    "test:content": "tsx scripts/content.test.mts",
+    "test:itemsadder": "tsx scripts/itemsadder.test.mts",
+    "test:namespace": "tsx scripts/namespace.test.mts",
+    "test:foodid": "tsx scripts/foodid.test.mts"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",

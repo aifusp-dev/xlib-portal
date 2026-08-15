@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ZIPs temporales del bridge de sincronizacion (contenido de usuario, efimero)
+/tmp_sync/

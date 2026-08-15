@@ -25,10 +25,12 @@ import {
   ChefHat,
   Sprout,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  Flower2,
+  Cpu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { generateZIP, parseUploadedFiles, EcosystemState, stringifyYaml, sanitizePath, StudioFile } from "@/lib/studio";
+import { generateZIP, parseUploadedFiles, EcosystemState, ConfigEntry, stringifyYaml, sanitizePath, isInternalNamespace, XFOODS_NAMESPACE, leafId, StudioFile } from "@/lib/studio";
 import { exportEcosystem } from "@/lib/export";
 import SyncModal from "@/components/SyncModal";
 import { Model3DViewer } from "@/components/Model3DViewer";
@@ -132,10 +134,37 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
     );
 };
 
+/**
+ * Secciones del Studio que editan ficheros de plugin (todo menos ItemsAdder).
+ * Cada una se corresponde con una carpeta real del servidor.
+ */
+/** Tipos de MachineConfiguration.MachineType que acepta xFoodsCrops. */
+const AUTOMATION_TYPES = ['AUTO_WATERER', 'SMART_LIGHT', 'AUTO_FERTILIZER_ORGANIC',
+  'AUTO_FERTILIZER_CHEMICAL', 'AUTO_HARVESTER', 'AUTO_PESTICIDE'] as const;
+
+type PluginEditor = 'xfoods' | 'xcrops' | 'xmachines' | 'xpods' | 'xautomation';
+
+const EDITOR_MAPS: Record<PluginEditor, keyof Pick<EcosystemState, 'foods' | 'crops' | 'machines' | 'pods' | 'cropMachines'>> = {
+  xfoods: 'foods',
+  xcrops: 'crops',
+  xmachines: 'machines',
+  xpods: 'pods',
+  xautomation: 'cropMachines',
+};
+
+/**
+ * Devuelve el mapa de configuraciones de la sección activa.
+ * Antes esto era un ternario anidado repetido en cinco sitios, y añadir una sección obligaba a
+ * acordarse de tocarlos todos: por eso los maceteros y la automatización nunca llegaron a
+ * aparecer en el Studio.
+ */
+const mapFor = (state: EcosystemState, editor: PluginEditor): Record<string, ConfigEntry> =>
+  state[EDITOR_MAPS[editor]] as Record<string, ConfigEntry>;
+
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
-  const [activeEditor, setActiveEditor] = useState<'ia' | 'xfoods' | 'xcrops' | 'xmachines'>('xfoods');
+  const [activeEditor, setActiveEditor] = useState<PluginEditor | 'ia'>('xfoods');
   const [activeCategory, setActiveCategory] = useState<string>("items"); 
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null);
@@ -159,7 +188,7 @@ export default function StudioWorkspace() {
     Object.keys(projectState.iaItems).forEach(k => nss.add(k.split('/')[0]));
     Object.keys(projectState.iaBlocks).forEach(k => nss.add(k.split('/')[0]));
     Object.keys(projectState.iaFurnitures).forEach(k => nss.add(k.split('/')[0]));
-    return Array.from(nss).filter(n => n !== '__iainternal').sort();
+    return Array.from(nss).filter(n => !isInternalNamespace(n)).sort();
   }, [projectState]);
 
   useEffect(() => {
@@ -266,30 +295,38 @@ export default function StudioWorkspace() {
                 
                 const target = activeEditor === 'xfoods' ? (item as any).item : (item as any).seed;
                 const subfolder = activeEditor === 'xfoods' ? 'food' : 'crops';
-                (target as Record<string, unknown>)['itemsadder-id'] = `${newState.projectName}:${selectedItem}`;
-                
+
+                // El id del plugin es el nombre del fichero SIN su carpeta: una comida en
+                // foods/consumibles/hamburguesa_cerdo.yml se registra como "hamburguesa_cerdo".
+                // Usar la clave completa metía la carpeta en el id de ItemsAdder ("/" no es
+                // válido en un nombre de ítem) y generaba un itemsadder-id que el plugin no
+                // resuelve.
+                const itemId = leafId(selectedItem);
+
+                (target as Record<string, unknown>)['itemsadder-id'] = `${XFOODS_NAMESPACE}:${itemId}`;
+
                 const iaItems: Record<string, unknown> = {
-                    [selectedItem]: {
+                    [itemId]: {
                         enabled: true,
                         display_name: (item as any)['display-name'] || "Nuevo Ítem",
-                        permission: `${newState.projectName.toLowerCase()}.${selectedItem}`,
-                        resource: { 
+                        permission: `${XFOODS_NAMESPACE}.${itemId}`,
+                        resource: {
                             material: (target as Record<string, string>)?.material || "PAPER",
-                            generate: true, 
-                            textures: [`${newState.projectName}:item/${subfolder}/${selectedItem}`] 
+                            generate: true,
+                            textures: [`${XFOODS_NAMESPACE}:item/${subfolder}/${itemId}`]
                         }
                     }
                 };
 
-                const fullKey = `${newState.projectName}/${selectedItem}`;
+                const fullKey = `${XFOODS_NAMESPACE}/${itemId}`;
                 newState.iaItems[fullKey] = { 
-                    info: { namespace: newState.projectName },
+                    info: { namespace: XFOODS_NAMESPACE },
                     items: iaItems 
                 };
             } else {
                 if (activeEditor === 'xfoods' && (item as any).item) delete (item as any).item['itemsadder-id'];
                 if (activeEditor === 'xcrops' && (item as any).seed) delete (item as any).seed['itemsadder-id'];
-                delete newState.iaItems[`${newState.projectName}/${selectedItem}`];
+                delete newState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`];
             }
         } else {
             const keys = path.split('.');
@@ -314,9 +351,7 @@ export default function StudioWorkspace() {
   const mutateSelectedConfig = (mutator: (config: any) => void) => {
     if (!projectState || !selectedItem) return;
     const newState = { ...projectState };
-    const targetMap = activeEditor === 'xfoods' ? newState.foods :
-                      (activeEditor === 'xcrops' ? newState.crops : newState.machines);
-    const entry = targetMap[selectedItem];
+    const entry = mapFor(newState, activeEditor as PluginEditor)[selectedItem];
     if (!entry) return;
     mutator(entry.config);
     setProjectState(newState);
@@ -374,8 +409,10 @@ export default function StudioWorkspace() {
         setSelectedItem(sid);
     } else {
         const id = sanitizePath(`nuevo_${timestamp}`);
-        if (activeEditor === 'xfoods') newState.foods[id] = { config: { "display-name": "Nueva Comida", stats: { "food-level": 4, saturation: 2.0, bites: 1 }, item: { material: "PORKCHOP" } }, folder: "" };
+        if (activeEditor === 'xfoods') newState.foods[id] = { config: { "display-name": "Nueva Comida", stats: { "food-level": 4, saturation: 2.0, bites: 1, consumable: true }, item: { material: "PORKCHOP" } }, folder: "" };
         else if (activeEditor === 'xcrops') newState.crops[id] = { config: { "display-name": "Nuevo Cultivo", seed: { material: "WHEAT_SEEDS" }, growth: { stages: {} } }, folder: "" };
+        else if (activeEditor === 'xpods') newState.pods[id] = { config: { "display-name": "&fNuevo Macetero", item: { material: "FLOWER_POT" }, modifiers: { "growth-speed": 1.0, "nutrient-rate": 1.0, yield: 1.0 }, probabilities: { "pest-chance": 0.05 } }, folder: "" };
+        else if (activeEditor === 'xautomation') newState.cropMachines[id] = { config: { "display-name": "&bNueva Máquina", type: "AUTO_WATERER", range: 5, item: { material: "DISPENSER" }, fuel: { "consume-per-action": 1 }, "storage-slots": 9 }, folder: "" };
         else newState.machines[id] = { config: { "display-name": "Nueva Estación", recipes: {} }, folder: "" };
         setProjectState(newState);
         setSelectedItem(id);
@@ -386,16 +423,14 @@ export default function StudioWorkspace() {
     e.stopPropagation();
     if (!projectState) return;
     const newState = { ...projectState };
-    const currentMap = activeEditor === 'xfoods' ? newState.foods : (activeEditor === 'xcrops' ? newState.crops : newState.machines);
+    const currentMap = mapFor(newState, activeEditor as PluginEditor);
     const originalEntry = currentMap[id];
     if (!originalEntry) return;
     let finalId = sanitizePath(`${id}_copy`);
     let counter = 1;
     while (currentMap[finalId]) { finalId = sanitizePath(`${id}_copy_${counter++}`); }
     const copy = JSON.parse(JSON.stringify(originalEntry));
-    if (activeEditor === 'xfoods') newState.foods[finalId] = copy;
-    else if (activeEditor === 'xcrops') newState.crops[finalId] = copy;
-    else newState.machines[finalId] = copy;
+    currentMap[finalId] = copy;
     setProjectState(newState);
     setSelectedItem(finalId);
   };
@@ -420,7 +455,7 @@ export default function StudioWorkspace() {
         });
         return result;
     } else {
-        const targetMap = activeEditor === 'xfoods' ? projectState.foods : (activeEditor === 'xcrops' ? projectState.crops : projectState.machines);
+        const targetMap = mapFor(projectState, activeEditor as PluginEditor);
         return Object.entries(targetMap).filter(([id]) => !searchTerm || id.toLowerCase().includes(searchTerm.toLowerCase()));
     }
   }, [projectState, activeEditor, activeCategory, selectedNamespace, searchTerm]);
@@ -428,13 +463,12 @@ export default function StudioWorkspace() {
   const selectedData = useMemo(() => {
     if (!selectedItem || !projectState) return null;
     if (activeEditor === 'ia') return filteredItems.find(([id]) => id === selectedItem)?.[1];
-    const targetMap = activeEditor === 'xfoods' ? projectState.foods : (activeEditor === 'xcrops' ? projectState.crops : projectState.machines);
-    return targetMap[selectedItem];
+    return mapFor(projectState, activeEditor as PluginEditor)[selectedItem];
   }, [selectedItem, filteredItems, activeEditor, projectState]);
 
   const groupedX = useMemo(() => {
     if (!projectState || activeEditor === 'ia') return {};
-    const targetMap = activeEditor === 'xfoods' ? projectState.foods : (activeEditor === 'xcrops' ? projectState.crops : projectState.machines);
+    const targetMap = mapFor(projectState, activeEditor as PluginEditor);
     const groups: Record<string, string[]> = {};
     Object.entries(targetMap).forEach(([id, data]) => {
         if (searchTerm && !id.toLowerCase().includes(searchTerm.toLowerCase())) return;
@@ -471,15 +505,20 @@ export default function StudioWorkspace() {
     }
 
     const newState = { ...projectState };
-    const ns = isFoodContext ? newState.projectName : (selectedNamespace as string);
-    const fullKey = isFoodContext ? `${newState.projectName}/${selectedItem}` : (selectedData as any).fullKey;
+    // Comidas y cultivos van siempre a su propio namespace; lo creado desde la pestaña de
+    // ItemsAdder respeta el namespace elegido en el desplegable.
+    const ns = isFoodContext ? XFOODS_NAMESPACE : (selectedNamespace as string);
+    const fullKey = isFoodContext ? `${XFOODS_NAMESPACE}/${leafId(selectedItem)}` : (selectedData as any).fullKey;
     const keyName = isFoodContext ? "items" : currentIAKeyName;
     const targetMap: Record<string, any> = isFoodContext
         ? newState.iaItems
         : (activeCategory === 'items' ? newState.iaItems : (activeCategory === 'blocks' ? newState.iaBlocks : newState.iaFurnitures));
 
+    // Dentro del YAML de ItemsAdder el ítem se llama por su hoja, no por la ruta del fichero.
+    const entryItemId = isFoodContext ? leafId(selectedItem) : selectedItem;
+
     const iaEntry = targetMap[fullKey];
-    if (!iaEntry || !iaEntry[keyName] || !iaEntry[keyName][selectedItem]) return;
+    if (!iaEntry || !iaEntry[keyName] || !iaEntry[keyName][entryItemId]) return;
 
     const subfolder = isFoodContext
         ? (activeEditor === 'xfoods' ? 'food' : 'crops')
@@ -498,11 +537,11 @@ export default function StudioWorkspace() {
     };
 
     // El nombre del ítem manda: tanto la textura como el modelo se renombran a este nombre
-    const modelName = sanitizePath(selectedItem);
+    const modelName = sanitizePath(entryItemId);
 
     // Mapa de nombre de textura original (referenciado en el JSON) -> nuevo nombre basado en el ID del ítem
     const textureRenameMap: Record<string, string> = {};
-    const resource = iaEntry[keyName][selectedItem].resource = iaEntry[keyName][selectedItem].resource || {};
+    const resource = iaEntry[keyName][entryItemId].resource = iaEntry[keyName][entryItemId].resource || {};
     let hasModelJson = false;
 
     for (const file of filesList) {
@@ -553,7 +592,14 @@ export default function StudioWorkspace() {
     alert(`¡Archivos vinculados!`);
   };
 
-  const isIAEnabled = selectedItem && projectState ? !!projectState.iaItems[`${projectState.projectName}/${selectedItem}`] : false;
+  // Ids tal y como los registra el plugin (sin carpeta): es lo que hay que escribir en las
+  // recetas, en harvest.xfoods-id y en el combustible de las máquinas.
+  const foodIdOptions = useMemo(
+    () => Array.from(new Set(Object.keys(projectState?.foods ?? {}).map(leafId))).sort(),
+    [projectState]
+  );
+
+  const isIAEnabled = selectedItem && projectState ? !!projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] : false;
 
   if (!mounted) return null;
 
@@ -601,6 +647,8 @@ export default function StudioWorkspace() {
                 <button onClick={() => { setActiveEditor('ia'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'ia' ? "bg-yellow-400 text-black shadow-lg shadow-yellow-400/20" : "text-gray-500 hover:text-white")}><Settings2 className="w-3.5 h-3.5" /> ItemsAdder</button>
                 <button onClick={() => { setActiveEditor('xcrops'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xcrops' ? "bg-green-500 text-white shadow-lg shadow-green-500/20" : "text-gray-500 hover:text-white")}><Sprout className="w-3.5 h-3.5" /> xCrops</button>
                 <button onClick={() => { setActiveEditor('xmachines'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xmachines' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-gray-500 hover:text-white")}><Flame className="w-3.5 h-3.5" /> Estaciones</button>
+                <button onClick={() => { setActiveEditor('xpods'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xpods' ? "bg-lime-600 text-white shadow-lg shadow-lime-600/20" : "text-gray-500 hover:text-white")}><Flower2 className="w-3.5 h-3.5" /> Maceteros</button>
+                <button onClick={() => { setActiveEditor('xautomation'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xautomation' ? "bg-cyan-600 text-white shadow-lg shadow-cyan-600/20" : "text-gray-500 hover:text-white")}><Cpu className="w-3.5 h-3.5" /> Automatización</button>
             </div>
             {activeEditor === 'ia' && selectedNamespace && (
                 <div className="flex flex-col border-l border-[#374151] pl-8">
@@ -673,9 +721,9 @@ export default function StudioWorkspace() {
                 <div className="flex justify-between items-start border-b border-[#374151] pb-8">
                    <div className="flex gap-6 items-center flex-1">
                       <VisualPreview 
-                        mcPath={activeEditor === 'ia' ? (selectedData.data.resource?.model_path || selectedData.data.resource?.textures?.[0]) : (activeEditor === 'xfoods' ? selectedData.config.item?.material : selectedData.config.seed?.material)} 
+                        mcPath={activeEditor === 'ia' ? (selectedData.data.resource?.model_path || selectedData.data.resource?.textures?.[0]) : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : selectedData.config.item?.material)} 
                         rawFiles={projectState.rawFiles} 
-                        namespace={activeEditor === 'ia' ? (selectedNamespace || projectState.projectName) : projectState.projectName}
+                        namespace={activeEditor === 'ia' ? (selectedNamespace || projectState.projectName) : XFOODS_NAMESPACE}
                       />
                       <div className="space-y-1 flex-1">
                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Identificador del Ítem</label>
@@ -699,13 +747,13 @@ export default function StudioWorkspace() {
                             {activeEditor !== 'xmachines' && (
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Material</label>
-                                    <input type="text" value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xfoods' ? selectedData.config.item?.material : selectedData.config.seed?.material)) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xfoods' ? 'config.item.material' : 'config.seed.material'), e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
+                                    <input type="text" value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : selectedData.config.item?.material)) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xcrops' ? 'config.seed.material' : 'config.item.material'), e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
                                 </div>
                             )}
                             {(activeEditor === 'xfoods' || activeEditor === 'xcrops') && (
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Custom Model Data</label>
-                                    <input type="number" value={(activeEditor === 'xfoods' ? selectedData.config.item?.['custom-model-data'] : selectedData.config.seed?.['custom-model-data']) || 0} onChange={(e) => updateField(activeEditor === 'xfoods' ? 'config.item.custom-model-data' : 'config.seed.custom-model-data', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
+                                    <input type="number" value={(activeEditor === 'xcrops' ? selectedData.config.seed?.['custom-model-data'] : selectedData.config.item?.['custom-model-data']) || 0} onChange={(e) => updateField(activeEditor === 'xcrops' ? 'config.seed.custom-model-data' : 'config.item.custom-model-data', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
                                 </div>
                             )}
                         </div>
@@ -719,6 +767,46 @@ export default function StudioWorkspace() {
                             <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Mordiscos</label><input type="number" value={selectedData.config.stats?.bites || 1} onChange={(e) => updateField('config.stats.bites', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
                             <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Ticks Consumo</label><input type="number" value={selectedData.config.stats?.['consumption-ticks'] || 30} onChange={(e) => updateField('config.stats.consumption-ticks', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
                         </div>
+                        <div className="grid grid-cols-3 gap-4 items-start">
+                            <div className="space-y-2 col-span-2">
+                                <label className="text-[10px] font-bold text-gray-600 uppercase">¿Se puede comer?</label>
+                                <button
+                                    type="button"
+                                    onClick={() => updateField('config.stats.consumable', !(selectedData.config.stats?.consumable ?? true))}
+                                    className={cn("w-full rounded-xl px-4 py-3 text-left text-sm font-bold border transition-colors",
+                                        (selectedData.config.stats?.consumable ?? true)
+                                            ? "bg-green-500/10 border-green-500/40 text-green-300"
+                                            : "bg-[#0b0f19] border-[#374151] text-gray-400")}>
+                                    {(selectedData.config.stats?.consumable ?? true) ? "Sí — es una comida" : "No — es un ingrediente"}
+                                </button>
+                                <p className="text-[10px] text-gray-600">Los ingredientes (carne cruda, queso, lechuga…) deben ir en «No»: si no, el jugador se los come directamente en vez de usarlos en una máquina.</p>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-gray-600 uppercase">Máximo por pila</label>
+                                <input type="number" min={1} max={99} value={selectedData.config.item?.['max-stack'] ?? 64} onChange={(e) => updateField('config.item.max-stack', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-gray-600 uppercase">Sonido al comer</label>
+                                <input type="text" value={selectedData.config.effects?.sound || ''} onChange={(e) => updateField('config.effects.sound', e.target.value)} placeholder="ENTITY_GENERIC_EAT" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-gray-600 uppercase">Partícula</label>
+                                <input type="text" value={selectedData.config.effects?.particle || ''} onChange={(e) => updateField('config.effects.particle', e.target.value)} placeholder="HAPPY_VILLAGER" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                {String(selectedData.config.effects?.particle || '') === 'VILLAGER_HAPPY' && (
+                                    <p className="text-[10px] text-red-400 font-bold">VILLAGER_HAPPY ya no existe: en 1.20.5+ se llama HAPPY_VILLAGER.</p>
+                                )}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-4">
+                            {(['proteins','carbs','sugars','vitamins'] as const).map(k => (
+                                <div key={k} className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]">
+                                    <label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">{k}</label>
+                                    <input type="number" value={(selectedData.config.nutrition as any)?.[k] ?? 0} onChange={(e) => updateField(`config.nutrition.${k}`, parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" />
+                                </div>
+                            ))}
+                        </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-1">Lore</label>
                             <textarea rows={4} value={Array.isArray(selectedData.config.lore) ? selectedData.config.lore.join('\n') : ''} onChange={(e) => updateField('config.lore', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none resize-none text-sm focus:border-yellow-400" />
@@ -727,7 +815,7 @@ export default function StudioWorkspace() {
                             <div className="flex items-center gap-2 text-orange-400"><Clock className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Expiración</h4></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Minutos</label><input type="number" value={selectedData.config.stats?.['expiry-minutes'] || 0} onChange={(e) => updateField('config.stats.expiry-minutes', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
-                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">ID al Caducar</label><AutocompleteInput value={selectedData.config.stats?.['expired-id'] || ''} onChange={(val) => updateField('config.stats.expired-id', val)} options={Object.keys(projectState.foods)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">ID al Caducar</label><AutocompleteInput value={selectedData.config.stats?.['expired-id'] || ''} onChange={(val) => updateField('config.stats.expired-id', val)} options={foodIdOptions} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
                             </div>
                         </div>
                         <div className="space-y-6 pt-4 border-t border-[#374151]">
@@ -775,7 +863,7 @@ export default function StudioWorkspace() {
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase">ID de Vínculo (requirements.seed-nbt)</label>
                                     <input type="text" value={selectedData.config.requirements?.['seed-nbt'] || ''} onChange={(e) => updateField('config.requirements.seed-nbt', e.target.value)} placeholder={selectedItem || ''} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                    <p className="text-[10px] text-gray-600 italic">Debe coincidir exactamente con el identificador &quot;{selectedItem}&quot; de este cultivo: es lo que el plugin compara al plantar la semilla.</p>
+                                    <p className="text-[10px] text-gray-600 italic">Lo natural es que coincida con el identificador &quot;{selectedItem}&quot;. El plugin resuelve la semilla por ambos, así que un valor distinto también funciona.</p>
                                 </div>
                              </div>
 
@@ -802,12 +890,79 @@ export default function StudioWorkspace() {
                              <div className="space-y-6">
                                 <div className="flex items-center gap-2 text-yellow-400"><Sprout className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Cosecha</h4></div>
                                 <div className="grid grid-cols-3 gap-4">
-                                    <div className="space-y-2 col-span-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ítem xFoods al Cosechar</label><AutocompleteInput value={selectedData.config.harvest?.['xfoods-id'] || ''} onChange={(val) => updateField('config.harvest.xfoods-id', val)} options={Object.keys(projectState.foods)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                    <div className="space-y-2 col-span-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ítem xFoods al Cosechar</label><AutocompleteInput value={selectedData.config.harvest?.['xfoods-id'] || ''} onChange={(val) => updateField('config.harvest.xfoods-id', val)} options={foodIdOptions} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
                                     <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Cantidad</label><input type="number" min={1} value={selectedData.config.harvest?.amount ?? 1} onChange={(e) => updateField('config.harvest.amount', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
                                 </div>
                                 <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Mensaje al Cosechar</label><input type="text" value={selectedData.config.harvest?.message || ''} onChange={(e) => updateField('config.harvest.message', e.target.value)} placeholder="&aCosechado." className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
                              </div>
                          </div>
+                    )}
+
+                    {activeEditor === 'xpods' && (
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-2 text-lime-400"><Flower2 className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Modificadores del Macetero</h4></div>
+                            <div className="grid grid-cols-3 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Velocidad de crecimiento</label>
+                                    <input type="number" step="0.05" min={0.05} value={(selectedData.config.modifiers as any)?.['growth-speed'] ?? 1.0} onChange={(e) => updateField('config.modifiers.growth-speed', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <p className="text-[10px] text-gray-600">1.0 = duración tal cual la define la especie. 2.0 = el doble de rápido.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Consumo de nutrientes</label>
+                                    <input type="number" step="0.1" min={0} value={(selectedData.config.modifiers as any)?.['nutrient-rate'] ?? 1.0} onChange={(e) => updateField('config.modifiers.nutrient-rate', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <p className="text-[10px] text-gray-600">Multiplica la pérdida de calidad por descuido. Menos de 1.0 = perdona.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Multiplicador de cosecha</label>
+                                    <input type="number" step="0.1" min={0.1} value={(selectedData.config.modifiers as any)?.yield ?? 1.0} onChange={(e) => updateField('config.modifiers.yield', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                </div>
+                            </div>
+                            <div className="space-y-2 max-w-sm">
+                                <label className="text-[10px] font-bold text-gray-600 uppercase">Probabilidad de plaga (por minuto)</label>
+                                <input type="number" step="0.01" min={0} max={1} value={(selectedData.config.probabilities as any)?.['pest-chance'] ?? 0.05} onChange={(e) => updateField('config.probabilities.pest-chance', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                <p className="text-[10px] text-gray-600">Entre 0.0 y 1.0. Con 0.05 la planta tiene un 5% de infectarse cada minuto.</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeEditor === 'xautomation' && (
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-2 text-cyan-400"><Cpu className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Máquina de Automatización</h4></div>
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Tipo</label>
+                                    <select value={(selectedData.config.type as string) || 'AUTO_WATERER'} onChange={(e) => updateField('config.type', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none">
+                                        {AUTOMATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                                    </select>
+                                    {selectedData.config.type === 'SMART_LIGHT' && (selectedData.config.item as any)?.material !== 'REDSTONE_LAMP' && (
+                                        <p className="text-[10px] text-red-400 font-bold">SMART_LIGHT solo funciona con material REDSTONE_LAMP: el plugin enciende y apaga el bloque, y solo sabe hacerlo con lámparas de redstone.</p>
+                                    )}
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Radio de acción (bloques)</label>
+                                    <input type="number" min={1} value={(selectedData.config.range as number) ?? 5} onChange={(e) => updateField('config.range', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-3 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Combustible: comida xFoods</label>
+                                    <AutocompleteInput value={((selectedData.config.fuel as any)?.['xfoods-id']) || ''} onChange={(val) => updateField('config.fuel.xfoods-id', val)} options={foodIdOptions} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase">…o material de vanilla</label>
+                                    <input type="text" value={((selectedData.config.fuel as any)?.material) || ''} onChange={(e) => updateField('config.fuel.material', e.target.value)} placeholder="BONE_MEAL" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Gasto por acción</label>
+                                    <input type="number" min={1} value={((selectedData.config.fuel as any)?.['consume-per-action']) ?? 1} onChange={(e) => updateField('config.fuel.consume-per-action', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                </div>
+                            </div>
+                            <div className="space-y-2 max-w-xs">
+                                <label className="text-[10px] font-bold text-gray-600 uppercase">Huecos de almacén</label>
+                                <input type="number" min={1} value={(selectedData.config['storage-slots'] as number) ?? 9} onChange={(e) => updateField('config.storage-slots', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                <p className="text-[10px] text-gray-600">Lo usa el recolector para guardar la cosecha, y limita cuánto combustible cabe.</p>
+                            </div>
+                        </div>
                     )}
 
                     {activeEditor === 'xmachines' && (
@@ -816,7 +971,7 @@ export default function StudioWorkspace() {
                             <MachineRecipesEditor
                                 config={selectedData.config as { 'is-refrigerator'?: boolean; recipes?: Record<string, any> }}
                                 mutate={mutateSelectedConfig}
-                                foodOptions={Object.keys(projectState.foods)}
+                                foodOptions={foodIdOptions}
                             />
                          </div>
                     )}
@@ -974,8 +1129,8 @@ export default function StudioWorkspace() {
                                 Arrastra o haz clic para subir .png / .json <br/>
                                 <span className="text-yellow-400/50">se auto-configura para "{selectedItem}"</span>
                             </p>
-                            {(projectState.iaItems[`${projectState.projectName}/${selectedItem}`] as any)?.items?.[selectedItem as string]?.resource?.model_path && (
-                                <p className="mt-4 text-[10px] font-mono text-green-400 truncate">{(projectState.iaItems[`${projectState.projectName}/${selectedItem}`] as any).items[selectedItem as string].resource.model_path}</p>
+                            {(projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] as any)?.items?.[leafId(selectedItem)]?.resource?.model_path && (
+                                <p className="mt-4 text-[10px] font-mono text-green-400 truncate">{(projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] as any).items[leafId(selectedItem)].resource.model_path}</p>
                             )}
                         </div>
                     )}
@@ -996,11 +1151,11 @@ export default function StudioWorkspace() {
                        (activeEditor === 'ia' ? stringifyYaml(
                            activeCategory === 'items' ? projectState.iaItems[selectedData.fullKey] : 
                            (activeCategory === 'blocks' ? projectState.iaBlocks[selectedData.fullKey] : projectState.iaFurnitures[selectedData.fullKey])
-                       ) : (projectState.iaItems[`${projectState.projectName}/${selectedItem}`] ? stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]) : "# No hay config de IA"))
+                       ) : (projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] ? stringifyYaml(projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`]) : "# No hay config de IA"))
                    ) : "# Selecciona un ítem..."}
                </pre>
            </div>
-           <div className="p-4 bg-[#111827] border-t border-[#374151]"><button onClick={() => { if (selectedItem && selectedData) { const yaml = activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : stringifyYaml(projectState.iaItems[`${projectState.projectName}/${selectedItem}`]); navigator.clipboard.writeText(yaml || ""); alert("Copiado"); } }} className="w-full bg-[#1f2937] hover:bg-[#374151] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-[#374151]">Copiar Código</button></div>
+           <div className="p-4 bg-[#111827] border-t border-[#374151]"><button onClick={() => { if (selectedItem && selectedData) { const yaml = activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : stringifyYaml(projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`]); navigator.clipboard.writeText(yaml || ""); alert("Copiado"); } }} className="w-full bg-[#1f2937] hover:bg-[#374151] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-[#374151]">Copiar Código</button></div>
         </section>
       </div>
 

@@ -443,6 +443,7 @@ economy:
       { id: "intro",    label: "Introducción" },
       { id: "bites",    label: "Sistema de Bites" },
       { id: "nutrition",label: "Nutrición" },
+      { id: "drops",    label: "Drops de Mobs" },
       { id: "commands", label: "Comandos" },
       { id: "config",   label: "Configuración YAML" },
     ],
@@ -467,32 +468,64 @@ economy:
         ],
       },
       {
+        id: "drops", title: "Drops de Mobs",
+        blocks: [
+          { kind: "p", text: "Las recetas piden los ingredientes por id de xFoods, y un ítem de vanilla no lleva ese id: una chuleta normal nunca encajaría como ingrediente. Por eso xFoods puede sustituir los drops de vanilla por sus equivalentes personalizados." },
+          { kind: "code", block: { lang: "yaml", code: `# config.yml
+mob-drops:
+  enabled: true
+  reemplazos:
+    PIG:
+      PORKCHOP: "carne_cerdo_cruda"
+    COW:
+      BEEF: "carne_vaca_cruda"` } },
+        ],
+      },
+      {
         id: "commands", title: "Comandos",
         blocks: [
           { kind: "commands", list: [
-            { cmd: "/xfoods menu",         perm: "xfoods.admin", desc: "Abre el editor visual de comidas." },
-            { cmd: "/xfoods give <id>",    perm: "xfoods.admin", desc: "Entrega una comida personalizada." },
-            { cmd: "/xfoods reload",       perm: "xfoods.admin", desc: "Recarga todas las configuraciones." },
+            { cmd: "/xfoods recipes",              perm: "xfoods.use",   desc: "Recetario: máquinas y sus recetas. Para jugadores." },
+            { cmd: "/xfoods stats",                perm: "xfoods.use",   desc: "Tus niveles de cocina (solo si rpg-mode está activo)." },
+            { cmd: "/xfoods menu",                 perm: "xfoods.admin", desc: "Editor visual de comidas dentro del juego." },
+            { cmd: "/xfoods give <id> [cantidad]", perm: "xfoods.admin", desc: "Entrega una comida personalizada." },
+            { cmd: "/xfoods machine create <tipo>",perm: "xfoods.admin", desc: "Convierte el bloque que miras en una máquina." },
+            { cmd: "/xfoods machine remove",       perm: "xfoods.admin", desc: "Quita la máquina y te devuelve su contenido." },
+            { cmd: "/xfoods reload",               perm: "xfoods.admin", desc: "Recarga comidas, máquinas y configuración." },
           ]},
+          { kind: "callout", callout: { type: "warn", text: "Las máquinas de cocina no son ítems que se coloquen: se registran sobre un bloque ya existente con /xfoods machine create. Los maceteros y las máquinas de automatización de xCrops sí son ítems." } },
         ],
       },
       {
         id: "config", title: "Configuración YAML",
         blocks: [
-          { kind: "code", block: { lang: "yaml", code: `# foods/hamburguesa.yml
+          { kind: "code", block: { lang: "yaml", code: `# foods/hamburguesa.yml — el id es el nombre del fichero
 display-name: "Hamburguesa Premium"
+lore:
+  - "&7Con queso, lechuga y tomate."
 item:
-  material: COOKED_BEEF
+  material: BREAD
   custom-model-data: 101
+  itemsadder-id: ""      # opcional, tiene prioridad sobre material
+  max-stack: 16
 stats:
   food-level: 10
   saturation: 5.0
-  bites: 4
+  bites: 4               # mordiscos por unidad
+  consumable: true       # false = ingrediente, no se puede comer
+  consumption-ticks: 20
 nutrition:
   proteins: 20
   carbs: 15
   sugars: 3
-  vitamins: 5` } },
+  vitamins: 5
+effects:
+  sound: ENTITY_GENERIC_EAT
+  particle: HAPPY_VILLAGER   # ojo: NO VILLAGER_HAPPY, se renombró en 1.20.5
+leftovers:
+  material: AIR` } },
+          { kind: "callout", callout: { type: "warn", text: "consumable: false es obligatorio en los ingredientes (carne cruda, queso, lechuga...). Si se deja en true, el jugador se los come de un click en vez de usarlos en una máquina." } },
+          { kind: "p", text: "Un fichero = una comida, y el id sale del nombre del fichero. No se admiten varios documentos YAML separados por --- en el mismo fichero. Los ids de las recetas y de las cosechas admiten el prefijo xfoods: o van sin él, indistintamente." },
         ],
       },
     ],
@@ -509,6 +542,8 @@ nutrition:
     toc: [
       { id: "intro",    label: "Introducción" },
       { id: "features", label: "Características" },
+      { id: "config",   label: "Configurar una especie" },
+      { id: "pods",     label: "Maceteros y Automatización" },
       { id: "commands", label: "Comandos" },
     ],
     sections: [
@@ -528,16 +563,78 @@ nutrition:
             "Fertilizantes químicos (crecimiento rápido) y orgánicos (mejor calidad)",
             "Sistema de plagas: infección progresiva que requiere pesticidas",
             "Integración con las recetas de cocina de xFoods",
+            "La calidad del cultivo determina la cosecha: del 40% del rendimiento con calidad 0 al 100% con calidad 1",
           ]},
+        ],
+      },
+      {
+        id: "config", title: "Configurar una especie",
+        blocks: [
+          { kind: "p", text: "Cada especie es un fichero en species/. El id sale del nombre del fichero, y las fases se recorren en el orden en que aparecen: la última es la que queda LISTA para cosechar." },
+          { kind: "code", block: { lang: "yaml", code: `# species/tomate.yml
+display-name: "Tomate"
+seed:
+  material: BEETROOT_SEEDS
+  display-name: "&cSemilla de Tomate"
+requirements:
+  seed-nbt: "tomate"     # lo natural es que coincida con el nombre del fichero
+growth:
+  wither-time: 2400      # segundos con una necesidad sin atender antes de morir
+  stages:
+    fase0:
+      material: SHORT_GRASS
+      scale: 0.5
+      duration: 90       # segundos
+      requirements:
+        riego:
+          type: NUTRIENT
+          chance: 1.0
+          nbt: "WATER"   # valor exacto: lo esperan la regadera y el autoregador
+          display-name: "&bAgua"
+    fase1:
+      material: SWEET_BERRIES
+      scale: 1.8
+      duration: 0        # última fase = lista para cosechar
+harvest:
+  xfoods-id: "tomate"    # tiene que existir como comida en xFoods
+  amount: 3` } },
+          { kind: "callout", callout: { type: "warn", text: "El material de una fase tiene que existir como ÍTEM. Materiales que son solo bloque (SWEET_BERRY_BUSH, POTATOES, CAVE_VINES...) hacen que la planta no se pueda dibujar. Usa SWEET_BERRIES en vez de SWEET_BERRY_BUSH." } },
+          { kind: "callout", callout: { type: "warn", text: "En un requisito de tipo LIGHT, poner light.max por debajo de 15 bloquea la planta a cielo abierto: de día la luz es 15 y el jugador no tiene forma de bajarla, porque la Lámpara de Cultivo solo la sube. Usa solo el mínimo salvo que el cultivo sea de interior a propósito." } },
+          { kind: "p", text: "Los valores de nbt que reconoce la automatización son exactamente WATER (riego), organic (abono orgánico) y chemical (acelerante químico)." },
+        ],
+      },
+      {
+        id: "pods", title: "Maceteros y Automatización",
+        blocks: [
+          { kind: "p", text: "Los maceteros (pods/) definen los modificadores del cultivo, y las máquinas de automatización (machines/) riegan, abonan, iluminan, fumigan y cosechan solas dentro de su radio." },
+          { kind: "code", block: { lang: "yaml", code: `# pods/macetero_hidroponico.yml
+display-name: "&bMacetero Hidropónico"
+item:
+  material: DECORATED_POT
+modifiers:
+  growth-speed: 1.9      # 1.0 = duración tal cual la define la especie
+  nutrient-rate: 2.4     # multiplica la pérdida de calidad por descuido
+  yield: 1.2             # multiplica la cantidad cosechada
+probabilities:
+  pest-chance: 0.11      # probabilidad de plaga POR MINUTO (11%)` } },
+          { kind: "callout", callout: { type: "info", text: "pest-chance es la probabilidad por minuto, entre 0.0 y 1.0. Con 0.05 la planta tiene un 5% de infectarse en un minuto dado." } },
+          { kind: "callout", callout: { type: "warn", text: "Una máquina de tipo SMART_LIGHT solo funciona si su material es REDSTONE_LAMP: el plugin enciende y apaga el bloque, y solo sabe hacerlo con lámparas de redstone." } },
         ],
       },
       {
         id: "commands", title: "Comandos",
         blocks: [
           { kind: "commands", list: [
-            { cmd: "/crops admin givepod <id>",  perm: "xfoodscrops.admin", desc: "Entrega un macetero especial." },
-            { cmd: "/crops admin giveseed <id>", perm: "xfoodscrops.admin", desc: "Entrega semillas personalizadas." },
+            { cmd: "/xfcrops market",                  perm: "xfoodscrops.use",   desc: "Mercado de valores (requiere Vault y market.yml)." },
+            { cmd: "/xfcrops admin givepod <id>",      perm: "xfoodscrops.admin", desc: "Entrega un macetero." },
+            { cmd: "/xfcrops admin giveseed <id>",     perm: "xfoodscrops.admin", desc: "Entrega la semilla de una especie." },
+            { cmd: "/xfcrops admin givemachine <id>",  perm: "xfoodscrops.admin", desc: "Entrega una máquina de automatización." },
+            { cmd: "/xfcrops admin giveorganic",       perm: "xfoodscrops.admin", desc: "Entrega fertilizante orgánico." },
+            { cmd: "/xfcrops admin givechemical",      perm: "xfoodscrops.admin", desc: "Entrega acelerante químico." },
+            { cmd: "/xfcrops admin list",              perm: "xfoodscrops.admin", desc: "Lista las especies cargadas." },
+            { cmd: "/xfcrops admin reload",            perm: "xfoodscrops.admin", desc: "Recarga especies, máquinas y mercado." },
           ]},
+          { kind: "callout", callout: { type: "info", text: "El alias del comando es /xfcrops (también /harvest y /xfoods-crops). No existe /crops." } },
         ],
       },
     ],
