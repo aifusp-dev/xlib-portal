@@ -90,13 +90,55 @@ body {
     border-radius: var(--radius-panel);
   }
 
-  /* Rótulo de sección. Es el ÚNICO sitio donde se usan mayúsculas. */
+  /* Rótulo menor: nombres de carpeta, pies de tabla. Nunca separa secciones. */
   .eyebrow {
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     color: var(--color-ink-3);
+  }
+
+  /* ---------------------------------------------------------------------
+     Cabecera de sección dentro del editor (Ajustes Base, Expiración...).
+     Al calmar la tipografía me pasé y quedaron como texto terciario: no
+     separaban nada y se confundían con las etiquetas de los campos. Una
+     sección necesita tres cosas para leerse como tal: contraste de tamaño y
+     color contra las etiquetas, una regla que la separe de lo anterior, y
+     bastante aire por encima.
+     --------------------------------------------------------------------- */
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 8px;   /* el space-y del contenedor ya aporta ~24px */
+    padding-top: 18px;
+    border-top: 1px solid var(--color-line);
+  }
+  /* La primera del panel no lleva regla ni margen: no hay nada que separar.
+     Se marca a mano con .is-first, no con :first-child: cada cabecera es el primer
+     hijo de su propio contenedor, así que :first-child se las anulaba a todas. */
+  .section-head.is-first {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+  .section-head > svg { width: 15px; height: 15px; flex: none; }
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+    white-space: nowrap;
+  }
+  /* Filete que llega hasta el borde: cierra la sección visualmente sin ruido.
+     No se pinta si la cabecera reparte su contenido (lleva un botón a la derecha). */
+  .section-head.justify-between::after { content: none; }
+  .section-head::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, var(--color-line), transparent);
   }
 
   .label {

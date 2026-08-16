@@ -841,7 +841,7 @@ export default function StudioWorkspace() {
 
                 <div className="space-y-8">
                     <div className="space-y-6">
-                        <div className="flex items-center gap-2 text-yellow-400"><Info className="w-4 h-4" /><h4 className="eyebrow">Ajustes Base</h4></div>
+                        <div className="section-head is-first text-yellow-400"><Info /><h4 className="section-title">Ajustes Base</h4></div>
                         <div className={cn("grid gap-6", activeEditor === 'ia' || activeEditor === 'xmachines' ? "grid-cols-2" : "grid-cols-3")}>
                             <div className="space-y-2">
                                 <label className="label">Nombre Display</label>
@@ -919,22 +919,22 @@ export default function StudioWorkspace() {
                             <label className="label">Lore</label>
                             <textarea rows={4} value={Array.isArray(selectedData.config.lore) ? selectedData.config.lore.join('\n') : ''} onChange={(e) => updateField('config.lore', e.target.value)} className="input" />
                         </div>
-                        <div className="space-y-6 pt-4 border-t border-line">
-                            <div className="flex items-center gap-2 text-orange-400"><Clock className="w-4 h-4" /><h4 className="eyebrow">Expiración</h4></div>
+                        <div className="space-y-6">
+                            <div className="section-head text-orange-400"><Clock /><h4 className="section-title">Expiración</h4></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2"><label className="label">Minutos</label><input type="number" value={selectedData.config.stats?.['expiry-minutes'] || 0} onChange={(e) => updateField('config.stats.expiry-minutes', parseInt(e.target.value))} className="input" /></div>
                                 <div className="space-y-2"><label className="label">ID al Caducar</label><AutocompleteInput value={selectedData.config.stats?.['expired-id'] || ''} onChange={(val) => updateField('config.stats.expired-id', val)} options={foodIdOptions} className="input" /></div>
                             </div>
                         </div>
-                        <div className="space-y-6 pt-4 border-t border-line">
-                            <div className="flex items-center gap-2 text-red-400"><Binary className="w-4 h-4" /><h4 className="eyebrow">Integración RPXHealth</h4></div>
+                        <div className="space-y-6">
+                            <div className="section-head text-red-400"><Binary /><h4 className="section-title">Integración RPXHealth</h4></div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2"><label className="label">ID Enfermedad</label><input type="text" value={selectedData.config.integration?.['disease-id'] || ''} onChange={(e) => updateField('config.integration.disease-id', e.target.value)} className="input" /></div>
                                 <div className="space-y-2"><label className="label">Probabilidad</label><input type="number" step="0.01" value={selectedData.config.integration?.['disease-chance'] || 0} onChange={(e) => updateField('config.integration.disease-chance', parseFloat(e.target.value))} className="input" /></div>
                             </div>
                         </div>
-                        <div className="space-y-6 pt-4 border-t border-line">
-                            <div className="flex items-center gap-2 text-pink-400"><Zap className="w-4 h-4" /><h4 className="eyebrow">Efectos de Poción (Subidón / Bajón)</h4></div>
+                        <div className="space-y-6">
+                            <div className="section-head text-pink-400"><Zap /><h4 className="section-title">Efectos de Poción (Subidón / Bajón)</h4></div>
                             <PotionEffectsEditor
                                 potion={(selectedData.config.effects?.potion as PotionConfig) || {}}
                                 mutate={(fn) => mutateSelectedConfig((cfg) => {
@@ -944,8 +944,8 @@ export default function StudioWorkspace() {
                                 })}
                             />
                         </div>
-                        <div className="space-y-6 pt-4 border-t border-line">
-                             <div className="flex justify-between items-center"><h4 className="eyebrow text-ok">Comandos</h4><button onClick={() => { const newState = {...projectState}; const food = (newState.foods[selectedItem as string].config as any); if(!food.commands) food.commands = []; (food.commands as any).push(""); setProjectState(newState); }} className="text-[10px] font-bold text-green-400">+ AÑADIR</button></div>
+                        <div className="space-y-6">
+                             <div className="section-head justify-between text-ok"><h4 className="section-title">Comandos</h4><button onClick={() => { const newState = {...projectState}; const food = (newState.foods[selectedItem as string].config as any); if(!food.commands) food.commands = []; (food.commands as any).push(""); setProjectState(newState); }} className="text-[10px] font-bold text-green-400">+ AÑADIR</button></div>
                              <p className="hint -mt-2">Para dar efectos de poción usa la sección de arriba. Usa esto solo para mensajes u otros comandos (dar ítems, dinero, teletransportar, etc.).</p>
                              <div className="space-y-2">{(Array.isArray(selectedData.config.commands) ? selectedData.config.commands : []).map((cmd: string, idx: number) => (
                                 <CommandActionRow
@@ -961,8 +961,8 @@ export default function StudioWorkspace() {
 
                     {activeEditor === 'xcrops' && (
                          <div className="space-y-8">
-                             <div className="space-y-6 pb-6 border-b border-line">
-                                <div className="flex items-center gap-2 text-lime-400"><Sprout className="w-4 h-4" /><h4 className="eyebrow">Semilla</h4></div>
+                             <div className="space-y-6">
+                                <div className="section-head text-lime-400"><Sprout /><h4 className="section-title">Semilla</h4></div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2"><label className="label">Nombre de la Semilla</label><input type="text" value={selectedData.config.seed?.['display-name'] || ''} onChange={(e) => updateField('config.seed.display-name', e.target.value)} className="input" /></div>
                                     <div className="space-y-2"><label className="label">ItemsAdder ID (semilla)</label><input type="text" value={selectedData.config.seed?.['itemsadder-id'] || ''} onChange={(e) => updateField('config.seed.itemsadder-id', e.target.value)} placeholder="opcional" className="input" /></div>
@@ -975,8 +975,8 @@ export default function StudioWorkspace() {
                                 </div>
                              </div>
 
-                             <div className="space-y-6 pb-6 border-b border-line">
-                                <div className="flex items-center gap-2 text-green-400"><FolderSearch className="w-4 h-4" /><h4 className="eyebrow">Etapas de Crecimiento</h4></div>
+                             <div className="space-y-6">
+                                <div className="section-head text-green-400"><FolderSearch /><h4 className="section-title">Etapas de Crecimiento</h4></div>
                                 <CropStagesEditor
                                     stages={(selectedData.config.growth?.stages as Record<string, any>) || {}}
                                     mutate={(fn) => mutateSelectedConfig((cfg) => {
@@ -987,8 +987,8 @@ export default function StudioWorkspace() {
                                 />
                              </div>
 
-                             <div className="space-y-6 pb-6 border-b border-line">
-                                <div className="flex items-center gap-2 text-purple-400"><Clock className="w-4 h-4" /><h4 className="eyebrow">Marchitamiento y Visuales</h4></div>
+                             <div className="space-y-6">
+                                <div className="section-head text-purple-400"><Clock /><h4 className="section-title">Marchitamiento y Visuales</h4></div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2"><label className="label">Marchita sin nutrientes tras (segundos)</label><input type="number" value={selectedData.config.growth?.['wither-time'] ?? 2400} onChange={(e) => updateField('config.growth.wither-time', parseInt(e.target.value))} className="input" /></div>
                                     <div className="space-y-2"><label className="label">Título del Holograma</label><input type="text" value={selectedData.config.visuals?.['hologram-title'] || ''} onChange={(e) => updateField('config.visuals.hologram-title', e.target.value)} placeholder="&fPlanta" className="input" /></div>
@@ -996,7 +996,7 @@ export default function StudioWorkspace() {
                              </div>
 
                              <div className="space-y-6">
-                                <div className="flex items-center gap-2 text-yellow-400"><Sprout className="w-4 h-4" /><h4 className="eyebrow">Cosecha</h4></div>
+                                <div className="section-head text-yellow-400"><Sprout /><h4 className="section-title">Cosecha</h4></div>
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="space-y-2 col-span-2"><label className="label">Ítem xFoods al Cosechar</label><AutocompleteInput value={selectedData.config.harvest?.['xfoods-id'] || ''} onChange={(val) => updateField('config.harvest.xfoods-id', val)} options={foodIdOptions} className="input" /></div>
                                     <div className="space-y-2"><label className="label">Cantidad</label><input type="number" min={1} value={selectedData.config.harvest?.amount ?? 1} onChange={(e) => updateField('config.harvest.amount', parseInt(e.target.value))} className="input" /></div>
@@ -1008,7 +1008,7 @@ export default function StudioWorkspace() {
 
                     {activeEditor === 'xpods' && (
                         <div className="space-y-6">
-                            <div className="flex items-center gap-2 text-lime-400"><Flower2 className="w-4 h-4" /><h4 className="eyebrow">Modificadores del Macetero</h4></div>
+                            <div className="section-head text-lime-400"><Flower2 /><h4 className="section-title">Modificadores del Macetero</h4></div>
                             <div className="grid grid-cols-3 gap-6">
                                 <div className="space-y-2">
                                     <label className="label">Velocidad de crecimiento</label>
@@ -1035,7 +1035,7 @@ export default function StudioWorkspace() {
 
                     {activeEditor === 'xautomation' && (
                         <div className="space-y-6">
-                            <div className="flex items-center gap-2 text-cyan-400"><Cpu className="w-4 h-4" /><h4 className="eyebrow">Máquina de Automatización</h4></div>
+                            <div className="section-head text-cyan-400"><Cpu /><h4 className="section-title">Máquina de Automatización</h4></div>
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
                                     <label className="label">Tipo</label>
@@ -1075,7 +1075,7 @@ export default function StudioWorkspace() {
 
                     {activeEditor === 'xmachines' && (
                          <div className="space-y-8">
-                            <div className="flex items-center gap-2 text-orange-400"><Flame className="w-4 h-4" /><h4 className="eyebrow">Recetas de la Estación</h4></div>
+                            <div className="section-head text-orange-400"><Flame /><h4 className="section-title">Recetas de la Estación</h4></div>
                             <MachineRecipesEditor
                                 config={selectedData.config as { 'is-refrigerator'?: boolean; recipes?: Record<string, any> }}
                                 mutate={mutateSelectedConfig}
@@ -1099,7 +1099,7 @@ export default function StudioWorkspace() {
                             </div>
 
                             <div className="bg-surface-0 p-8 rounded-3xl border border-white/5 space-y-6">
-                                <div className="flex items-center gap-2 text-green-400"><CheckCircle2 className="w-4 h-4" /><h4 className="eyebrow">Estado y Permisos</h4></div>
+                                <div className="section-head text-green-400"><CheckCircle2 /><h4 className="section-title">Estado y Permisos</h4></div>
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-2">
                                         <label className="label">Permiso de Colocación</label>
@@ -1122,7 +1122,7 @@ export default function StudioWorkspace() {
                                 <>
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
-                                        <h4 className="eyebrow text-accent">Tipo de Mueble</h4>
+                                        <h4 className="section-title">Tipo de Mueble</h4>
                                         <select 
                                             value={selectedData.data.behaviours?.furniture?.furniture_type || 'ARMOR_STAND'} 
                                             onChange={(e) => {
@@ -1150,7 +1150,7 @@ export default function StudioWorkspace() {
                                         </select>
                                     </div>
                                     <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
-                                        <h4 className="eyebrow text-info">Hitbox (Colisión)</h4>
+                                        <h4 className="section-title">Hitbox (Colisión)</h4>
                                         <div className="grid grid-cols-3 gap-3">
                                             {['length', 'width', 'height'].map(dim => (
                                                 <div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5">
@@ -1164,7 +1164,7 @@ export default function StudioWorkspace() {
 
                                 {selectedData.data.behaviours?.furniture?.furniture_type === 'ARMOR_STAND' && (
                                     <div className="bg-surface-0 p-6 rounded-3xl border border-white/5 space-y-6 animate-in slide-in-from-top-2">
-                                        <h4 className="eyebrow">Ajustes Armor Stand</h4>
+                                        <h4 className="section-title">Ajustes Armor Stand</h4>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             {[
                                                 { id: 'invisible', label: 'Invisible', default: true },
@@ -1188,7 +1188,7 @@ export default function StudioWorkspace() {
 
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
-                                        <h4 className="eyebrow" style={{ color: 'var(--color-sec-machines)' }}>Interacción</h4>
+                                        <h4 className="section-title">Interacción</h4>
                                         <div className="space-y-4">
                                             <div className="space-y-1">
                                                 <label className="label">Nivel Luz (0-15)</label>
@@ -1201,7 +1201,7 @@ export default function StudioWorkspace() {
                                         </div>
                                     </div>
                                     <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
-                                        <h4 className="eyebrow text-ok">Almacenamiento</h4>
+                                        <h4 className="section-title">Almacenamiento</h4>
                                         <div className="space-y-4">
                                             <div className="space-y-1">
                                                 <label className="label">Huecos (Slots)</label>
