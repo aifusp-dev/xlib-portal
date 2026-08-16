@@ -340,6 +340,28 @@ export default function StudioWorkspace() {
             } else {
                 current[keys[keys.length-1]] = value;
             }
+
+            // Cuando el ítem está vinculado a ItemsAdder, el material que manda de verdad es el
+            // del config de IA: el plugin construye el ítem desde ItemsAdder e ignora el material
+            // de la comida. El material se copiaba al activar la integración pero no se propagaba
+            // después, así que cambiarlo en el editor no tenía ningún efecto en el juego.
+            const esMaterial = path === 'config.item.material' || path === 'config.seed.material';
+            if (esMaterial) {
+                const iaEntry: any = newState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`];
+                const iaItem = iaEntry?.items?.[leafId(selectedItem)];
+                if (iaItem) {
+                    iaItem.resource = iaItem.resource || {};
+                    iaItem.resource.material = value;
+                }
+            }
+
+            // El nombre visible también vive en los dos sitios; mantenerlos sincronizados evita
+            // que el ítem de ItemsAdder se quede con el nombre viejo.
+            if (path === 'config.display-name') {
+                const iaEntry: any = newState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`];
+                const iaItem = iaEntry?.items?.[leafId(selectedItem)];
+                if (iaItem) iaItem.display_name = value;
+            }
         }
     }
     setProjectState(newState);
@@ -792,6 +814,9 @@ export default function StudioWorkspace() {
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Material</label>
                                     <input type="text" value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : selectedData.config.item?.material)) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xcrops' ? 'config.seed.material' : 'config.item.material'), e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
+                                    {isIAEnabled && activeEditor !== 'ia' && (
+                                        <p className="text-[10px] text-gray-500">Se aplica también al ítem de ItemsAdder, que es el que manda mientras la integración esté activa.</p>
+                                    )}
                                 </div>
                             )}
                             {(activeEditor === 'xfoods' || activeEditor === 'xcrops') && (
