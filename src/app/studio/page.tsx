@@ -543,6 +543,8 @@ export default function StudioWorkspace() {
     const textureRenameMap: Record<string, string> = {};
     /** Nombres finales de textura que el modelo espera encontrar como .png. */
     let texturasEsperadas = new Set<string>();
+    /** Texturas subidas en esta operación, por si el ítem no tiene modelo propio. */
+    const texturasSubidas: string[] = [];
     /** Nombres finales que sí hemos recibido, para avisar de los que falten. */
     const texturasRecibidas = new Set<string>();
     const resource = iaEntry[keyName][entryItemId].resource = iaEntry[keyName][entryItemId].resource || {};
@@ -601,12 +603,24 @@ export default function StudioWorkspace() {
         const finalFileName = `${newName}.png`;
         const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/${modelFolder}/${finalFileName}`;
         upsertRawFile(finalFileName, buffer, targetPath);
-
-        if (!hasModelJson) {
-            resource.generate = true;
-            resource.textures = [`${ns}:${modelFolder}/${newName}`];
-        }
+        texturasSubidas.push(`${ns}:${modelFolder}/${newName}`);
       }
+    }
+
+    // 'generate' se decide al final, mirando si el ítem TIENE modelo propio, no si venía uno en
+    // esta subida concreta. Antes se decidía dentro del bucle de PNG con una variable local: al
+    // subir la textura en un paso aparte (o al re-subirla para corregirla) volvía a poner
+    // generate: true y pisaba el model_path ya guardado. Con generate: true ItemsAdder fabrica
+    // un modelo plano 2D desde la textura e ignora el modelo de Blockbench, así que el ítem se
+    // veía completamente distinto.
+    if (resource.model_path) {
+        resource.generate = false;
+        // Con un modelo propio, las texturas salen de dentro del .json. Dejar aquí una lista
+        // suelta es, en el mejor caso, redundante, y ambigua para ItemsAdder.
+        delete resource.textures;
+    } else if (texturasSubidas.length > 0) {
+        resource.generate = true;
+        resource.textures = [texturasSubidas[0]];
     }
     setProjectState(newState);
 
