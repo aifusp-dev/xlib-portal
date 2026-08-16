@@ -436,53 +436,51 @@ economy:
   xfoods: {
     title: "xFoods Core",
     category: "xFoods Ecosystem",
-    version: "2.0",
+    version: "1.0",
     badge: "Ecosystem",
-    desc: "Sistema avanzado de nutrición, bites múltiples, maquinaria de cocina interactiva y estadísticas nutricionales.",
+    desc: "Comidas con mordiscos múltiples, caducidad en tiempo real, nutrición y máquinas de cocina con recetas de varios ingredientes y minijuego de precisión.",
     toc: [
-      { id: "intro",    label: "Introducción" },
-      { id: "bites",    label: "Sistema de Bites" },
-      { id: "nutrition",label: "Nutrición" },
-      { id: "drops",    label: "Drops de Mobs" },
-      { id: "commands", label: "Comandos" },
-      { id: "config",   label: "Configuración YAML" },
+      { id: "intro",     label: "Introducción" },
+      { id: "install",   label: "Instalación" },
+      { id: "commands",  label: "Comandos y permisos" },
+      { id: "config",    label: "Configuración YAML" },
+      { id: "bites",     label: "Mordiscos y nutrición" },
+      { id: "expiry",    label: "Caducidad y nevera" },
+      { id: "machines",  label: "Máquinas y recetas" },
+      { id: "rpg",       label: "Modo RPG" },
+      { id: "language",  label: "Idiomas" },
+      { id: "drops",     label: "Drops de mobs" },
+      { id: "itemsadder",label: "ItemsAdder" },
+      { id: "default",   label: "Contenido incluido" },
+      { id: "problems",  label: "Problemas frecuentes" },
     ],
     sections: [
       {
         id: "intro", title: "Introducción",
         blocks: [
-          { kind: "p", text: "xFoods redefine el sistema de alimentación de Minecraft. Las comidas pueden tener múltiples mordiscos (bites), estadísticas nutricionales complejas y cocinarse en máquinas interactivas con minijuegos de precisión." },
-          { kind: "callout", callout: { type: "info", text: "xFoods requiere xLib instalado. Las comidas se definen en archivos YAML dentro de la carpeta /plugins/xFoods/foods/." } },
+          { kind: "p", text: "xFoods convierte la comida en una cadena de producción. Cada comida es un fichero YAML con su nombre, material, saciedad, nutrición, efectos y caducidad. Las máquinas son bloques que registras en el mundo y que transforman unos ítems en otros siguiendo recetas de varios ingredientes." },
+          { kind: "p", text: "Lo que lo separa de un plugin de ítems personalizados normal es que la comida se estropea con el tiempo real, que las recetas pueden exigir un minijuego de precisión, y que el sistema está pensado para que cada ítem tenga una forma de conseguirse y un sitio donde gastarse." },
+          { kind: "callout", callout: { type: "info", text: "xFoods funciona solo. xCrops es un addon opcional que añade el cultivo de los ingredientes y el mercado, y necesita xFoods instalado." } },
         ],
       },
       {
-        id: "bites", title: "Sistema de Bites",
+        id: "install", title: "Instalación",
         blocks: [
-          { kind: "p", text: "Cada comida tiene un número de bites configurables. Al consumirse, el ítem no desaparece — su estado (bites restantes) se guarda en los NBT del ítem y se muestra en la UI." },
+          { kind: "ul", items: [
+            "Requiere xLib, que debe cargarse antes (la 'x' inicial garantiza el orden alfabético).",
+            "Paper 1.21 o superior. Java 21.",
+            "Coloca xLib.jar y xFoods.jar en /plugins/ y reinicia.",
+            "En el primer arranque se extraen las comidas, máquinas e idiomas por defecto. Nunca se sobrescribe lo que ya exista.",
+          ]},
+          { kind: "h3", id: "optional", text: "Dependencias opcionales" },
+          { kind: "ul", items: [
+            "ItemsAdder — para modelos y texturas propias. Sin él, las comidas usan su material de respaldo.",
+            "WorldGuard — se respeta automáticamente: las máquinas no responden donde el jugador no puede construir.",
+          ]},
         ],
       },
       {
-        id: "nutrition", title: "Nutrición",
-        blocks: [
-          { kind: "p", text: "Las comidas tienen cuatro estadísticas nutricionales: Proteínas, Carbohidratos, Azúcares y Vitaminas. Estas afectan directamente las mecánicas del módulo RPX Health si está instalado." },
-        ],
-      },
-      {
-        id: "drops", title: "Drops de Mobs",
-        blocks: [
-          { kind: "p", text: "Las recetas piden los ingredientes por id de xFoods, y un ítem de vanilla no lleva ese id: una chuleta normal nunca encajaría como ingrediente. Por eso xFoods puede sustituir los drops de vanilla por sus equivalentes personalizados." },
-          { kind: "code", block: { lang: "yaml", code: `# config.yml
-mob-drops:
-  enabled: true
-  reemplazos:
-    PIG:
-      PORKCHOP: "carne_cerdo_cruda"
-    COW:
-      BEEF: "carne_vaca_cruda"` } },
-        ],
-      },
-      {
-        id: "commands", title: "Comandos",
+        id: "commands", title: "Comandos y permisos",
         blocks: [
           { kind: "commands", list: [
             { cmd: "/xfoods recipes",              perm: "xfoods.use",   desc: "Recetario: máquinas y sus recetas. Para jugadores." },
@@ -491,14 +489,18 @@ mob-drops:
             { cmd: "/xfoods give <id> [cantidad]", perm: "xfoods.admin", desc: "Entrega una comida personalizada." },
             { cmd: "/xfoods machine create <tipo>",perm: "xfoods.admin", desc: "Convierte el bloque que miras en una máquina." },
             { cmd: "/xfoods machine remove",       perm: "xfoods.admin", desc: "Quita la máquina y te devuelve su contenido." },
-            { cmd: "/xfoods reload",               perm: "xfoods.admin", desc: "Recarga comidas, máquinas y configuración." },
+            { cmd: "/xfoods reload",               perm: "xfoods.admin", desc: "Recarga comidas, máquinas, categorías e idiomas." },
           ]},
+          { kind: "p", text: "El alias /foods hace lo mismo que /xfoods. El permiso xfoods.admin incluye xfoods.use, así que a un administrador le basta con el primero." },
           { kind: "callout", callout: { type: "warn", text: "Las máquinas de cocina no son ítems que se coloquen: se registran sobre un bloque ya existente con /xfoods machine create. Los maceteros y las máquinas de automatización de xCrops sí son ítems." } },
+          { kind: "callout", callout: { type: "tip", text: "xfoods.use viene activado por defecto para todos. Si no quieres que los jugadores abran el recetario, quítaselo explícitamente en LuckPerms." } },
         ],
       },
       {
         id: "config", title: "Configuración YAML",
         blocks: [
+          { kind: "p", text: "Un fichero por comida dentro de foods/. Puedes usar subcarpetas para organizarte: el plugin las recorre todas." },
+          { kind: "callout", callout: { type: "danger", text: "El id de la comida es el nombre del fichero SIN la carpeta y sin la extensión. foods/consumibles/hamburguesa.yml tiene el id 'hamburguesa', no 'consumibles/hamburguesa'. Es el id que usan las recetas y el que necesita ItemsAdder, que no admite barras." } },
           { kind: "code", block: { lang: "yaml", code: `# foods/hamburguesa.yml — el id es el nombre del fichero
 display-name: "Hamburguesa Premium"
 lore:
@@ -514,6 +516,8 @@ stats:
   bites: 4               # mordiscos por unidad
   consumable: true       # false = ingrediente, no se puede comer
   consumption-ticks: 20
+  expiry-minutes: 60     # 0 = no caduca nunca
+  expired-id: "hamburguesa_podrida"
 nutrition:
   proteins: 20
   carbs: 15
@@ -522,10 +526,154 @@ nutrition:
 effects:
   sound: ENTITY_GENERIC_EAT
   particle: HAPPY_VILLAGER   # ojo: NO VILLAGER_HAPPY, se renombró en 1.20.5
+  potion:
+    high-duration: 30        # segundos hasta el bajón (0 = sin bajón)
+    on-eat:
+      - { type: SPEED, amplifier: 0, duration: 20 }   # duration en SEGUNDOS
+    on-crash:
+      - { type: SLOWNESS, amplifier: 0, duration: 10 }
 leftovers:
-  material: AIR` } },
+  material: AIR              # lo que queda al terminarla` } },
           { kind: "callout", callout: { type: "warn", text: "consumable: false es obligatorio en los ingredientes (carne cruda, queso, lechuga...). Si se deja en true, el jugador se los come de un click en vez de usarlos en una máquina." } },
-          { kind: "p", text: "Un fichero = una comida, y el id sale del nombre del fichero. No se admiten varios documentos YAML separados por --- en el mismo fichero. Los ids de las recetas y de las cosechas admiten el prefijo xfoods: o van sin él, indistintamente." },
+          { kind: "p", text: "Un fichero = una comida. No se admiten varios documentos YAML separados por --- en el mismo fichero. Los ids de las recetas y de las cosechas admiten el prefijo xfoods: o van sin él, indistintamente." },
+          { kind: "callout", callout: { type: "tip", text: "Si prefieres no escribir YAML, /xfoods menu abre un editor dentro del juego que genera el fichero por ti. Para configuraciones grandes está el Studio del portal." } },
+        ],
+      },
+      {
+        id: "bites", title: "Mordiscos y nutrición",
+        blocks: [
+          { kind: "p", text: "Una comida con varios bites no desaparece al primer uso: los mordiscos restantes se guardan en el NBT de ese ítem concreto y se avisa al jugador de cuántos le quedan. Al agotarlos aparece lo que hayas puesto en leftovers (un cuenco vacío, una botella, o AIR si no queda nada)." },
+          { kind: "p", text: "Las cuatro estadísticas nutricionales (proteínas, carbohidratos, azúcares y vitaminas) se guardan por comida y las lee el módulo RPX Health si lo tienes instalado. Sin él quedan como información y no afectan al juego." },
+        ],
+      },
+      {
+        id: "expiry", title: "Caducidad y nevera",
+        blocks: [
+          { kind: "p", text: "Una comida con expiry-minutes lleva grabada la hora en que se creó. Al cumplirse ese tiempo se convierte en expired-id, esté donde esté: en el inventario, en un cofre o en el suelo. El reloj corre también con el servidor apagado, porque se compara con la hora real y no con ticks jugados." },
+          { kind: "p", text: "La nevera es un tipo de máquina que congela ese reloj. Lo que metes dentro deja de caducar y vuelve a hacerlo en cuanto lo sacas." },
+          { kind: "callout", callout: { type: "warn", text: "Si una comida caduca en un id que no existe ni como comida de xFoods ni como Material de Minecraft, se entrega ROTTEN_FLESH y se avisa por consola." } },
+        ],
+      },
+      {
+        id: "machines", title: "Máquinas y recetas",
+        blocks: [
+          { kind: "p", text: "Una máquina son dos cosas separadas: el tipo, que es un fichero en machines/ con sus recetas, y la máquina colocada, que es un bloque concreto del mundo que registras apuntando a ese tipo." },
+          { kind: "ul", items: [
+            "Coloca el bloque que quieras usar (un horno, un barril, lo que sea).",
+            "Míralo y ejecuta /xfoods machine create <tipo>.",
+            "Click derecho mete ingredientes; agacharse y click derecho los recupera.",
+          ]},
+          { kind: "code", block: { lang: "yaml", code: `# machines/plancha_hamburguesas.yml
+display-name: "&6&lPlancha de Hamburguesas"
+
+recipes:
+  cocinar_cerdo:
+    inputs:
+      carne: { id: "xfoods:carne_cerdo_cruda", amount: 1 }
+    output:  { id: "xfoods:carne_cerdo_cocinada", amount: 1 }
+    time: 200                 # en TICKS: 200 = 10 s
+    use-minigame: true
+    burnt-id: "xfoods:carne_quemada"
+    sounds:
+      start:  "BLOCK_FIRE_AMBIENT"
+      finish: "ENTITY_PLAYER_BURP"
+    rpg:
+      category: "cocina"
+      required-level: 1
+      xp-reward: 10` } },
+          { kind: "callout", callout: { type: "danger", text: "La sección se llama 'inputs' en plural, aunque la receta tenga un solo ingrediente. Con 'input:' en singular la receta se ignora y se avisa por consola: sin ingredientes nunca se podría cocinar." } },
+          { kind: "h3", id: "minigame", text: "El minijuego" },
+          { kind: "p", text: "Con use-minigame activado aparece una barra que se mueve y hay que pulsar cuando esté en verde. Si se falla o se agota el tiempo sale el burnt-id en lugar del resultado. Solo se puede intentar una vez por cocinado." },
+          { kind: "callout", callout: { type: "tip", text: "Define siempre burnt-id en las recetas con minijuego. Sin él, fallar no cuesta nada y el minijuego deja de tener sentido." } },
+        ],
+      },
+      {
+        id: "rpg", title: "Modo RPG",
+        blocks: [
+          { kind: "p", text: "Desactivado por defecto. Al activarlo, cada receta puede exigir un nivel mínimo en una categoría de cocina y dar experiencia al completarse. El jugador consulta su progreso con /xfoods stats." },
+          { kind: "code", block: { lang: "yaml", code: `# config.yml
+rpg-mode:
+  enabled: true
+
+# categories.yml
+categories:
+  cocina:
+    display-name: "&6Cocina"
+    xp-multiplier: 1.0
+  barista:
+    display-name: "&bBarista"
+    xp-multiplier: 1.2` } },
+          { kind: "callout", callout: { type: "warn", text: "Si activas rpg-mode sin crear categories.yml, el plugin avisa por consola y el modo RPG se queda sin categorías." } },
+        ],
+      },
+      {
+        id: "language", title: "Idiomas",
+        blocks: [
+          { kind: "p", text: "Todos los mensajes al jugador salen de lang/<código>.yml. Vienen incluidos inglés (por defecto) y español." },
+          { kind: "code", block: { lang: "yaml", code: `# config.yml
+language: en    # 'es' para español` } },
+          { kind: "p", text: "Para traducir a otro idioma, copia lang/en.yml con otro nombre (por ejemplo lang/fr.yml) y pon ese código. Si borras una clave de tu fichero se usa la de en.yml, así que puedes dejar solo las líneas que quieras cambiar, y una actualización que añada mensajes nuevos no rompe tu traducción." },
+          { kind: "p", text: "Los textos admiten códigos & (&a, &c, &l) y también MiniMessage (<gray>, <gradient:red:gold>). Lo que va entre llaves son marcadores que rellena el plugin: puedes moverlos de sitio, pero si borras uno se pierde ese dato." },
+          { kind: "callout", callout: { type: "info", text: "Los mensajes de consola están siempre en inglés y no se traducen: es donde se diagnostican los problemas, y no conviene que un fallo de traducción oculte un aviso." } },
+          { kind: "callout", callout: { type: "tip", text: "/xfoods reload recarga también los idiomas, así que cambiar 'language' no exige reiniciar el servidor." } },
+        ],
+      },
+      {
+        id: "drops", title: "Drops de mobs",
+        blocks: [
+          { kind: "p", text: "Las recetas piden los ingredientes por id de xFoods, y un ítem de vanilla no lleva ese id: una chuleta normal nunca encajaría como ingrediente. Por eso xFoods puede sustituir los drops de vanilla por sus equivalentes personalizados." },
+          { kind: "code", block: { lang: "yaml", code: `# config.yml
+mob-drops:
+  enabled: true
+  reemplazos:
+    PIG:
+      PORKCHOP: "carne_cerdo_cruda"
+    COW:
+      BEEF: "carne_vaca_cruda"` } },
+        ],
+      },
+      {
+        id: "itemsadder", title: "Integración con ItemsAdder",
+        blocks: [
+          { kind: "p", text: "Cualquier comida, semilla o máquina puede apuntar a un ítem de ItemsAdder con itemsadder-id. Cuando ItemsAdder está activo y el id existe, manda su modelo; si no, se usa el material configurado y se avisa por consola una sola vez." },
+          { kind: "ul", items: [
+            "Los assets se extraen a plugins/ItemsAdder/, que es la única carpeta que ese plugin lee.",
+            "Después de añadir contenido hay que ejecutar /iazip y luego /ia reload.",
+            "Hasta que no lo hagas, las comidas se ven con su material de respaldo.",
+          ]},
+        ],
+      },
+      {
+        id: "default", title: "Contenido incluido",
+        blocks: [
+          { kind: "p", text: "El plugin viene con una cadena de producción cerrada para que se entienda cómo encaja todo. Es todo editable o borrable." },
+          { kind: "h3", id: "def-machines", text: "5 máquinas de cocina" },
+          { kind: "ul", items: [
+            "Plancha de Hamburguesas — cuece la carne cruda de cerdo y de vaca. Con minijuego.",
+            "Quesera Artesanal — cubo de leche en queso, 30 s.",
+            "Destilador de Agua — cubo de agua en Esencia de Agua, que es lo que consume la regadera de xCrops.",
+            "Cafetera Todo en Uno — muele 3 semillas de café. Con minijuego.",
+            "Mesa de Ensamblado — monta las dos hamburguesas a partir de sus 4 ingredientes.",
+          ]},
+          { kind: "h3", id: "def-foods", text: "15 comidas" },
+          { kind: "p", text: "Tres crudos, cinco procesados, dos hamburguesas, la esencia de agua y los desechos de fallar los minijuegos. Cada ingrediente tiene una forma de conseguirse y una receta que lo consume." },
+          { kind: "callout", callout: { type: "warn", text: "Las dos hamburguesas vienen con expiry-minutes: 3, que es un valor de prueba para ver la caducidad funcionando. Súbelo a 60 o más antes de abrir el servidor a jugadores." } },
+        ],
+      },
+      {
+        id: "problems", title: "Problemas frecuentes",
+        blocks: [
+          { kind: "h3", id: "p1", text: "La comida no se puede comer" },
+          { kind: "p", text: "Comprueba que stats.consumable esté a true y que el material exista como ítem. Un material que solo existe como bloque no se puede sostener ni comer." },
+          { kind: "h3", id: "p2", text: "La máquina no responde al click derecho" },
+          { kind: "p", text: "Si estás en una región de WorldGuard donde no puedes construir, la máquina no responde a propósito. Fuera de eso, revisa que el bloque siga registrado: al romperlo se pierde el registro." },
+          { kind: "h3", id: "p3", text: "La receta no se dispara" },
+          { kind: "p", text: "Los ingredientes deben coincidir en id y cantidad exactas. Si metes de más, la máquina avisa y hay que agacharse y hacer click derecho para recuperarlos. Revisa también que la sección se llame 'inputs' en plural." },
+          { kind: "h3", id: "p4", text: "Sale un ítem genérico en vez del mío" },
+          { kind: "p", text: "Cuando una receta produce un id que no es ni comida de xFoods ni Material válido se entrega COAL como sustituto y se avisa por consola. Casi siempre es una errata en output.id." },
+          { kind: "h3", id: "p5", text: "No se ven las partículas" },
+          { kind: "p", text: "Comprueba el nombre de la partícula: varios se renombraron en 1.20.5. HAPPY_VILLAGER es correcto, VILLAGER_HAPPY ya no existe. Un nombre inválido se ignora y se avisa por consola una sola vez." },
+          { kind: "callout", callout: { type: "tip", text: "Casi todos estos casos dejan un aviso claro en la consola al arrancar o al recargar. Mira el log antes de nada." } },
         ],
       },
     ],
@@ -541,10 +689,16 @@ leftovers:
     desc: "Módulo de agricultura avanzada para xFoods con ciclos visuales, cuidados y plagas.",
     toc: [
       { id: "intro",    label: "Introducción" },
+      { id: "install",  label: "Instalación" },
       { id: "features", label: "Características" },
+      { id: "cycle",    label: "El ciclo de cultivo" },
       { id: "config",   label: "Configurar una especie" },
       { id: "pods",     label: "Maceteros y Automatización" },
+      { id: "tools",    label: "Herramientas y plagas" },
+      { id: "market",   label: "Mercado de valores" },
       { id: "commands", label: "Comandos" },
+      { id: "default",  label: "Contenido incluido" },
+      { id: "problems", label: "Problemas frecuentes" },
     ],
     sections: [
       {
@@ -552,6 +706,18 @@ leftovers:
         blocks: [
           { kind: "p", text: "xCrops añade un sistema de agricultura realista donde las plantas tienen ciclos de vida visuales usando ItemDisplays, requieren cuidados específicos y pueden infectarse con plagas." },
           { kind: "callout", callout: { type: "warn", text: "xCrops requiere tanto xLib como xFoods Core instalados." } },
+        ],
+      },
+      {
+        id: "install", title: "Instalación",
+        blocks: [
+          { kind: "ul", items: [
+            "Requiere xLib y xFoods, en ese orden.",
+            "Coloca xFoodsCrops.jar en /plugins/ y reinicia.",
+            "Se extraen las especies, maceteros, máquinas, el mercado y los idiomas por defecto. Nunca se sobrescribe lo que ya exista.",
+          ]},
+          { kind: "p", text: "El idioma se elige igual que en xFoods, con 'language' en config.yml y los ficheros de lang/. Vienen incluidos inglés y español, y /xfcrops admin reload los recarga sin reiniciar." },
+          { kind: "callout", callout: { type: "danger", text: "El mercado necesita Vault Y un plugin de economía registrado (EssentialsX, CMI o similar). Vault por sí solo no basta: es solo la pasarela. Sin economía, /xfcrops market avisa y se cierra; el resto del plugin funciona igual." } },
         ],
       },
       {
@@ -565,6 +731,20 @@ leftovers:
             "Integración con las recetas de cocina de xFoods",
             "La calidad del cultivo determina la cosecha: del 40% del rendimiento con calidad 0 al 100% con calidad 1",
           ]},
+        ],
+      },
+      {
+        id: "cycle", title: "El ciclo de cultivo",
+        blocks: [
+          { kind: "ul", items: [
+            "Coloca un macetero. Sobre él aparece un holograma con su estado.",
+            "Click derecho con una semilla para plantar.",
+            "La planta avanza por fases. El holograma dice el progreso, la calidad y qué le falta.",
+            "Cuando pide algo (agua, abono, luz) hay que dárselo o la calidad baja.",
+            "En estado LISTO, click derecho para cosechar.",
+          ]},
+          { kind: "p", text: "La calidad final multiplica la cosecha: va del 40% del rendimiento con calidad 0 al 100% con calidad 1. Es el incentivo para atender las plantas en vez de plantarlas y olvidarse." },
+          { kind: "callout", callout: { type: "warn", text: "Una planta con una necesidad sin atender durante más de wither-time segundos se marchita y se pierde." } },
         ],
       },
       {
@@ -622,6 +802,36 @@ probabilities:
         ],
       },
       {
+        id: "tools", title: "Herramientas y plagas",
+        blocks: [
+          { kind: "h3", id: "can", text: "Regadera de Cobre" },
+          { kind: "p", text: "Riega a mano sin gastar un ítem por uso: tiene 1000 ml de capacidad y cada riego consume 50. Se recarga con Esencia de Agua, que sale del Destilador de Agua de xFoods. Agáchate y haz click derecho para abrir su panel de recarga; click derecho sobre un macetero para regar." },
+          { kind: "h3", id: "sickle", text: "Hoz de Cosecha" },
+          { kind: "p", text: "Cosechar con ella da un 40% de probabilidad de obtener además una semilla de lo que acabas de recoger. Es lo que permite que un cultivo se mantenga solo sin comprar semillas cada vez." },
+          { kind: "h3", id: "pests", text: "Plagas y pesticida" },
+          { kind: "p", text: "Una planta con plaga deja de crecer y de avanzar de fase: curarla es lo único útil que se puede hacer con ella. El holograma lo avisa con PLAGA DETECTADA. Click derecho con el pesticida industrial la limpia y gasta una unidad." },
+          { kind: "callout", callout: { type: "tip", text: "El Fumigador Automático hace lo mismo en un radio de 5 bloques. El pesticida a mano es para arreglos puntuales o para cuando aún no tienes la máquina." } },
+        ],
+      },
+      {
+        id: "market", title: "Mercado de valores",
+        blocks: [
+          { kind: "p", text: "El mercado da precio a todo lo que produces, y ese precio se mueve solo: comprar lo sube, vender lo baja, cada 30 minutos se aplica una variación aleatoria y el precio tiende poco a poco a volver a su base." },
+          { kind: "p", text: "El jugador siempre vende al 80% del precio actual. Ese 20% de diferencia es lo que impide comprar barato y revender caro en el mismo sitio, y lo que hace que produzcas en vez de especular." },
+          { kind: "code", block: { lang: "yaml", code: `# market.yml
+market-items:
+  tomate:
+    display-name: "&cTomate"
+    base-price: 8.0
+    min-price: 3.0        # suelo aunque todos vendan
+    max-price: 20.0       # techo aunque todos compren
+    demand-factor: 0.0015 # cuánto mueve el precio cada unidad
+    volatility: 0.10      # variación aleatoria: hasta ±10%` } },
+          { kind: "p", text: "El id es el de la comida en xFoods, sin la carpeta. La configuración incluida cubre 14 artículos que forman la cadena entera, con márgenes pensados para que la lección se vea sola: comprar carne cruda y venderla cocinada deja poco, montar la hamburguesa deja bastante más, y fallar el minijuego del café convierte 48 en 2." },
+          { kind: "callout", callout: { type: "info", text: "La hamburguesa podrida no está en el mercado a propósito: si dejas que la comida caduque, la pierdes. Eso no se rescata vendiéndola." } },
+        ],
+      },
+      {
         id: "commands", title: "Comandos",
         blocks: [
           { kind: "commands", list: [
@@ -637,7 +847,48 @@ probabilities:
             { cmd: "/xfcrops admin list",              perm: "xfoodscrops.admin", desc: "Lista las especies cargadas." },
             { cmd: "/xfcrops admin reload",            perm: "xfoodscrops.admin", desc: "Recarga especies, máquinas y mercado." },
           ]},
-          { kind: "callout", callout: { type: "info", text: "El alias del comando es /xfcrops (también /harvest y /xfoods-crops). No existe /crops." } },
+          { kind: "callout", callout: { type: "info", text: "Alias del comando: /crops y /xfoods-crops. El alias /harvest se retiró antes del lanzamiento porque colisionaba con casi cualquier otro plugin de agricultura." } },
+          { kind: "callout", callout: { type: "tip", text: "Los ítems que no caben en el inventario caen al suelo en vez de perderse, así que ningún comando de dar te borra el objeto por tener el inventario lleno." } },
+        ],
+      },
+      {
+        id: "default", title: "Contenido incluido",
+        blocks: [
+          { kind: "ul", items: [
+            "3 especies — Lechuga (rápida, 2 de cosecha), Tomate (5 fases, exige sol directo, 3 de cosecha) y Cafeto (lento, 3 semillas por cosecha).",
+            "3 maceteros — Barro (neutro), Invernadero (lento y seguro, x1.6 de cosecha) e Hidropónico (x1.9 de velocidad pero 11% de plaga por minuto).",
+            "6 máquinas de automatización — Autoregador, dos dosificadores, Lámpara de Cultivo, Fumigador y Recolector.",
+            "Regadera, Hoz, pesticida y dos fertilizantes.",
+            "market.yml con 14 artículos.",
+          ]},
+          { kind: "p", text: "Las tres especies están pensadas para enseñar los tres tipos de requisito: la lechuga el abono, el tomate la luz y el cafeto la paciencia." },
+          { kind: "h3", id: "def-fuel", text: "Qué consume cada máquina" },
+          { kind: "ul", items: [
+            "Autoregador — radio 5, consume Esencia de Agua.",
+            "Dosificador de Abono — radio 5, consume BONE_MEAL.",
+            "Dosificador Químico — radio 5, consume GLOWSTONE_DUST.",
+            "Lámpara de Cultivo — radio 6, consume GLOWSTONE_DUST.",
+            "Fumigador Automático — radio 5, consume SPIDER_EYE.",
+            "Recolector Automático — radio 5, no consume nada.",
+          ]},
+          { kind: "callout", callout: { type: "warn", text: "Automatizar no sale gratis: cada máquina gasta su recurso por acción, y el Recolector recoge sin mirar la calidad. Atender a mano sigue rindiendo más por planta." } },
+        ],
+      },
+      {
+        id: "problems", title: "Problemas frecuentes",
+        blocks: [
+          { kind: "h3", id: "c1", text: "La planta no crece" },
+          { kind: "p", text: "Mira el holograma: dice exactamente qué le falta. Las causas habituales son una plaga sin tratar o un requisito de luz que no se cumple. Recuerda que un light.max por debajo de 15 es imposible de cumplir a pleno sol." },
+          { kind: "h3", id: "c2", text: "La automatización no atiende la planta" },
+          { kind: "p", text: "El valor de nbt del requisito tiene que ser exactamente WATER, organic o chemical. Con cualquier otro valor la máquina no reconoce la necesidad como suya y la ignora." },
+          { kind: "h3", id: "c3", text: "La Lámpara de Cultivo no enciende" },
+          { kind: "p", text: "Una máquina SMART_LIGHT solo funciona sobre un bloque REDSTONE_LAMP: el plugin la enciende y la apaga, y solo sabe hacerlo con lámparas de redstone." },
+          { kind: "h3", id: "c4", text: "La semilla no se planta" },
+          { kind: "p", text: "Si la especie se borró o se renombró, la semilla vieja apunta a algo que ya no existe y el plugin avisa al jugador. Vuelve a darla con /xfcrops admin giveseed." },
+          { kind: "h3", id: "c5", text: "La cosecha sale como un helecho genérico" },
+          { kind: "p", text: "Significa que harvest.xfoods-id apunta a una comida que no existe en xFoods. Revisa que el id coincida con el nombre del fichero de la comida, sin la carpeta." },
+          { kind: "h3", id: "c6", text: "Los maceteros de un mundo no aparecen" },
+          { kind: "p", text: "Los maceteros en mundos aún no cargados se conservan y vuelven solos cuando el mundo carga. El arranque lo dice por consola indicando cuántos hay en esa situación." },
         ],
       },
     ],
