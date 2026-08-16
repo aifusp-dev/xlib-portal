@@ -11,7 +11,8 @@
     "test:content": "tsx scripts/content.test.mts",
     "test:itemsadder": "tsx scripts/itemsadder.test.mts",
     "test:namespace": "tsx scripts/namespace.test.mts",
-    "test:foodid": "tsx scripts/foodid.test.mts"
+    "test:foodid": "tsx scripts/foodid.test.mts",
+    "test:textures": "tsx scripts/textures.test.mts"
   },
   "dependencies": {
     "@mdx-js/loader": "^3.1.1",

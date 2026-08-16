@@ -541,6 +541,10 @@ export default function StudioWorkspace() {
 
     // Mapa de nombre de textura original (referenciado en el JSON) -> nuevo nombre basado en el ID del ítem
     const textureRenameMap: Record<string, string> = {};
+    /** Nombres finales de textura que el modelo espera encontrar como .png. */
+    let texturasEsperadas = new Set<string>();
+    /** Nombres finales que sí hemos recibido, para avisar de los que falten. */
+    const texturasRecibidas = new Set<string>();
     const resource = iaEntry[keyName][entryItemId].resource = iaEntry[keyName][entryItemId].resource || {};
     let hasModelJson = false;
 
@@ -553,13 +557,25 @@ export default function StudioWorkspace() {
             const model = JSON.parse(text);
             if (model.textures) {
                 const textureKeys = Object.keys(model.textures);
+                const nombreBase = (v: unknown) =>
+                    sanitizePath(String(v).split('/').pop() || String(v)).replace('.png', '');
+
+                // Se cuentan las IMÁGENES distintas, no las claves. Blockbench casi siempre
+                // añade una clave "particle" que apunta a la misma textura que otra slot: con
+                // el conteo por claves eso parecían "varias texturas" y el modelo pasaba a
+                // referenciar "<item>_<original>", mientras que el PNG se guardaba como
+                // "<item>". El modelo cargaba, pero sin textura.
+                const imagenesDistintas = new Set(Object.values(model.textures).map(nombreBase));
+                const usarSufijo = imagenesDistintas.size > 1;
+
                 textureKeys.forEach(key => {
-                    const texPath = model.textures[key] as string;
-                    const originalName = sanitizePath(texPath.split('/').pop() || texPath).replace('.png', '');
-                    const newName = textureKeys.length > 1 ? `${modelName}_${originalName}` : modelName;
+                    const originalName = nombreBase(model.textures[key]);
+                    const newName = usarSufijo ? `${modelName}_${originalName}` : modelName;
                     textureRenameMap[originalName] = newName;
                     model.textures[key] = `${ns}:${modelFolder}/${newName}`;
                 });
+
+                texturasEsperadas = new Set(Object.values(textureRenameMap));
                 buffer = new TextEncoder().encode(JSON.stringify(model, null, 2)).buffer;
             }
         } catch (err) { console.error("Error processing JSON model", err); }
@@ -577,7 +593,11 @@ export default function StudioWorkspace() {
       if (file.name.endsWith('.png')) {
         const buffer = await file.arrayBuffer();
         const originalName = sanitizePath(file.name).replace('.png', '');
-        const newName = textureRenameMap[originalName] || modelName;
+        // Si el modelo solo usa una imagen, cualquier PNG que se suba es esa imagen, se llame
+        // como se llame en disco. Con varias hay que emparejar por nombre.
+        const newName = textureRenameMap[originalName]
+            || (texturasEsperadas.size <= 1 ? modelName : originalName);
+        texturasRecibidas.add(newName);
         const finalFileName = `${newName}.png`;
         const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/${modelFolder}/${finalFileName}`;
         upsertRawFile(finalFileName, buffer, targetPath);
@@ -589,7 +609,17 @@ export default function StudioWorkspace() {
       }
     }
     setProjectState(newState);
-    alert(`¡Archivos vinculados!`);
+
+    // El fallo más difícil de diagnosticar es que el modelo cargue sin textura, así que si
+    // alguna de las que referencia no ha llegado, se dice claramente cuál falta.
+    const faltan = [...texturasEsperadas].filter(t => !texturasRecibidas.has(t));
+    if (faltan.length > 0) {
+        alert(`Archivos vinculados, pero el modelo referencia texturas que no has subido:\n\n`
+            + faltan.map(t => `  · ${t}.png`).join('\n')
+            + `\n\nSin ellas el modelo se verá sin textura.`);
+    } else {
+        alert('¡Archivos vinculados!');
+    }
   };
 
   // Ids tal y como los registra el plugin (sin carpeta): es lo que hay que escribir en las
