@@ -1,20 +1,72 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Sistema de diseño
+   ---------------------------------------------------------------------------
+   El Studio es un instrumento de precisión: se escanea y se opera, no se lee de
+   arriba abajo. Antes casi cada elemento iba en font-black + uppercase + italic,
+   con etiquetas a 9px, seis colores de pestaña compitiendo entre sí y radios
+   mezclados (lg/xl/2xl/3xl). Todo pesaba lo mismo, así que nada destacaba.
+
+   Ahora: un solo acento (ámbar, el de la marca), neutros con sesgo azul-pizarra,
+   una escala tipográfica corta y color semántico reservado para estado.
+   --------------------------------------------------------------------------- */
+
 @theme {
-  --color-background: #0b0f19;
-  --color-foreground: #f3f4f6;
-  --color-primary: #fbbf24;
-  --color-primary-foreground: #000;
-  --color-card: #1f2937;
-  --color-border: #374151;
-  --color-muted: #9ca3af;
-  --color-accent: #3b82f6;
+  /* Superficies, de la más honda a la más elevada */
+  --color-surface-0: #0b0e14;   /* fondo de la app */
+  --color-surface-1: #12161f;   /* paneles */
+  --color-surface-2: #181d28;   /* campos y filas */
+  --color-surface-3: #1f2531;   /* hover */
+
+  --color-line:        #262d3a;
+  --color-line-strong: #343d4d;
+
+  --color-ink:   #e6e9ef;       /* texto principal */
+  --color-ink-2: #9aa4b8;       /* secundario */
+  --color-ink-3: #6b7689;       /* terciario, eyebrows */
+
+  --color-accent:     #f5b93b;
+  --color-accent-ink: #0b0e14;
+
+  /* Semánticos: solo para estado, nunca como decoración */
+  --color-ok:     #4ade80;
+  --color-warn:   #fbbf24;
+  --color-danger: #f87171;
+  --color-info:   #60a5fa;
+
+  /* Identificación por sección: se usan en un punto de 6px, no en botones enteros */
+  --color-sec-foods:      #f5b93b;
+  --color-sec-ia:         #c084fc;
+  --color-sec-crops:      #4ade80;
+  --color-sec-machines:   #fb923c;
+  --color-sec-pods:       #a3e635;
+  --color-sec-automation: #38bdf8;
+
+  --radius-field: 6px;
+  --radius-panel: 10px;
 }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #0b0f19; }
-::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+/* Compatibilidad con los nombres antiguos usados por la wiki */
+@theme {
+  --color-background: #0b0e14;
+  --color-foreground: #e6e9ef;
+  --color-primary: #f5b93b;
+  --color-primary-foreground: #0b0e14;
+  --color-card: #12161f;
+  --color-border: #262d3a;
+  --color-muted: #9aa4b8;
+}
+
+body {
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #262d3a; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #343d4d; }
 
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -23,4 +75,169 @@
 
 @utility animate-wiki {
   animation: fade-in 0.35s ease-out;
+}
+
+/* ---------------------------------------------------------------------------
+   Componentes del Studio
+   Existen para que un campo nuevo sea una clase y no ocho utilidades copiadas:
+   la inconsistencia anterior venía de repetir la misma cadena a mano 40 veces.
+   --------------------------------------------------------------------------- */
+@layer components {
+
+  .panel {
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-panel);
+  }
+
+  /* Rótulo de sección. Es el ÚNICO sitio donde se usan mayúsculas. */
+  .eyebrow {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-3);
+  }
+
+  .label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-ink-2);
+    margin-bottom: 6px;
+  }
+
+  .hint {
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--color-ink-3);
+    margin-top: 6px;
+  }
+
+  .input {
+    width: 100%;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-field);
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--color-ink);
+    outline: none;
+    transition: border-color .15s, background .15s;
+  }
+  .input::placeholder { color: var(--color-ink-3); }
+  .input:hover { border-color: var(--color-line-strong); }
+  .input:focus {
+    border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+    background: var(--color-surface-3);
+  }
+  /* Los números se comparan en columna: cifras de ancho fijo */
+  .input[type="number"] { font-variant-numeric: tabular-nums; }
+
+  textarea.input { resize: vertical; line-height: 1.55; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: var(--radius-field);
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    transition: background .15s, border-color .15s, color .15s;
+    cursor: pointer;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--color-accent); color: var(--color-accent-ink); }
+  .btn-primary:hover { background: color-mix(in srgb, var(--color-accent) 88%, white); }
+  .btn-ghost { color: var(--color-ink-2); border-color: var(--color-line); background: var(--color-surface-2); }
+  .btn-ghost:hover { color: var(--color-ink); background: var(--color-surface-3); border-color: var(--color-line-strong); }
+  .btn-danger { color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger) 35%, transparent); background: color-mix(in srgb, var(--color-danger) 10%, transparent); }
+  .btn-danger:hover { background: color-mix(in srgb, var(--color-danger) 18%, transparent); }
+
+  /* Pestaña de sección: el color va en un punto, no tiñendo el botón entero */
+  .tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 11px;
+    border-radius: var(--radius-field);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-ink-2);
+    transition: background .15s, color .15s;
+    white-space: nowrap;
+  }
+  .tab:hover { color: var(--color-ink); background: var(--color-surface-2); }
+  .tab[data-active="true"] { background: var(--color-surface-3); color: var(--color-ink); font-weight: 600; }
+  .tab-dot { width: 6px; height: 6px; border-radius: 999px; flex: none; }
+  .tab-count {
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-ink-3);
+    background: var(--color-surface-0);
+    border-radius: 999px;
+    padding: 1px 6px;
+  }
+  .tab[data-active="true"] .tab-count { color: var(--color-ink-2); }
+
+  /* Fila de la lista de ítems */
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: var(--radius-field);
+    font-size: 13px;
+    color: var(--color-ink-2);
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background .12s, color .12s;
+  }
+  .row:hover { background: var(--color-surface-2); color: var(--color-ink); }
+  .row[data-selected="true"] {
+    background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+    border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+    color: var(--color-ink);
+  }
+
+  /* Distintivo de estado del ítem (ingrediente / comestible / IA) */
+  .badge {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    padding: 2px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex: none;
+  }
+  .badge-muted { background: var(--color-surface-3); color: var(--color-ink-3); }
+  .badge-ok    { background: color-mix(in srgb, var(--color-ok) 15%, transparent);    color: var(--color-ok); }
+  .badge-ia    { background: color-mix(in srgb, var(--color-sec-ia) 18%, transparent); color: var(--color-sec-ia); }
+
+  /* Aviso en línea dentro del editor */
+  .note {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 9px 11px;
+    border-radius: var(--radius-field);
+    border: 1px solid var(--color-line);
+    background: var(--color-surface-2);
+    color: var(--color-ink-2);
+  }
+  .note-warn {
+    border-color: color-mix(in srgb, var(--color-warn) 35%, transparent);
+    background: color-mix(in srgb, var(--color-warn) 8%, transparent);
+    color: color-mix(in srgb, var(--color-warn) 75%, white);
+  }
+  .note-danger {
+    border-color: color-mix(in srgb, var(--color-danger) 38%, transparent);
+    background: color-mix(in srgb, var(--color-danger) 9%, transparent);
+    color: color-mix(in srgb, var(--color-danger) 75%, white);
+  }
 }

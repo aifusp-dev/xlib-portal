@@ -35,6 +35,7 @@ import { exportEcosystem } from "@/lib/export";
 import SyncModal from "@/components/SyncModal";
 import { Model3DViewer } from "@/components/Model3DViewer";
 import AutocompleteInput from "@/components/AutocompleteInput";
+import { MATERIALS, SOUNDS, PARTICLES } from "@/lib/minecraft";
 import CropStagesEditor from "@/components/CropStagesEditor";
 import MachineRecipesEditor from "@/components/MachineRecipesEditor";
 import PotionEffectsEditor, { PotionConfig } from "@/components/PotionEffectsEditor";
@@ -138,6 +139,19 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
  * Secciones del Studio que editan ficheros de plugin (todo menos ItemsAdder).
  * Cada una se corresponde con una carpeta real del servidor.
  */
+/**
+ * Secciones de la barra superior. El color identifica, pero vive en un punto de 6px:
+ * teñir seis botones enteros hacía que compitieran entre sí y que nada destacara.
+ */
+const SECCIONES = [
+  { id: 'xfoods',     label: 'Comidas',       color: 'var(--color-sec-foods)',      desc: 'Ítems consumibles e ingredientes de xFoods' },
+  { id: 'xmachines',  label: 'Estaciones',    color: 'var(--color-sec-machines)',   desc: 'Máquinas de cocina y sus recetas' },
+  { id: 'xcrops',     label: 'Cultivos',      color: 'var(--color-sec-crops)',      desc: 'Especies cultivables y sus fases' },
+  { id: 'xpods',      label: 'Maceteros',     color: 'var(--color-sec-pods)',       desc: 'Modificadores de crecimiento y plagas' },
+  { id: 'xautomation',label: 'Automatización',color: 'var(--color-sec-automation)', desc: 'Regadores, lámparas, recolectores' },
+  { id: 'ia',         label: 'ItemsAdder',    color: 'var(--color-sec-ia)',         desc: 'Modelos 3D y texturas' },
+] as const;
+
 /** Tipos de MachineConfiguration.MachineType que acepta xFoodsCrops. */
 const AUTOMATION_TYPES = ['AUTO_WATERER', 'SMART_LIGHT', 'AUTO_FERTILIZER_ORGANIC',
   'AUTO_FERTILIZER_CHEMICAL', 'AUTO_HARVESTER', 'AUTO_PESTICIDE'] as const;
@@ -671,9 +685,9 @@ export default function StudioWorkspace() {
 
   if (isAutoImporting) {
     return (
-        <div className="h-screen flex flex-col items-center justify-center space-y-6 bg-[#0b0f19]">
+        <div className="h-screen flex flex-col items-center justify-center space-y-6 bg-surface-0">
             <div className="relative"><div className="w-24 h-24 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" /><Cloud className="absolute inset-0 m-auto w-8 h-8 text-yellow-400 animate-pulse" /></div>
-            <h2 className="text-xl font-bold text-white tracking-widest uppercase">Sincronizando...</h2>
+            <h2 className="text-lg font-medium text-ink">Sincronizando...</h2>
         </div>
     );
   }
@@ -683,18 +697,18 @@ export default function StudioWorkspace() {
       <div className="max-w-4xl mx-auto py-20 text-center space-y-12 animate-in fade-in zoom-in-95 duration-700">
         <div className="space-y-4">
           <div className="bg-yellow-400/10 p-6 rounded-full w-fit mx-auto border border-yellow-400/20"><Settings2 className="w-16 h-16 text-yellow-400" /></div>
-          <h1 className="text-4xl font-extrabold text-white tracking-tight italic uppercase">Studio Workspace</h1>
-          <p className="text-gray-400 text-lg max-w-md mx-auto italic uppercase text-xs font-black tracking-widest">IA • XFOODS • XCROPS</p>
+          <h1 className="text-3xl font-semibold text-ink tracking-tight">Studio Workspace</h1>
+          <p className="text-ink-2 text-sm max-w-md mx-auto">IA • XFOODS • XCROPS</p>
         </div>
         <div className="grid grid-cols-2 gap-8">
-            <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-[#374151] rounded-3xl p-16 hover:border-yellow-400/10 hover:bg-yellow-400/5 transition-all cursor-pointer group">
+            <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-line rounded-3xl p-16 hover:border-yellow-400/10 hover:bg-yellow-400/5 transition-all cursor-pointer group">
                 <input type="file" ref={fileInputRef} onChange={handleFolderUpload} className="hidden" {...({ webkitdirectory: "", directory: "" } as any)} />
                 <Upload className="w-12 h-12 text-gray-500 mx-auto mb-6 group-hover:text-yellow-400 transition-colors" />
-                <p className="text-white font-bold text-xl uppercase tracking-tighter">Subir Carpeta</p>
+                <p className="text-ink font-medium text-base">Subir Carpeta</p>
             </div>
             <div onClick={() => setIsSyncModalOpen(true)} className="border-2 border-dashed border-blue-500/20 rounded-3xl p-16 hover:border-blue-500/10 hover:bg-blue-500/5 transition-all cursor-pointer group">
                 <Cloud className="w-12 h-12 text-gray-500 mx-auto mb-6 group-hover:text-blue-400 transition-colors" />
-                <p className="text-white font-bold text-xl uppercase tracking-tighter">xLib Bridge</p>
+                <p className="text-ink font-medium text-base">xLib Bridge</p>
             </div>
         </div>
         <SyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} onSync={handleSyncToBridge} onImport={handleImportFromBridge} />
@@ -706,71 +720,94 @@ export default function StudioWorkspace() {
 
   return (
     <div className="h-full flex flex-col space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-      <header className="bg-[#111827] p-6 rounded-2xl border border-[#374151] flex justify-between items-center shadow-xl">
+      <header className="panel px-5 py-3.5 flex justify-between items-center gap-6">
         <div className="flex items-center gap-8">
-            <div className="flex bg-black/40 p-1.5 rounded-xl border border-white/5">
-                <button onClick={() => { setActiveEditor('xfoods'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xfoods' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-gray-500 hover:text-white")}><ChefHat className="w-3.5 h-3.5" /> xFoods</button>
-                <button onClick={() => { setActiveEditor('ia'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'ia' ? "bg-yellow-400 text-black shadow-lg shadow-yellow-400/20" : "text-gray-500 hover:text-white")}><Settings2 className="w-3.5 h-3.5" /> ItemsAdder</button>
-                <button onClick={() => { setActiveEditor('xcrops'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xcrops' ? "bg-green-500 text-white shadow-lg shadow-green-500/20" : "text-gray-500 hover:text-white")}><Sprout className="w-3.5 h-3.5" /> xCrops</button>
-                <button onClick={() => { setActiveEditor('xmachines'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xmachines' ? "bg-orange-500 text-white shadow-lg shadow-orange-500/20" : "text-gray-500 hover:text-white")}><Flame className="w-3.5 h-3.5" /> Estaciones</button>
-                <button onClick={() => { setActiveEditor('xpods'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xpods' ? "bg-lime-600 text-white shadow-lg shadow-lime-600/20" : "text-gray-500 hover:text-white")}><Flower2 className="w-3.5 h-3.5" /> Maceteros</button>
-                <button onClick={() => { setActiveEditor('xautomation'); setSelectedItem(null); }} className={cn("flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all", activeEditor === 'xautomation' ? "bg-cyan-600 text-white shadow-lg shadow-cyan-600/20" : "text-gray-500 hover:text-white")}><Cpu className="w-3.5 h-3.5" /> Automatización</button>
+            <div className="flex items-center gap-0.5 bg-surface-0 p-1 rounded-[8px] border border-line">
+                {SECCIONES.map(sec => {
+                    const activa = activeEditor === sec.id;
+                    const n = sec.id === 'ia'
+                        ? Object.keys(projectState.iaItems).length + Object.keys(projectState.iaBlocks).length + Object.keys(projectState.iaFurnitures).length
+                        : Object.keys(mapFor(projectState, sec.id as PluginEditor)).length;
+                    return (
+                        <button key={sec.id} onClick={() => { setActiveEditor(sec.id as PluginEditor | 'ia'); setSelectedItem(null); }}
+                                className="tab" data-active={activa} title={sec.desc}>
+                            <span className="tab-dot" style={{ background: activa ? sec.color : 'var(--color-ink-3)' }} />
+                            {sec.label}
+                            <span className="tab-count">{n}</span>
+                        </button>
+                    );
+                })}
             </div>
             {activeEditor === 'ia' && selectedNamespace && (
-                <div className="flex flex-col border-l border-[#374151] pl-8">
-                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1 italic">Pack</label>
-                    <select value={selectedNamespace} onChange={(e) => { setSelectedNamespace(e.target.value); setSelectedItem(null); }} className="bg-transparent text-lg font-bold text-yellow-400 outline-none cursor-pointer uppercase italic">
-                        {availableNamespaces.map(ns => <option key={ns} value={ns} className="bg-[#111827] text-white">{ns}</option>)}
+                <div className="flex flex-col border-l border-line pl-8">
+                    <label className="eyebrow mb-1">Pack</label>
+                    <select value={selectedNamespace} onChange={(e) => { setSelectedNamespace(e.target.value); setSelectedItem(null); }} className="bg-transparent text-[13px] font-semibold text-accent outline-none cursor-pointer">
+                        {availableNamespaces.map(ns => <option key={ns} value={ns} className="bg-surface-1 text-white">{ns}</option>)}
                     </select>
                 </div>
             )}
         </div>
         <div className="flex gap-3">
           <button onClick={() => setIsSyncModalOpen(true)} className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-2.5 rounded-xl font-bold hover:bg-blue-500/20 transition-all border border-blue-500/20"><Cloud className="w-4 h-4" /> Bridge</button>
-          <button onClick={() => { setProjectState(null); setSelectedItem(null); }} className="px-6 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white transition-colors uppercase tracking-widest">Cerrar</button>
+          <button onClick={() => { setProjectState(null); setSelectedItem(null); }} className="btn btn-ghost">Cerrar</button>
           <button onClick={() => exportEcosystem(projectState)} className="flex items-center gap-2 bg-accent text-white px-8 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"><Download className="w-4 h-4" /> ZIP</button>
         </div>
       </header>
 
       <div className="flex-1 grid grid-cols-12 gap-6 overflow-hidden">
-        <aside className="col-span-3 bg-[#111827] border border-[#374151] rounded-2xl flex flex-col overflow-hidden shadow-xl">
+        <aside className="col-span-3 panel flex flex-col overflow-hidden">
            {activeEditor === 'ia' && (
-               <div className="p-4 border-b border-[#374151] flex gap-2 overflow-x-auto scrollbar-hide">
-                  <button onClick={() => { setActiveCategory('items'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-black uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'items' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Ítems</button>
-                  <button onClick={() => { setActiveCategory('blocks'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-black uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'blocks' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Bloques</button>
-                  <button onClick={() => { setActiveCategory('furnitures'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-black uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'furnitures' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Muebles</button>
+               <div className="p-4 border-b border-line flex gap-2 overflow-x-auto scrollbar-hide">
+                  <button onClick={() => { setActiveCategory('items'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'items' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Ítems</button>
+                  <button onClick={() => { setActiveCategory('blocks'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'blocks' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Bloques</button>
+                  <button onClick={() => { setActiveCategory('furnitures'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'furnitures' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Muebles</button>
                </div>
            )}
            <div className="flex-1 overflow-y-auto p-4 space-y-4">
               <div className="flex gap-2">
                 <div className="relative group flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-yellow-400 transition-colors" />
-                    <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." className="w-full bg-white/2 border border-[#374151] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white outline-none focus:border-yellow-400/30 transition-all" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-ink-3 group-focus-within:text-accent transition-colors" />
+                    <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Buscar..." className="input pl-9" />
                 </div>
-                <button onClick={handleCreateNew} className="p-2.5 bg-accent text-white rounded-xl hover:opacity-90 transition-all shadow-lg shadow-accent/10"><Plus className="w-5 h-5" /></button>
+                <button onClick={handleCreateNew} className="btn btn-primary px-2.5"><Plus className="w-5 h-5" /></button>
               </div>
               <div className="space-y-1">
                 {activeEditor === 'ia' ? (
                     filteredItems.map(([id, entry]) => (
-                        <div key={id} onClick={() => setSelectedItem(id)} className={cn("px-4 py-2.5 rounded-xl text-xs font-medium cursor-pointer transition-all border flex flex-col group", selectedItem === id ? "bg-yellow-400/10 border-yellow-400/50 text-white" : "border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5")}>
-                            <span>{id}</span>
-                            <span className="text-[8px] text-gray-600 truncate uppercase font-black tracking-widest">{entry.fullKey.split('/')[1]}.yml</span>
+                        <div key={id} onClick={() => setSelectedItem(id)} className="row" data-selected={selectedItem === id}>
+                            <span className="truncate flex-1">{id}</span>
+                            <span className="badge badge-muted">{entry.fullKey.split('/')[1]}</span>
                         </div>
                     ))
                 ) : (
                     Object.entries(groupedX).map(([folder, items]) => (
                         <div key={folder} className="space-y-1">
                             <button onClick={() => setOpenFolders(prev => ({ ...prev, [folder]: !prev[folder] }))} className="w-full flex items-center justify-between px-2 py-1 hover:bg-white/5 rounded-lg transition-colors group">
-                                <div className="flex items-center gap-2">{openFolders[folder] ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronRight className="w-3 h-3 text-gray-500" />}<span className="text-[10px] font-black uppercase text-gray-500 group-hover:text-gray-300 tracking-widest">{folder}</span></div>
+                                <div className="flex items-center gap-2">{openFolders[folder] ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronRight className="w-3 h-3 text-gray-500" />}<span className="eyebrow group-hover:text-ink-2">{folder}</span></div>
                             </button>
                             {(openFolders[folder] || folder === "Raíz") && (
                                 <div className="space-y-0.5 ml-2 border-l border-white/5 pl-2">
-                                    {items.map(id => (
-                                        <div key={id} onClick={() => setSelectedItem(id)} className={cn("px-4 py-2 rounded-xl text-xs font-medium cursor-pointer transition-all border flex items-center justify-between group", selectedItem === id ? "bg-accent/10 border-accent/50 text-white" : "border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5")}>
-                                            <span className="truncate">{id}</span>
-                                            <button onClick={(e) => handleCloneItem(id, e)} className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded-md transition-all"><Copy className="w-3 h-3 text-gray-500" /></button>
-                                        </div>
-                                    ))}
+                                    {items.map(id => {
+                                        const cfg: any = mapFor(projectState, activeEditor as PluginEditor)[id]?.config ?? {};
+                                        const esComida = activeEditor === 'xfoods';
+                                        const comestible = cfg.stats?.consumable ?? true;
+                                        const conIA = !!projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(id)}`];
+                                        return (
+                                            <div key={id} onClick={() => setSelectedItem(id)} className="row group" data-selected={selectedItem === id}>
+                                                <span className="truncate flex-1">{leafId(id)}</span>
+                                                {esComida && (
+                                                    <span className={cn("badge", comestible ? "badge-ok" : "badge-muted")}>
+                                                        {comestible ? "comida" : "ingr."}
+                                                    </span>
+                                                )}
+                                                {conIA && <span className="badge badge-ia">3D</span>}
+                                                <button onClick={(e) => handleCloneItem(id, e)} title="Duplicar"
+                                                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all flex-none">
+                                                    <Copy className="w-3 h-3" />
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -781,10 +818,10 @@ export default function StudioWorkspace() {
         </aside>
 
         {/* EDITOR */}
-        <main className="col-span-6 bg-[#111827] border border-[#374151] rounded-2xl overflow-y-auto p-8 shadow-2xl custom-scrollbar">
+        <main className="col-span-6 panel overflow-y-auto p-6">
            {selectedItem && selectedData ? (
              <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-10 pb-20">
-                <div className="flex justify-between items-start border-b border-[#374151] pb-8">
+                <div className="flex justify-between items-start border-b border-line pb-8">
                    <div className="flex gap-6 items-center flex-1">
                       <VisualPreview 
                         mcPath={activeEditor === 'ia' ? (selectedData.data.resource?.model_path || selectedData.data.resource?.textures?.[0]) : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : selectedData.config.item?.material)} 
@@ -792,28 +829,31 @@ export default function StudioWorkspace() {
                         namespace={activeEditor === 'ia' ? (selectedNamespace || projectState.projectName) : XFOODS_NAMESPACE}
                       />
                       <div className="space-y-1 flex-1">
-                         <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-1">Identificador del Ítem</label>
-                         <h3 className="text-3xl font-bold text-yellow-400 tracking-tighter uppercase italic">{selectedItem}</h3>
+                         <label className="eyebrow px-1">Identificador del Ítem</label>
+                         <h3 className="text-2xl font-semibold text-ink tracking-tight">{selectedItem}</h3>
                       </div>
                    </div>
                    <div className="flex flex-col gap-2">
-                        <button onClick={(e) => handleCloneItem(selectedItem, e)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/10"><Copy className="w-3 h-3"/> Clonar</button>
-                        <button className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-red-500/20"><Trash2 className="w-3 h-3"/> Borrar</button>
+                        <button onClick={(e) => handleCloneItem(selectedItem, e)} className="btn btn-ghost"><Copy className="w-3 h-3"/> Clonar</button>
+                        <button className="btn btn-danger"><Trash2 className="w-3 h-3"/> Borrar</button>
                    </div>
                 </div>
 
                 <div className="space-y-8">
                     <div className="space-y-6">
-                        <div className="flex items-center gap-2 text-yellow-400"><Info className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Ajustes Base</h4></div>
+                        <div className="flex items-center gap-2 text-yellow-400"><Info className="w-4 h-4" /><h4 className="eyebrow">Ajustes Base</h4></div>
                         <div className={cn("grid gap-6", activeEditor === 'ia' || activeEditor === 'xmachines' ? "grid-cols-2" : "grid-cols-3")}>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Nombre Display</label>
-                                <input type="text" value={(activeEditor === 'ia' ? selectedData.data.display_name : selectedData.config['display-name']) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.display_name` : 'config.display-name', e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
+                                <label className="label">Nombre Display</label>
+                                <input type="text" value={(activeEditor === 'ia' ? selectedData.data.display_name : selectedData.config['display-name']) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.display_name` : 'config.display-name', e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="input" />
                             </div>
                             {activeEditor !== 'xmachines' && (
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Material</label>
-                                    <input type="text" value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : selectedData.config.item?.material)) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xcrops' ? 'config.seed.material' : 'config.item.material'), e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
+                                    <label className="label">Material</label>
+                                    <AutocompleteInput
+                                        value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : selectedData.config.item?.material)) || ''}
+                                        onChange={(val) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xcrops' ? 'config.seed.material' : 'config.item.material'), val, activeEditor === 'ia' ? selectedData.fullKey : undefined)}
+                                        options={MATERIALS} strict placeholder="BREAD" className="input" />
                                     {isIAEnabled && activeEditor !== 'ia' && (
                                         <p className="text-[10px] text-gray-500">Se aplica también al ítem de ItemsAdder, que es el que manda mientras la integración esté activa.</p>
                                     )}
@@ -821,8 +861,8 @@ export default function StudioWorkspace() {
                             )}
                             {(activeEditor === 'xfoods' || activeEditor === 'xcrops') && (
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Custom Model Data</label>
-                                    <input type="number" value={(activeEditor === 'xcrops' ? selectedData.config.seed?.['custom-model-data'] : selectedData.config.item?.['custom-model-data']) || 0} onChange={(e) => updateField(activeEditor === 'xcrops' ? 'config.seed.custom-model-data' : 'config.item.custom-model-data', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none focus:border-yellow-400" />
+                                    <label className="label">Custom Model Data</label>
+                                    <input type="number" value={(activeEditor === 'xcrops' ? selectedData.config.seed?.['custom-model-data'] : selectedData.config.item?.['custom-model-data']) || 0} onChange={(e) => updateField(activeEditor === 'xcrops' ? 'config.seed.custom-model-data' : 'config.item.custom-model-data', parseInt(e.target.value))} className="input" />
                                 </div>
                             )}
                         </div>
@@ -831,71 +871,70 @@ export default function StudioWorkspace() {
                     {activeEditor === 'xfoods' && (
                         <>
                         <div className="grid grid-cols-4 gap-4">
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Nivel Comida</label><input type="number" value={selectedData.config.stats?.['food-level'] || 0} onChange={(e) => updateField('config.stats.food-level', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Saturación</label><input type="number" step="0.1" value={selectedData.config.stats?.saturation || 0} onChange={(e) => updateField('config.stats.saturation', parseFloat(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Mordiscos</label><input type="number" value={selectedData.config.stats?.bites || 1} onChange={(e) => updateField('config.stats.bites', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
-                            <div className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]"><label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">Ticks Consumo</label><input type="number" value={selectedData.config.stats?.['consumption-ticks'] || 30} onChange={(e) => updateField('config.stats.consumption-ticks', parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" /></div>
+                            <div className="bg-surface-2 p-3 rounded-[6px] border border-line"><label className="label">Nivel Comida</label><input type="number" value={selectedData.config.stats?.['food-level'] || 0} onChange={(e) => updateField('config.stats.food-level', parseInt(e.target.value))} className="input" /></div>
+                            <div className="bg-surface-2 p-3 rounded-[6px] border border-line"><label className="label">Saturación</label><input type="number" step="0.1" value={selectedData.config.stats?.saturation || 0} onChange={(e) => updateField('config.stats.saturation', parseFloat(e.target.value))} className="input" /></div>
+                            <div className="bg-surface-2 p-3 rounded-[6px] border border-line"><label className="label">Mordiscos</label><input type="number" value={selectedData.config.stats?.bites || 1} onChange={(e) => updateField('config.stats.bites', parseInt(e.target.value))} className="input" /></div>
+                            <div className="bg-surface-2 p-3 rounded-[6px] border border-line"><label className="label">Ticks Consumo</label><input type="number" value={selectedData.config.stats?.['consumption-ticks'] || 30} onChange={(e) => updateField('config.stats.consumption-ticks', parseInt(e.target.value))} className="input" /></div>
                         </div>
                         <div className="grid grid-cols-3 gap-4 items-start">
                             <div className="space-y-2 col-span-2">
-                                <label className="text-[10px] font-bold text-gray-600 uppercase">¿Se puede comer?</label>
+                                <label className="label">¿Se puede comer?</label>
                                 <button
                                     type="button"
                                     onClick={() => updateField('config.stats.consumable', !(selectedData.config.stats?.consumable ?? true))}
                                     className={cn("w-full rounded-xl px-4 py-3 text-left text-sm font-bold border transition-colors",
                                         (selectedData.config.stats?.consumable ?? true)
                                             ? "bg-green-500/10 border-green-500/40 text-green-300"
-                                            : "bg-[#0b0f19] border-[#374151] text-gray-400")}>
+                                            : "bg-surface-0 border-line text-gray-400")}>
                                     {(selectedData.config.stats?.consumable ?? true) ? "Sí — es una comida" : "No — es un ingrediente"}
                                 </button>
-                                <p className="text-[10px] text-gray-600">Los ingredientes (carne cruda, queso, lechuga…) deben ir en «No»: si no, el jugador se los come directamente en vez de usarlos en una máquina.</p>
+                                <p className="hint">Los ingredientes (carne cruda, queso, lechuga…) deben ir en «No»: si no, el jugador se los come directamente en vez de usarlos en una máquina.</p>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-600 uppercase">Máximo por pila</label>
-                                <input type="number" min={1} max={99} value={selectedData.config.item?.['max-stack'] ?? 64} onChange={(e) => updateField('config.item.max-stack', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                <label className="label">Máximo por pila</label>
+                                <input type="number" min={1} max={99} value={selectedData.config.item?.['max-stack'] ?? 64} onChange={(e) => updateField('config.item.max-stack', parseInt(e.target.value))} className="input" />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-600 uppercase">Sonido al comer</label>
-                                <input type="text" value={selectedData.config.effects?.sound || ''} onChange={(e) => updateField('config.effects.sound', e.target.value)} placeholder="ENTITY_GENERIC_EAT" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                <label className="label">Sonido al comer</label>
+                                <AutocompleteInput value={selectedData.config.effects?.sound || ''} onChange={(val) => updateField('config.effects.sound', val)} options={SOUNDS} strict placeholder="ENTITY_GENERIC_EAT" className="input" />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-bold text-gray-600 uppercase">Partícula</label>
-                                <input type="text" value={selectedData.config.effects?.particle || ''} onChange={(e) => updateField('config.effects.particle', e.target.value)} placeholder="HAPPY_VILLAGER" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                {String(selectedData.config.effects?.particle || '') === 'VILLAGER_HAPPY' && (
-                                    <p className="text-[10px] text-red-400 font-bold">VILLAGER_HAPPY ya no existe: en 1.20.5+ se llama HAPPY_VILLAGER.</p>
-                                )}
+                                <label className="label">Partícula</label>
+                                <AutocompleteInput value={selectedData.config.effects?.particle || ''} onChange={(val) => updateField('config.effects.particle', val)} options={PARTICLES} strict placeholder="HAPPY_VILLAGER"
+                                    hint={String(selectedData.config.effects?.particle || '') === 'VILLAGER_HAPPY' ? 'VILLAGER_HAPPY se renombró a HAPPY_VILLAGER en 1.20.5.' : undefined}
+                                    className="input" />
                             </div>
                         </div>
                         <div className="grid grid-cols-4 gap-4">
                             {(['proteins','carbs','sugars','vitamins'] as const).map(k => (
-                                <div key={k} className="bg-[#0b0f19] p-4 rounded-xl border border-[#374151]">
-                                    <label className="text-[9px] font-bold text-gray-500 uppercase block mb-1">{k}</label>
-                                    <input type="number" value={(selectedData.config.nutrition as any)?.[k] ?? 0} onChange={(e) => updateField(`config.nutrition.${k}`, parseInt(e.target.value))} className="w-full bg-transparent text-white font-bold outline-none" />
+                                <div key={k} className="bg-surface-2 p-3 rounded-[6px] border border-line">
+                                    <label className="label">{k}</label>
+                                    <input type="number" value={(selectedData.config.nutrition as any)?.[k] ?? 0} onChange={(e) => updateField(`config.nutrition.${k}`, parseInt(e.target.value))} className="input" />
                                 </div>
                             ))}
                         </div>
                         <div className="space-y-2">
-                            <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest px-1">Lore</label>
-                            <textarea rows={4} value={Array.isArray(selectedData.config.lore) ? selectedData.config.lore.join('\n') : ''} onChange={(e) => updateField('config.lore', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none resize-none text-sm focus:border-yellow-400" />
+                            <label className="label">Lore</label>
+                            <textarea rows={4} value={Array.isArray(selectedData.config.lore) ? selectedData.config.lore.join('\n') : ''} onChange={(e) => updateField('config.lore', e.target.value)} className="input" />
                         </div>
-                        <div className="space-y-6 pt-4 border-t border-[#374151]">
-                            <div className="flex items-center gap-2 text-orange-400"><Clock className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Expiración</h4></div>
+                        <div className="space-y-6 pt-4 border-t border-line">
+                            <div className="flex items-center gap-2 text-orange-400"><Clock className="w-4 h-4" /><h4 className="eyebrow">Expiración</h4></div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Minutos</label><input type="number" value={selectedData.config.stats?.['expiry-minutes'] || 0} onChange={(e) => updateField('config.stats.expiry-minutes', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
-                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">ID al Caducar</label><AutocompleteInput value={selectedData.config.stats?.['expired-id'] || ''} onChange={(val) => updateField('config.stats.expired-id', val)} options={foodIdOptions} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                <div className="space-y-2"><label className="label">Minutos</label><input type="number" value={selectedData.config.stats?.['expiry-minutes'] || 0} onChange={(e) => updateField('config.stats.expiry-minutes', parseInt(e.target.value))} className="input" /></div>
+                                <div className="space-y-2"><label className="label">ID al Caducar</label><AutocompleteInput value={selectedData.config.stats?.['expired-id'] || ''} onChange={(val) => updateField('config.stats.expired-id', val)} options={foodIdOptions} className="input" /></div>
                             </div>
                         </div>
-                        <div className="space-y-6 pt-4 border-t border-[#374151]">
-                            <div className="flex items-center gap-2 text-red-400"><Binary className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Integración RPXHealth</h4></div>
+                        <div className="space-y-6 pt-4 border-t border-line">
+                            <div className="flex items-center gap-2 text-red-400"><Binary className="w-4 h-4" /><h4 className="eyebrow">Integración RPXHealth</h4></div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">ID Enfermedad</label><input type="text" value={selectedData.config.integration?.['disease-id'] || ''} onChange={(e) => updateField('config.integration.disease-id', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
-                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Probabilidad</label><input type="number" step="0.01" value={selectedData.config.integration?.['disease-chance'] || 0} onChange={(e) => updateField('config.integration.disease-chance', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                <div className="space-y-2"><label className="label">ID Enfermedad</label><input type="text" value={selectedData.config.integration?.['disease-id'] || ''} onChange={(e) => updateField('config.integration.disease-id', e.target.value)} className="input" /></div>
+                                <div className="space-y-2"><label className="label">Probabilidad</label><input type="number" step="0.01" value={selectedData.config.integration?.['disease-chance'] || 0} onChange={(e) => updateField('config.integration.disease-chance', parseFloat(e.target.value))} className="input" /></div>
                             </div>
                         </div>
-                        <div className="space-y-6 pt-4 border-t border-[#374151]">
-                            <div className="flex items-center gap-2 text-pink-400"><Zap className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Efectos de Poción (Subidón / Bajón)</h4></div>
+                        <div className="space-y-6 pt-4 border-t border-line">
+                            <div className="flex items-center gap-2 text-pink-400"><Zap className="w-4 h-4" /><h4 className="eyebrow">Efectos de Poción (Subidón / Bajón)</h4></div>
                             <PotionEffectsEditor
                                 potion={(selectedData.config.effects?.potion as PotionConfig) || {}}
                                 mutate={(fn) => mutateSelectedConfig((cfg) => {
@@ -905,9 +944,9 @@ export default function StudioWorkspace() {
                                 })}
                             />
                         </div>
-                        <div className="space-y-6 pt-4 border-t border-[#374151]">
-                             <div className="flex justify-between items-center"><h4 className="text-xs font-black text-green-400 uppercase tracking-widest">Comandos</h4><button onClick={() => { const newState = {...projectState}; const food = (newState.foods[selectedItem as string].config as any); if(!food.commands) food.commands = []; (food.commands as any).push(""); setProjectState(newState); }} className="text-[10px] font-bold text-green-400">+ AÑADIR</button></div>
-                             <p className="text-[10px] text-gray-600 italic -mt-2">Para dar efectos de poción usa la sección de arriba. Usa esto solo para mensajes u otros comandos (dar ítems, dinero, teletransportar, etc.).</p>
+                        <div className="space-y-6 pt-4 border-t border-line">
+                             <div className="flex justify-between items-center"><h4 className="eyebrow text-ok">Comandos</h4><button onClick={() => { const newState = {...projectState}; const food = (newState.foods[selectedItem as string].config as any); if(!food.commands) food.commands = []; (food.commands as any).push(""); setProjectState(newState); }} className="text-[10px] font-bold text-green-400">+ AÑADIR</button></div>
+                             <p className="hint -mt-2">Para dar efectos de poción usa la sección de arriba. Usa esto solo para mensajes u otros comandos (dar ítems, dinero, teletransportar, etc.).</p>
                              <div className="space-y-2">{(Array.isArray(selectedData.config.commands) ? selectedData.config.commands : []).map((cmd: string, idx: number) => (
                                 <CommandActionRow
                                     key={idx}
@@ -922,22 +961,22 @@ export default function StudioWorkspace() {
 
                     {activeEditor === 'xcrops' && (
                          <div className="space-y-8">
-                             <div className="space-y-6 pb-6 border-b border-[#374151]">
-                                <div className="flex items-center gap-2 text-lime-400"><Sprout className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Semilla</h4></div>
+                             <div className="space-y-6 pb-6 border-b border-line">
+                                <div className="flex items-center gap-2 text-lime-400"><Sprout className="w-4 h-4" /><h4 className="eyebrow">Semilla</h4></div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Nombre de la Semilla</label><input type="text" value={selectedData.config.seed?.['display-name'] || ''} onChange={(e) => updateField('config.seed.display-name', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
-                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">ItemsAdder ID (semilla)</label><input type="text" value={selectedData.config.seed?.['itemsadder-id'] || ''} onChange={(e) => updateField('config.seed.itemsadder-id', e.target.value)} placeholder="opcional" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                    <div className="space-y-2"><label className="label">Nombre de la Semilla</label><input type="text" value={selectedData.config.seed?.['display-name'] || ''} onChange={(e) => updateField('config.seed.display-name', e.target.value)} className="input" /></div>
+                                    <div className="space-y-2"><label className="label">ItemsAdder ID (semilla)</label><input type="text" value={selectedData.config.seed?.['itemsadder-id'] || ''} onChange={(e) => updateField('config.seed.itemsadder-id', e.target.value)} placeholder="opcional" className="input" /></div>
                                 </div>
-                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Lore de la Semilla</label><textarea rows={3} value={Array.isArray(selectedData.config.seed?.lore) ? selectedData.config.seed.lore.join('\n') : ''} onChange={(e) => updateField('config.seed.lore', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none resize-none text-sm" /></div>
+                                <div className="space-y-2"><label className="label">Lore de la Semilla</label><textarea rows={3} value={Array.isArray(selectedData.config.seed?.lore) ? selectedData.config.seed.lore.join('\n') : ''} onChange={(e) => updateField('config.seed.lore', e.target.value)} className="input" /></div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase">ID de Vínculo (requirements.seed-nbt)</label>
-                                    <input type="text" value={selectedData.config.requirements?.['seed-nbt'] || ''} onChange={(e) => updateField('config.requirements.seed-nbt', e.target.value)} placeholder={selectedItem || ''} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                    <p className="text-[10px] text-gray-600 italic">Lo natural es que coincida con el identificador &quot;{selectedItem}&quot;. El plugin resuelve la semilla por ambos, así que un valor distinto también funciona.</p>
+                                    <label className="label">ID de Vínculo (requirements.seed-nbt)</label>
+                                    <input type="text" value={selectedData.config.requirements?.['seed-nbt'] || ''} onChange={(e) => updateField('config.requirements.seed-nbt', e.target.value)} placeholder={selectedItem || ''} className="input" />
+                                    <p className="hint">Lo natural es que coincida con el identificador &quot;{selectedItem}&quot;. El plugin resuelve la semilla por ambos, así que un valor distinto también funciona.</p>
                                 </div>
                              </div>
 
-                             <div className="space-y-6 pb-6 border-b border-[#374151]">
-                                <div className="flex items-center gap-2 text-green-400"><FolderSearch className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Etapas de Crecimiento</h4></div>
+                             <div className="space-y-6 pb-6 border-b border-line">
+                                <div className="flex items-center gap-2 text-green-400"><FolderSearch className="w-4 h-4" /><h4 className="eyebrow">Etapas de Crecimiento</h4></div>
                                 <CropStagesEditor
                                     stages={(selectedData.config.growth?.stages as Record<string, any>) || {}}
                                     mutate={(fn) => mutateSelectedConfig((cfg) => {
@@ -948,95 +987,95 @@ export default function StudioWorkspace() {
                                 />
                              </div>
 
-                             <div className="space-y-6 pb-6 border-b border-[#374151]">
-                                <div className="flex items-center gap-2 text-purple-400"><Clock className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Marchitamiento y Visuales</h4></div>
+                             <div className="space-y-6 pb-6 border-b border-line">
+                                <div className="flex items-center gap-2 text-purple-400"><Clock className="w-4 h-4" /><h4 className="eyebrow">Marchitamiento y Visuales</h4></div>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Marchita sin nutrientes tras (segundos)</label><input type="number" value={selectedData.config.growth?.['wither-time'] ?? 2400} onChange={(e) => updateField('config.growth.wither-time', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
-                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Título del Holograma</label><input type="text" value={selectedData.config.visuals?.['hologram-title'] || ''} onChange={(e) => updateField('config.visuals.hologram-title', e.target.value)} placeholder="&fPlanta" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                    <div className="space-y-2"><label className="label">Marchita sin nutrientes tras (segundos)</label><input type="number" value={selectedData.config.growth?.['wither-time'] ?? 2400} onChange={(e) => updateField('config.growth.wither-time', parseInt(e.target.value))} className="input" /></div>
+                                    <div className="space-y-2"><label className="label">Título del Holograma</label><input type="text" value={selectedData.config.visuals?.['hologram-title'] || ''} onChange={(e) => updateField('config.visuals.hologram-title', e.target.value)} placeholder="&fPlanta" className="input" /></div>
                                 </div>
                              </div>
 
                              <div className="space-y-6">
-                                <div className="flex items-center gap-2 text-yellow-400"><Sprout className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Cosecha</h4></div>
+                                <div className="flex items-center gap-2 text-yellow-400"><Sprout className="w-4 h-4" /><h4 className="eyebrow">Cosecha</h4></div>
                                 <div className="grid grid-cols-3 gap-4">
-                                    <div className="space-y-2 col-span-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ítem xFoods al Cosechar</label><AutocompleteInput value={selectedData.config.harvest?.['xfoods-id'] || ''} onChange={(val) => updateField('config.harvest.xfoods-id', val)} options={foodIdOptions} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
-                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Cantidad</label><input type="number" min={1} value={selectedData.config.harvest?.amount ?? 1} onChange={(e) => updateField('config.harvest.amount', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                    <div className="space-y-2 col-span-2"><label className="label">Ítem xFoods al Cosechar</label><AutocompleteInput value={selectedData.config.harvest?.['xfoods-id'] || ''} onChange={(val) => updateField('config.harvest.xfoods-id', val)} options={foodIdOptions} className="input" /></div>
+                                    <div className="space-y-2"><label className="label">Cantidad</label><input type="number" min={1} value={selectedData.config.harvest?.amount ?? 1} onChange={(e) => updateField('config.harvest.amount', parseInt(e.target.value))} className="input" /></div>
                                 </div>
-                                <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Mensaje al Cosechar</label><input type="text" value={selectedData.config.harvest?.message || ''} onChange={(e) => updateField('config.harvest.message', e.target.value)} placeholder="&aCosechado." className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" /></div>
+                                <div className="space-y-2"><label className="label">Mensaje al Cosechar</label><input type="text" value={selectedData.config.harvest?.message || ''} onChange={(e) => updateField('config.harvest.message', e.target.value)} placeholder="&aCosechado." className="input" /></div>
                              </div>
                          </div>
                     )}
 
                     {activeEditor === 'xpods' && (
                         <div className="space-y-6">
-                            <div className="flex items-center gap-2 text-lime-400"><Flower2 className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Modificadores del Macetero</h4></div>
+                            <div className="flex items-center gap-2 text-lime-400"><Flower2 className="w-4 h-4" /><h4 className="eyebrow">Modificadores del Macetero</h4></div>
                             <div className="grid grid-cols-3 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Velocidad de crecimiento</label>
-                                    <input type="number" step="0.05" min={0.05} value={(selectedData.config.modifiers as any)?.['growth-speed'] ?? 1.0} onChange={(e) => updateField('config.modifiers.growth-speed', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                    <p className="text-[10px] text-gray-600">1.0 = duración tal cual la define la especie. 2.0 = el doble de rápido.</p>
+                                    <label className="label">Velocidad de crecimiento</label>
+                                    <input type="number" step="0.05" min={0.05} value={(selectedData.config.modifiers as any)?.['growth-speed'] ?? 1.0} onChange={(e) => updateField('config.modifiers.growth-speed', parseFloat(e.target.value))} className="input" />
+                                    <p className="hint">1.0 = duración tal cual la define la especie. 2.0 = el doble de rápido.</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Consumo de nutrientes</label>
-                                    <input type="number" step="0.1" min={0} value={(selectedData.config.modifiers as any)?.['nutrient-rate'] ?? 1.0} onChange={(e) => updateField('config.modifiers.nutrient-rate', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                    <p className="text-[10px] text-gray-600">Multiplica la pérdida de calidad por descuido. Menos de 1.0 = perdona.</p>
+                                    <label className="label">Consumo de nutrientes</label>
+                                    <input type="number" step="0.1" min={0} value={(selectedData.config.modifiers as any)?.['nutrient-rate'] ?? 1.0} onChange={(e) => updateField('config.modifiers.nutrient-rate', parseFloat(e.target.value))} className="input" />
+                                    <p className="hint">Multiplica la pérdida de calidad por descuido. Menos de 1.0 = perdona.</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Multiplicador de cosecha</label>
-                                    <input type="number" step="0.1" min={0.1} value={(selectedData.config.modifiers as any)?.yield ?? 1.0} onChange={(e) => updateField('config.modifiers.yield', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <label className="label">Multiplicador de cosecha</label>
+                                    <input type="number" step="0.1" min={0.1} value={(selectedData.config.modifiers as any)?.yield ?? 1.0} onChange={(e) => updateField('config.modifiers.yield', parseFloat(e.target.value))} className="input" />
                                 </div>
                             </div>
                             <div className="space-y-2 max-w-sm">
-                                <label className="text-[10px] font-bold text-gray-600 uppercase">Probabilidad de plaga (por minuto)</label>
-                                <input type="number" step="0.01" min={0} max={1} value={(selectedData.config.probabilities as any)?.['pest-chance'] ?? 0.05} onChange={(e) => updateField('config.probabilities.pest-chance', parseFloat(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                <p className="text-[10px] text-gray-600">Entre 0.0 y 1.0. Con 0.05 la planta tiene un 5% de infectarse cada minuto.</p>
+                                <label className="label">Probabilidad de plaga (por minuto)</label>
+                                <input type="number" step="0.01" min={0} max={1} value={(selectedData.config.probabilities as any)?.['pest-chance'] ?? 0.05} onChange={(e) => updateField('config.probabilities.pest-chance', parseFloat(e.target.value))} className="input" />
+                                <p className="hint">Entre 0.0 y 1.0. Con 0.05 la planta tiene un 5% de infectarse cada minuto.</p>
                             </div>
                         </div>
                     )}
 
                     {activeEditor === 'xautomation' && (
                         <div className="space-y-6">
-                            <div className="flex items-center gap-2 text-cyan-400"><Cpu className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Máquina de Automatización</h4></div>
+                            <div className="flex items-center gap-2 text-cyan-400"><Cpu className="w-4 h-4" /><h4 className="eyebrow">Máquina de Automatización</h4></div>
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Tipo</label>
-                                    <select value={(selectedData.config.type as string) || 'AUTO_WATERER'} onChange={(e) => updateField('config.type', e.target.value)} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none">
+                                    <label className="label">Tipo</label>
+                                    <select value={(selectedData.config.type as string) || 'AUTO_WATERER'} onChange={(e) => updateField('config.type', e.target.value)} className="input">
                                         {AUTOMATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                                     </select>
                                     {selectedData.config.type === 'SMART_LIGHT' && (selectedData.config.item as any)?.material !== 'REDSTONE_LAMP' && (
-                                        <p className="text-[10px] text-red-400 font-bold">SMART_LIGHT solo funciona con material REDSTONE_LAMP: el plugin enciende y apaga el bloque, y solo sabe hacerlo con lámparas de redstone.</p>
+                                        <p className="hint text-danger">SMART_LIGHT solo funciona con material REDSTONE_LAMP: el plugin enciende y apaga el bloque, y solo sabe hacerlo con lámparas de redstone.</p>
                                     )}
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Radio de acción (bloques)</label>
-                                    <input type="number" min={1} value={(selectedData.config.range as number) ?? 5} onChange={(e) => updateField('config.range', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <label className="label">Radio de acción (bloques)</label>
+                                    <input type="number" min={1} value={(selectedData.config.range as number) ?? 5} onChange={(e) => updateField('config.range', parseInt(e.target.value))} className="input" />
                                 </div>
                             </div>
                             <div className="grid grid-cols-3 gap-6">
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Combustible: comida xFoods</label>
-                                    <AutocompleteInput value={((selectedData.config.fuel as any)?.['xfoods-id']) || ''} onChange={(val) => updateField('config.fuel.xfoods-id', val)} options={foodIdOptions} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <label className="label">Combustible: comida xFoods</label>
+                                    <AutocompleteInput value={((selectedData.config.fuel as any)?.['xfoods-id']) || ''} onChange={(val) => updateField('config.fuel.xfoods-id', val)} options={foodIdOptions} className="input" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase">…o material de vanilla</label>
-                                    <input type="text" value={((selectedData.config.fuel as any)?.material) || ''} onChange={(e) => updateField('config.fuel.material', e.target.value)} placeholder="BONE_MEAL" className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <label className="label">…o material de vanilla</label>
+                                    <AutocompleteInput value={((selectedData.config.fuel as any)?.material) || ''} onChange={(val) => updateField('config.fuel.material', val)} options={MATERIALS} strict placeholder="BONE_MEAL" className="input" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-600 uppercase">Gasto por acción</label>
-                                    <input type="number" min={1} value={((selectedData.config.fuel as any)?.['consume-per-action']) ?? 1} onChange={(e) => updateField('config.fuel.consume-per-action', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
+                                    <label className="label">Gasto por acción</label>
+                                    <input type="number" min={1} value={((selectedData.config.fuel as any)?.['consume-per-action']) ?? 1} onChange={(e) => updateField('config.fuel.consume-per-action', parseInt(e.target.value))} className="input" />
                                 </div>
                             </div>
                             <div className="space-y-2 max-w-xs">
-                                <label className="text-[10px] font-bold text-gray-600 uppercase">Huecos de almacén</label>
-                                <input type="number" min={1} value={(selectedData.config['storage-slots'] as number) ?? 9} onChange={(e) => updateField('config.storage-slots', parseInt(e.target.value))} className="w-full bg-[#0b0f19] border border-[#374151] rounded-xl px-4 py-3 text-white outline-none" />
-                                <p className="text-[10px] text-gray-600">Lo usa el recolector para guardar la cosecha, y limita cuánto combustible cabe.</p>
+                                <label className="label">Huecos de almacén</label>
+                                <input type="number" min={1} value={(selectedData.config['storage-slots'] as number) ?? 9} onChange={(e) => updateField('config.storage-slots', parseInt(e.target.value))} className="input" />
+                                <p className="hint">Lo usa el recolector para guardar la cosecha, y limita cuánto combustible cabe.</p>
                             </div>
                         </div>
                     )}
 
                     {activeEditor === 'xmachines' && (
                          <div className="space-y-8">
-                            <div className="flex items-center gap-2 text-orange-400"><Flame className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest">Recetas de la Estación</h4></div>
+                            <div className="flex items-center gap-2 text-orange-400"><Flame className="w-4 h-4" /><h4 className="eyebrow">Recetas de la Estación</h4></div>
                             <MachineRecipesEditor
                                 config={selectedData.config as { 'is-refrigerator'?: boolean; recipes?: Record<string, any> }}
                                 mutate={mutateSelectedConfig}
@@ -1050,21 +1089,21 @@ export default function StudioWorkspace() {
                             <div
                                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                 onDrop={handleIAFileUpload}
-                                className="bg-[#0b0f19] p-8 rounded-3xl border-2 border-dashed border-white/5 space-y-6 transition-colors hover:border-yellow-400/30"
+                                className="bg-surface-0 p-8 rounded-3xl border-2 border-dashed border-white/5 space-y-6 transition-colors hover:border-yellow-400/30"
                             >
-                                <div className="flex justify-between items-center"><h4 className="text-xs font-black uppercase text-gray-400 tracking-widest italic">Recursos <span className="text-gray-600 normal-case font-medium">(arrastra .png / .json aquí)</span></h4><button onClick={() => iaFileInputRef.current?.click()} className="bg-yellow-400/10 text-yellow-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border border-yellow-400/20">Inyectar</button><input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple /></div>
+                                <div className="flex justify-between items-center"><h4 className="eyebrow">Recursos <span className="text-gray-600 normal-case font-medium">(arrastra .png / .json aquí)</span></h4><button onClick={() => iaFileInputRef.current?.click()} className="badge badge-ia">Inyectar</button><input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple /></div>
                                 <div className="space-y-4">
-                                    <div className="space-y-2"><label className="text-[10px] font-bold text-gray-600 uppercase">Ruta Modelo</label><input type="text" value={selectedData.data.resource?.model_path || ''} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.model_path`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" /></div>
-                                    <label className="flex items-center gap-3 cursor-pointer"><div className="relative"><input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.generate`, e.target.checked, selectedData.fullKey)} className="sr-only" /><div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div><div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div></div><span className="text-[10px] font-black text-gray-500 uppercase">Auto-Gen 2D</span></label>
+                                    <div className="space-y-2"><label className="label">Ruta Modelo</label><input type="text" value={selectedData.data.resource?.model_path || ''} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.model_path`, e.target.value, selectedData.fullKey)} className="input" /></div>
+                                    <label className="flex items-center gap-3 cursor-pointer"><div className="relative"><input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.generate`, e.target.checked, selectedData.fullKey)} className="sr-only" /><div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div><div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div></div><span className="eyebrow">Auto-Gen 2D</span></label>
                                 </div>
                             </div>
 
-                            <div className="bg-[#0b0f19] p-8 rounded-3xl border border-white/5 space-y-6">
-                                <div className="flex items-center gap-2 text-green-400"><CheckCircle2 className="w-4 h-4" /><h4 className="text-xs font-black uppercase tracking-widest italic">Estado y Permisos</h4></div>
+                            <div className="bg-surface-0 p-8 rounded-3xl border border-white/5 space-y-6">
+                                <div className="flex items-center gap-2 text-green-400"><CheckCircle2 className="w-4 h-4" /><h4 className="eyebrow">Estado y Permisos</h4></div>
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-gray-600 uppercase">Permiso de Colocación</label>
-                                        <input type="text" value={selectedData.data.permission || ''} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.permission`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
+                                        <label className="label">Permiso de Colocación</label>
+                                        <input type="text" value={selectedData.data.permission || ''} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.permission`, e.target.value, selectedData.fullKey)} className="input" />
                                     </div>
                                     <div className="flex items-center h-full pt-6">
                                         <label className="flex items-center gap-3 cursor-pointer group/enabled">
@@ -1073,7 +1112,7 @@ export default function StudioWorkspace() {
                                                 <div className={cn("w-8 h-4 rounded-full transition-colors", (selectedData.data.enabled ?? true) ? "bg-green-500" : "bg-gray-700")}></div>
                                                 <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", (selectedData.data.enabled ?? true) ? "translate-x-4" : "")}></div>
                                             </div>
-                                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Habilitado</span>
+                                            <span className="eyebrow">Habilitado</span>
                                         </label>
                                     </div>
                                 </div>
@@ -1082,8 +1121,8 @@ export default function StudioWorkspace() {
                             {activeCategory === 'furnitures' && (
                                 <>
                                 <div className="grid grid-cols-2 gap-6">
-                                    <div className="bg-[#0b0f19] p-6 rounded-2xl border border-white/5 space-y-4">
-                                        <h4 className="text-[10px] font-black uppercase text-yellow-400 tracking-widest italic">Tipo de Mueble</h4>
+                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                        <h4 className="eyebrow text-accent">Tipo de Mueble</h4>
                                         <select 
                                             value={selectedData.data.behaviours?.furniture?.furniture_type || 'ARMOR_STAND'} 
                                             onChange={(e) => {
@@ -1103,20 +1142,20 @@ export default function StudioWorkspace() {
                                                 }
                                                 setProjectState(newState);
                                             }}
-                                            className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs uppercase font-bold"
+                                            className="input"
                                         >
                                             <option value="ARMOR_STAND">ARMOR_STAND (Suelo/Cajas)</option>
                                             <option value="ITEM_FRAME">ITEM_FRAME (Pared/Planos)</option>
                                             <option value="GLOW_ITEM_FRAME">GLOW_ITEM_FRAME (Pared Brillante)</option>
                                         </select>
                                     </div>
-                                    <div className="bg-[#0b0f19] p-6 rounded-2xl border border-white/5 space-y-4">
-                                        <h4 className="text-[10px] font-black uppercase text-blue-400 tracking-widest italic">Hitbox (Colisión)</h4>
+                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                        <h4 className="eyebrow text-info">Hitbox (Colisión)</h4>
                                         <div className="grid grid-cols-3 gap-3">
                                             {['length', 'width', 'height'].map(dim => (
                                                 <div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5">
-                                                    <label className="text-[8px] font-bold text-gray-500 uppercase block mb-1">{dim}</label>
-                                                    <input type="number" step="0.1" value={selectedData.data.behaviours?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-transparent text-white font-bold outline-none text-xs" />
+                                                    <label className="label">{dim}</label>
+                                                    <input type="number" step="0.1" value={selectedData.data.behaviours?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="input" />
                                                 </div>
                                             ))}
                                         </div>
@@ -1124,8 +1163,8 @@ export default function StudioWorkspace() {
                                 </div>
 
                                 {selectedData.data.behaviours?.furniture?.furniture_type === 'ARMOR_STAND' && (
-                                    <div className="bg-[#0b0f19] p-6 rounded-3xl border border-white/5 space-y-6 animate-in slide-in-from-top-2">
-                                        <h4 className="text-[10px] font-black uppercase text-purple-400 tracking-widest">Ajustes Armor Stand</h4>
+                                    <div className="bg-surface-0 p-6 rounded-3xl border border-white/5 space-y-6 animate-in slide-in-from-top-2">
+                                        <h4 className="eyebrow">Ajustes Armor Stand</h4>
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                             {[
                                                 { id: 'invisible', label: 'Invisible', default: true },
@@ -1140,7 +1179,7 @@ export default function StudioWorkspace() {
                                                         onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.armor_stand.${opt.id}`, e.target.checked, selectedData.fullKey)}
                                                         className="rounded bg-black border-white/10 text-purple-400"
                                                     />
-                                                    <span className="text-[10px] font-bold text-gray-500 uppercase group-hover/opt:text-white transition-colors">{opt.label}</span>
+                                                    <span className="label mb-0 group-hover/opt:text-ink transition-colors">{opt.label}</span>
                                                 </label>
                                             ))}
                                         </div>
@@ -1148,29 +1187,29 @@ export default function StudioWorkspace() {
                                 )}
 
                                 <div className="grid grid-cols-2 gap-6">
-                                    <div className="bg-[#0b0f19] p-6 rounded-2xl border border-white/5 space-y-4">
-                                        <h4 className="text-[10px] font-black uppercase text-orange-400 tracking-widest italic">Interacción</h4>
+                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                        <h4 className="eyebrow" style={{ color: 'var(--color-sec-machines)' }}>Interacción</h4>
                                         <div className="space-y-4">
                                             <div className="space-y-1">
-                                                <label className="text-[8px] font-bold text-gray-600 uppercase block">Nivel Luz (0-15)</label>
-                                                <input type="number" min="0" max="15" value={selectedData.data.behaviours?.furniture?.light_level || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.light_level`, parseInt(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
+                                                <label className="label">Nivel Luz (0-15)</label>
+                                                <input type="number" min="0" max="15" value={selectedData.data.behaviours?.furniture?.light_level || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.light_level`, parseInt(e.target.value), selectedData.fullKey)} className="input" />
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-[8px] font-bold text-gray-600 uppercase block">Offset Asiento (Y)</label>
-                                                <input type="number" step="0.1" value={selectedData.data.behaviours?.furniture?.seat?.y_offset || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.seat.y_offset`, parseFloat(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" placeholder="0 = no seat" />
+                                                <label className="label">Offset Asiento (Y)</label>
+                                                <input type="number" step="0.1" value={selectedData.data.behaviours?.furniture?.seat?.y_offset || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.seat.y_offset`, parseFloat(e.target.value), selectedData.fullKey)} className="input" placeholder="0 = no seat" />
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="bg-[#0b0f19] p-6 rounded-2xl border border-white/5 space-y-4">
-                                        <h4 className="text-[10px] font-black uppercase text-green-400 tracking-widest italic">Almacenamiento</h4>
+                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                        <h4 className="eyebrow text-ok">Almacenamiento</h4>
                                         <div className="space-y-4">
                                             <div className="space-y-1">
-                                                <label className="text-[8px] font-bold text-gray-600 uppercase block">Huecos (Slots)</label>
-                                                <input type="number" step="9" min="0" max="54" value={selectedData.data.behaviours?.furniture?.container?.slots || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.container.slots`, parseInt(e.target.value), selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
+                                                <label className="label">Huecos (Slots)</label>
+                                                <input type="number" step="9" min="0" max="54" value={selectedData.data.behaviours?.furniture?.container?.slots || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.container.slots`, parseInt(e.target.value), selectedData.fullKey)} className="input" />
                                             </div>
                                             <div className="space-y-1">
-                                                <label className="text-[8px] font-bold text-gray-600 uppercase block">Título Inventario</label>
-                                                <input type="text" value={selectedData.data.behaviours?.furniture?.container?.title || ''} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.container.title`, e.target.value, selectedData.fullKey)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:border-yellow-400 transition-all text-xs" />
+                                                <label className="label">Título Inventario</label>
+                                                <input type="text" value={selectedData.data.behaviours?.furniture?.container?.title || ''} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.container.title`, e.target.value, selectedData.fullKey)} className="input" />
                                             </div>
                                         </div>
                                     </div>
@@ -1183,7 +1222,7 @@ export default function StudioWorkspace() {
 
                 {(activeEditor === 'xfoods' || activeEditor === 'xcrops') && (
                 <div className={cn("p-8 rounded-3xl border transition-all space-y-6", isIAEnabled ? "bg-yellow-400/5 border-yellow-400/20" : "bg-white/2 border-white/5")}>
-                    <div className="flex justify-between items-center"><div className="flex items-center gap-3"><Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-yellow-400" : "text-gray-600")} /><div><h4 className="text-md font-black text-white uppercase tracking-tighter italic">ItemsAdder</h4><p className="text-[11px] text-gray-500 uppercase font-black tracking-widest">Modelos 3D y texturas</p></div></div><label className="switch"><input type="checkbox" checked={isIAEnabled} onChange={(e) => updateField('ia-toggle', e.target.checked)} /><span className="slider"></span></label></div>
+                    <div className="flex justify-between items-center"><div className="flex items-center gap-3"><Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-yellow-400" : "text-gray-600")} /><div><h4 className="text-[13px] font-semibold text-ink">ItemsAdder</h4><p className="eyebrow">Modelos 3D y texturas</p></div></div><label className="switch"><input type="checkbox" checked={isIAEnabled} onChange={(e) => updateField('ia-toggle', e.target.checked)} /><span className="slider"></span></label></div>
                     {isIAEnabled && (
                         <div
                             onClick={() => iaFileInputRef.current?.click()}
@@ -1194,7 +1233,7 @@ export default function StudioWorkspace() {
                             <input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple />
                             <div className="bg-yellow-400/10 p-4 rounded-full w-fit mx-auto mb-4 group-hover:scale-110 transition-transform"><Upload className="w-8 h-8 text-yellow-400" /></div>
                             <h4 className="text-white font-bold text-sm">Cargar Modelo / Textura / JSON</h4>
-                            <p className="text-[10px] text-gray-500 mt-2 uppercase font-black tracking-widest leading-relaxed">
+                            <p className="hint mt-2">
                                 Arrastra o haz clic para subir .png / .json <br/>
                                 <span className="text-yellow-400/50">se auto-configura para "{selectedItem}"</span>
                             </p>
@@ -1207,12 +1246,12 @@ export default function StudioWorkspace() {
                 )}
              </div>
            ) : (
-             <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-30 grayscale scale-95 transition-all py-20"><div className="bg-white/5 p-10 rounded-full border border-white/5 animate-pulse"><Package className="w-20 h-20 text-gray-700" /></div><div className="space-y-2"><h3 className="text-2xl font-black text-gray-400 uppercase tracking-widest italic">Selecciona un elemento</h3><p className="text-sm text-gray-600 uppercase font-black tracking-tighter">Explora las categorías para iniciar la edición profesional.</p></div></div>
+             <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-30 grayscale scale-95 transition-all py-20"><div className="bg-white/5 p-10 rounded-full border border-white/5 animate-pulse"><Package className="w-20 h-20 text-gray-700" /></div><div className="space-y-2"><h3 className="text-lg font-medium text-ink-2">Selecciona un elemento</h3><p className="text-[13px] text-ink-3">Explora las categorías para iniciar la edición profesional.</p></div></div>
            )}
         </main>
 
-        <section className="col-span-3 bg-black border border-[#374151] rounded-2xl overflow-hidden flex flex-col shadow-2xl lg:sticky lg:top-0 h-fit max-h-[90vh]">
-           <div className="bg-[#111827] px-4 py-3 border-b border-[#374151] flex items-center justify-between"><div className="flex items-center gap-2"><Binary className="w-4 h-4 text-accent" /><span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest italic">Live Code</span></div><div className="flex gap-2"><button onClick={() => setActivePreview('plugin')} className={cn("text-[9px] font-black px-2 py-0.5 rounded border transition-all", activePreview === 'plugin' ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" : "text-gray-600 border-transparent")}>PLUGIN</button><button disabled={!isIAEnabled && activeEditor !== 'ia'} onClick={() => setActivePreview('ia')} className={cn("text-[9px] font-black px-2 py-0.5 rounded border transition-all disabled:opacity-0", activePreview === 'ia' ? "text-blue-400 bg-blue-400/10 border-blue-400/20" : "text-gray-600 border-transparent")}>IA</button></div></div>
+        <section className="col-span-3 panel overflow-hidden flex flex-col lg:sticky lg:top-0 h-fit max-h-[90vh]">
+           <div className="bg-surface-1 px-4 py-3 border-b border-line flex items-center justify-between"><div className="flex items-center gap-2"><Binary className="w-4 h-4 text-accent" /><span className="hint">Live Code</span></div><div className="flex gap-2"><button onClick={() => setActivePreview('plugin')} className={cn("text-[9px] font-semibold px-2 py-0.5 rounded border transition-all", activePreview === 'plugin' ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" : "text-gray-600 border-transparent")}>PLUGIN</button><button disabled={!isIAEnabled && activeEditor !== 'ia'} onClick={() => setActivePreview('ia')} className={cn("text-[9px] font-semibold px-2 py-0.5 rounded border transition-all disabled:opacity-0", activePreview === 'ia' ? "text-blue-400 bg-blue-400/10 border-blue-400/20" : "text-gray-600 border-transparent")}>IA</button></div></div>
            <div className="flex-1 p-6 overflow-auto font-mono text-[12px] text-blue-200 leading-relaxed scrollbar-hide">
                <pre className="whitespace-pre-wrap break-words">
                    {selectedItem && selectedData ? (
@@ -1224,7 +1263,7 @@ export default function StudioWorkspace() {
                    ) : "# Selecciona un ítem..."}
                </pre>
            </div>
-           <div className="p-4 bg-[#111827] border-t border-[#374151]"><button onClick={() => { if (selectedItem && selectedData) { const yaml = activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : stringifyYaml(projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`]); navigator.clipboard.writeText(yaml || ""); alert("Copiado"); } }} className="w-full bg-[#1f2937] hover:bg-[#374151] text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-[#374151]">Copiar Código</button></div>
+           <div className="p-4 bg-surface-1 border-t border-line"><button onClick={() => { if (selectedItem && selectedData) { const yaml = activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : stringifyYaml(projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`]); navigator.clipboard.writeText(yaml || ""); alert("Copiado"); } }} className="btn btn-ghost w-full">Copiar Código</button></div>
         </section>
       </div>
 
