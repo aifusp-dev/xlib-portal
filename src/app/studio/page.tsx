@@ -296,19 +296,23 @@ export default function StudioWorkspace() {
         current[keys[keys.length - 1]] = value;
     } 
     else {
-        const entry = activeEditor === 'xfoods' ? newState.foods[selectedItem] : 
-                      (activeEditor === 'xcrops' ? newState.crops[selectedItem] : newState.machines[selectedItem]);
-        
+        // mapFor cubre las 5 secciones de plugin; antes esto era un ternario a mano que solo
+        // distinguía xfoods/xcrops y mandaba xpods y xautomation al mapa de machines, así que
+        // cualquier edición de un macetero o una máquina de automatización mutaba (o intentaba
+        // mutar) una entrada inexistente en newState.machines.
+        const entry = mapFor(newState, activeEditor as PluginEditor)[selectedItem];
+
         if (path === 'folder') {
             entry.folder = value;
         } else if (path === 'ia-toggle') {
             const item = entry.config;
             if (value) {
-                if (!(item as any).item && activeEditor === 'xfoods') (item as any).item = {};
+                // xFoods (comidas y máquinas) usa el bloque "item"; xFoodsCrops (semillas) usa "seed".
+                if (!(item as any).item && activeEditor !== 'xcrops') (item as any).item = {};
                 if (!(item as any).seed && activeEditor === 'xcrops') (item as any).seed = {};
-                
-                const target = activeEditor === 'xfoods' ? (item as any).item : (item as any).seed;
-                const subfolder = activeEditor === 'xfoods' ? 'food' : 'crops';
+
+                const target = activeEditor === 'xcrops' ? (item as any).seed : (item as any).item;
+                const subfolder = activeEditor === 'xfoods' ? 'food' : (activeEditor === 'xcrops' ? 'crops' : 'machines');
 
                 // El id del plugin es el nombre del fichero SIN su carpeta: una comida en
                 // foods/consumibles/hamburguesa_cerdo.yml se registra como "hamburguesa_cerdo".
@@ -338,7 +342,7 @@ export default function StudioWorkspace() {
                     items: iaItems 
                 };
             } else {
-                if (activeEditor === 'xfoods' && (item as any).item) delete (item as any).item['itemsadder-id'];
+                if (activeEditor !== 'xcrops' && (item as any).item) delete (item as any).item['itemsadder-id'];
                 if (activeEditor === 'xcrops' && (item as any).seed) delete (item as any).seed['itemsadder-id'];
                 delete newState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`];
             }
@@ -527,9 +531,9 @@ export default function StudioWorkspace() {
 
     if (filesList.length === 0 || !projectState || !selectedItem) return;
 
-    // La sección de xFoods/xCrops sube archivos directamente al ítem de ItemsAdder
+    // La sección de xFoods/xCrops/Estaciones sube archivos directamente al ítem de ItemsAdder
     // que quedó vinculado al activar el switch "ItemsAdder" para ese ítem.
-    const isFoodContext = activeEditor === 'xfoods' || activeEditor === 'xcrops';
+    const isFoodContext = activeEditor === 'xfoods' || activeEditor === 'xcrops' || activeEditor === 'xmachines';
 
     if (isFoodContext) {
         if (!isIAEnabled) {
@@ -557,7 +561,7 @@ export default function StudioWorkspace() {
     if (!iaEntry || !iaEntry[keyName] || !iaEntry[keyName][entryItemId]) return;
 
     const subfolder = isFoodContext
-        ? (activeEditor === 'xfoods' ? 'food' : 'crops')
+        ? (activeEditor === 'xfoods' ? 'food' : (activeEditor === 'xcrops' ? 'crops' : 'machines'))
         : (activeCategory === 'furnitures' ? 'furniture' : (activeCategory === 'blocks' ? 'block' : 'item'));
     const modelFolder = isFoodContext ? `item/${subfolder}` : subfolder;
 
@@ -842,24 +846,22 @@ export default function StudioWorkspace() {
                 <div className="space-y-8">
                     <div className="space-y-6">
                         <div className="section-head is-first text-yellow-400"><Info /><h4 className="section-title">Ajustes Base</h4></div>
-                        <div className={cn("grid gap-6", activeEditor === 'ia' || activeEditor === 'xmachines' ? "grid-cols-2" : "grid-cols-3")}>
+                        <div className={cn("grid gap-6", activeEditor === 'ia' ? "grid-cols-2" : "grid-cols-3")}>
                             <div className="space-y-2">
                                 <label className="label">Nombre Display</label>
                                 <input type="text" value={(activeEditor === 'ia' ? selectedData.data.display_name : selectedData.config['display-name']) || ''} onChange={(e) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.display_name` : 'config.display-name', e.target.value, activeEditor === 'ia' ? selectedData.fullKey : undefined)} className="input" />
                             </div>
-                            {activeEditor !== 'xmachines' && (
-                                <div className="space-y-2">
-                                    <label className="label">Material</label>
-                                    <AutocompleteInput
-                                        value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : selectedData.config.item?.material)) || ''}
-                                        onChange={(val) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xcrops' ? 'config.seed.material' : 'config.item.material'), val, activeEditor === 'ia' ? selectedData.fullKey : undefined)}
-                                        options={MATERIALS} strict placeholder="BREAD" className="input" />
-                                    {isIAEnabled && activeEditor !== 'ia' && (
-                                        <p className="text-[10px] text-gray-500">Se aplica también al ítem de ItemsAdder, que es el que manda mientras la integración esté activa.</p>
-                                    )}
-                                </div>
-                            )}
-                            {(activeEditor === 'xfoods' || activeEditor === 'xcrops') && (
+                            <div className="space-y-2">
+                                <label className="label">Material</label>
+                                <AutocompleteInput
+                                    value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : selectedData.config.item?.material)) || ''}
+                                    onChange={(val) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xcrops' ? 'config.seed.material' : 'config.item.material'), val, activeEditor === 'ia' ? selectedData.fullKey : undefined)}
+                                    options={MATERIALS} strict placeholder="BREAD" className="input" />
+                                {isIAEnabled && activeEditor !== 'ia' && (
+                                    <p className="text-[10px] text-gray-500">Se aplica también al ítem de ItemsAdder, que es el que manda mientras la integración esté activa.</p>
+                                )}
+                            </div>
+                            {(activeEditor === 'xfoods' || activeEditor === 'xcrops' || activeEditor === 'xmachines') && (
                                 <div className="space-y-2">
                                     <label className="label">Custom Model Data</label>
                                     <input type="number" value={(activeEditor === 'xcrops' ? selectedData.config.seed?.['custom-model-data'] : selectedData.config.item?.['custom-model-data']) || 0} onChange={(e) => updateField(activeEditor === 'xcrops' ? 'config.seed.custom-model-data' : 'config.item.custom-model-data', parseInt(e.target.value))} className="input" />
@@ -1220,7 +1222,7 @@ export default function StudioWorkspace() {
                     )}
                 </div>
 
-                {(activeEditor === 'xfoods' || activeEditor === 'xcrops') && (
+                {(activeEditor === 'xfoods' || activeEditor === 'xcrops' || activeEditor === 'xmachines') && (
                 <div className={cn("p-8 rounded-3xl border transition-all space-y-6", isIAEnabled ? "bg-yellow-400/5 border-yellow-400/20" : "bg-white/2 border-white/5")}>
                     <div className="flex justify-between items-center"><div className="flex items-center gap-3"><Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-yellow-400" : "text-gray-600")} /><div><h4 className="text-[13px] font-semibold text-ink">ItemsAdder</h4><p className="eyebrow">Modelos 3D y texturas</p></div></div><label className="switch"><input type="checkbox" checked={isIAEnabled} onChange={(e) => updateField('ia-toggle', e.target.checked)} /><span className="slider"></span></label></div>
                     {isIAEnabled && (
