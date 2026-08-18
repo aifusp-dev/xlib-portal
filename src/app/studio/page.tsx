@@ -307,6 +307,12 @@ export default function StudioWorkspace() {
         } else if (path === 'ia-toggle') {
             const item = entry.config;
             if (value) {
+                // Las Estaciones pueden vincularse como Ítem (modelo 3D solo en mano/inventario,
+                // se coloca como el material de vanilla) o como Mueble (el modelo 3D también se
+                // ve colocado, vía el sistema de furniture de ItemsAdder). El resto de secciones
+                // solo conocen "Ítem": value siempre llega como true para ellas.
+                const isFurniture = value === 'furniture';
+
                 // xFoods (comidas y máquinas) usa el bloque "item"; xFoodsCrops (semillas) usa "seed".
                 if (!(item as any).item && activeEditor !== 'xcrops') (item as any).item = {};
                 if (!(item as any).seed && activeEditor === 'xcrops') (item as any).seed = {};
@@ -323,28 +329,60 @@ export default function StudioWorkspace() {
 
                 (target as Record<string, unknown>)['itemsadder-id'] = `${XFOODS_NAMESPACE}:${itemId}`;
 
-                const iaItems: Record<string, unknown> = {
-                    [itemId]: {
-                        enabled: true,
-                        display_name: (item as any)['display-name'] || "Nuevo Ítem",
-                        permission: `${XFOODS_NAMESPACE}.${itemId}`,
-                        resource: {
-                            material: (target as Record<string, string>)?.material || "PAPER",
-                            generate: true,
-                            textures: [`${XFOODS_NAMESPACE}:item/${subfolder}/${itemId}`]
-                        }
-                    }
-                };
-
                 const fullKey = `${XFOODS_NAMESPACE}/${itemId}`;
-                newState.iaItems[fullKey] = { 
-                    info: { namespace: XFOODS_NAMESPACE },
-                    items: iaItems 
-                };
+                const material = (target as Record<string, string>)?.material || "PAPER";
+                const displayName = (item as any)['display-name'];
+
+                // Cambiar de Ítem a Mueble (o viceversa) no debe dejar el registro anterior
+                // huérfano en el otro mapa: solo uno de los dos debe existir a la vez.
+                delete newState.iaItems[fullKey];
+                delete newState.iaFurnitures[fullKey];
+
+                if (isFurniture) {
+                    newState.iaFurnitures[fullKey] = {
+                        info: { namespace: XFOODS_NAMESPACE },
+                        furnitures: {
+                            [itemId]: {
+                                enabled: true,
+                                display_name: displayName || "Nuevo Mueble",
+                                permission: `${XFOODS_NAMESPACE}.furniture.${itemId}`,
+                                resource: {
+                                    material,
+                                    generate: true,
+                                    model_path: `${XFOODS_NAMESPACE}:furniture/${subfolder}/${itemId}`
+                                },
+                                behaviours: {
+                                    furniture: {
+                                        furniture_type: "ARMOR_STAND",
+                                        armor_stand: { invisible: true, small: true },
+                                        hitbox: { length: 1, width: 1, height: 1 }
+                                    }
+                                }
+                            }
+                        }
+                    };
+                } else {
+                    newState.iaItems[fullKey] = {
+                        info: { namespace: XFOODS_NAMESPACE },
+                        items: {
+                            [itemId]: {
+                                enabled: true,
+                                display_name: displayName || "Nuevo Ítem",
+                                permission: `${XFOODS_NAMESPACE}.${itemId}`,
+                                resource: {
+                                    material,
+                                    generate: true,
+                                    textures: [`${XFOODS_NAMESPACE}:item/${subfolder}/${itemId}`]
+                                }
+                            }
+                        }
+                    };
+                }
             } else {
                 if (activeEditor !== 'xcrops' && (item as any).item) delete (item as any).item['itemsadder-id'];
                 if (activeEditor === 'xcrops' && (item as any).seed) delete (item as any).seed['itemsadder-id'];
                 delete newState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`];
+                delete newState.iaFurnitures[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`];
             }
         } else {
             const keys = path.split('.');
@@ -363,22 +401,23 @@ export default function StudioWorkspace() {
             // del config de IA: el plugin construye el ítem desde ItemsAdder e ignora el material
             // de la comida. El material se copiaba al activar la integración pero no se propagaba
             // después, así que cambiarlo en el editor no tenía ningún efecto en el juego.
+            // El vínculo puede ser un Ítem o un Mueble de ItemsAdder (solo las Estaciones ofrecen
+            // Mueble); solo uno de los dos mapas tiene la entrada en cada momento.
+            const iaFullKeySync = `${XFOODS_NAMESPACE}/${leafId(selectedItem)}`;
+            const linkedIaItem: any = (newState.iaItems[iaFullKeySync] as any)?.items?.[leafId(selectedItem)];
+            const linkedIaFurniture: any = (newState.iaFurnitures[iaFullKeySync] as any)?.furnitures?.[leafId(selectedItem)];
+            const linkedIa = linkedIaItem || linkedIaFurniture;
+
             const esMaterial = path === 'config.item.material' || path === 'config.seed.material';
-            if (esMaterial) {
-                const iaEntry: any = newState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`];
-                const iaItem = iaEntry?.items?.[leafId(selectedItem)];
-                if (iaItem) {
-                    iaItem.resource = iaItem.resource || {};
-                    iaItem.resource.material = value;
-                }
+            if (esMaterial && linkedIa) {
+                linkedIa.resource = linkedIa.resource || {};
+                linkedIa.resource.material = value;
             }
 
             // El nombre visible también vive en los dos sitios; mantenerlos sincronizados evita
-            // que el ítem de ItemsAdder se quede con el nombre viejo.
-            if (path === 'config.display-name') {
-                const iaEntry: any = newState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`];
-                const iaItem = iaEntry?.items?.[leafId(selectedItem)];
-                if (iaItem) iaItem.display_name = value;
+            // que el ítem/mueble de ItemsAdder se quede con el nombre viejo.
+            if (path === 'config.display-name' && linkedIa) {
+                linkedIa.display_name = value;
             }
         }
     }
@@ -544,14 +583,17 @@ export default function StudioWorkspace() {
         return;
     }
 
+    // Solo las Estaciones pueden estar vinculadas a un Mueble en vez de a un Ítem.
+    const machineIsFurniture = activeEditor === 'xmachines' && iaKind === 'furniture';
+
     const newState = { ...projectState };
     // Comidas y cultivos van siempre a su propio namespace; lo creado desde la pestaña de
     // ItemsAdder respeta el namespace elegido en el desplegable.
     const ns = isFoodContext ? XFOODS_NAMESPACE : (selectedNamespace as string);
     const fullKey = isFoodContext ? `${XFOODS_NAMESPACE}/${leafId(selectedItem)}` : (selectedData as any).fullKey;
-    const keyName = isFoodContext ? "items" : currentIAKeyName;
+    const keyName = isFoodContext ? (machineIsFurniture ? "furnitures" : "items") : currentIAKeyName;
     const targetMap: Record<string, any> = isFoodContext
-        ? newState.iaItems
+        ? (machineIsFurniture ? newState.iaFurnitures : newState.iaItems)
         : (activeCategory === 'items' ? newState.iaItems : (activeCategory === 'blocks' ? newState.iaBlocks : newState.iaFurnitures));
 
     // Dentro del YAML de ItemsAdder el ítem se llama por su hoja, no por la ruta del fichero.
@@ -563,7 +605,9 @@ export default function StudioWorkspace() {
     const subfolder = isFoodContext
         ? (activeEditor === 'xfoods' ? 'food' : (activeEditor === 'xcrops' ? 'crops' : 'machines'))
         : (activeCategory === 'furnitures' ? 'furniture' : (activeCategory === 'blocks' ? 'block' : 'item'));
-    const modelFolder = isFoodContext ? `item/${subfolder}` : subfolder;
+    const modelFolder = isFoodContext
+        ? (machineIsFurniture ? `furniture/${subfolder}` : `item/${subfolder}`)
+        : subfolder;
 
     // Helper to add or replace raw file
     const upsertRawFile = (name: string, content: ArrayBuffer, inferredPath: string) => {
@@ -683,7 +727,16 @@ export default function StudioWorkspace() {
     [projectState]
   );
 
-  const isIAEnabled = selectedItem && projectState ? !!projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] : false;
+  const linkedIaItemEntry = selectedItem && projectState
+    ? (projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] as any)?.items?.[leafId(selectedItem)]
+    : undefined;
+  const linkedIaFurnitureEntry = selectedItem && projectState
+    ? (projectState.iaFurnitures[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] as any)?.furnitures?.[leafId(selectedItem)]
+    : undefined;
+  const linkedIaEntry = linkedIaItemEntry || linkedIaFurnitureEntry;
+  const isIAEnabled = !!linkedIaEntry;
+  /** Solo las Estaciones distinguen Ítem de Mueble; el resto de secciones siempre son "item". */
+  const iaKind: 'item' | 'furniture' | null = linkedIaItemEntry ? 'item' : (linkedIaFurnitureEntry ? 'furniture' : null);
 
   if (!mounted) return null;
 
@@ -1224,7 +1277,25 @@ export default function StudioWorkspace() {
 
                 {(activeEditor === 'xfoods' || activeEditor === 'xcrops' || activeEditor === 'xmachines') && (
                 <div className={cn("p-8 rounded-3xl border transition-all space-y-6", isIAEnabled ? "bg-yellow-400/5 border-yellow-400/20" : "bg-white/2 border-white/5")}>
-                    <div className="flex justify-between items-center"><div className="flex items-center gap-3"><Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-yellow-400" : "text-gray-600")} /><div><h4 className="text-[13px] font-semibold text-ink">ItemsAdder</h4><p className="eyebrow">Modelos 3D y texturas</p></div></div><label className="switch"><input type="checkbox" checked={isIAEnabled} onChange={(e) => updateField('ia-toggle', e.target.checked)} /><span className="slider"></span></label></div>
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3"><Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-yellow-400" : "text-gray-600")} /><div><h4 className="text-[13px] font-semibold text-ink">ItemsAdder</h4><p className="eyebrow">Modelos 3D y texturas</p></div></div>
+                        {activeEditor === 'xmachines' ? (
+                            <div className="flex gap-1 bg-black/20 p-1 rounded-lg border border-white/5">
+                                <button type="button" onClick={() => updateField('ia-toggle', false)} className={cn("px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-colors", !isIAEnabled ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Ninguno</button>
+                                <button type="button" onClick={() => updateField('ia-toggle', true)} className={cn("px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-colors", iaKind === 'item' ? "bg-yellow-400/20 text-yellow-400" : "text-gray-500 hover:text-gray-300")}>Ítem</button>
+                                <button type="button" onClick={() => updateField('ia-toggle', 'furniture')} className={cn("px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-colors", iaKind === 'furniture' ? "bg-yellow-400/20 text-yellow-400" : "text-gray-500 hover:text-gray-300")}>Mueble</button>
+                            </div>
+                        ) : (
+                            <label className="switch"><input type="checkbox" checked={isIAEnabled} onChange={(e) => updateField('ia-toggle', e.target.checked)} /><span className="slider"></span></label>
+                        )}
+                    </div>
+                    {activeEditor === 'xmachines' && isIAEnabled && (
+                        <p className="text-[10px] text-gray-500 -mt-2">
+                            {iaKind === 'furniture'
+                                ? "Mueble: el modelo 3D también se ve colocado en el mundo. Se coloca y se rompe como un mueble de ItemsAdder, no como un bloque."
+                                : "Ítem: el modelo 3D solo se ve sostenido/en el inventario. Colocada se ve como el Material de arriba — usa uno colocable si quieres poder plantarla en el mundo."}
+                        </p>
+                    )}
                     {isIAEnabled && (
                         <div
                             onClick={() => iaFileInputRef.current?.click()}
@@ -1239,8 +1310,8 @@ export default function StudioWorkspace() {
                                 Arrastra o haz clic para subir .png / .json <br/>
                                 <span className="text-yellow-400/50">se auto-configura para "{selectedItem}"</span>
                             </p>
-                            {(projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] as any)?.items?.[leafId(selectedItem)]?.resource?.model_path && (
-                                <p className="mt-4 text-[10px] font-mono text-green-400 truncate">{(projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] as any).items[leafId(selectedItem)].resource.model_path}</p>
+                            {linkedIaEntry?.resource?.model_path && (
+                                <p className="mt-4 text-[10px] font-mono text-green-400 truncate">{linkedIaEntry.resource.model_path}</p>
                             )}
                         </div>
                     )}
