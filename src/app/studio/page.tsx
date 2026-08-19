@@ -850,6 +850,35 @@ export default function StudioWorkspace() {
     setProjectState(newState);
   };
 
+  /**
+   * Cambia un campo plano o de hitbox de behaviours.furniture del Mueble de una Estación
+   * vinculada — p.ej. "solid" o "hitbox.height". Es lo que hace que ItemsAdder genere (y
+   * limpie solo al romperlo) los bloques BARRIER que cubren el hitbox, en vez de tener que
+   * generarlos a mano desde el plugin: MachineFurnitureListener ya resuelve la máquina por la
+   * entidad, no por el bloque, así que cualquier click sobre esos BARRIER llega igual.
+   */
+  const updateLinkedFurnitureField = (path: string, value: unknown) => {
+    if (!projectState || !selectedItem) return;
+    const fullKey = `${XFOODS_NAMESPACE}/${leafId(selectedItem)}`;
+    const newState = { ...projectState };
+    const config = newState.iaFurnitures[fullKey] as Record<string, any>;
+    const item = config?.items?.[leafId(selectedItem)];
+    if (!item) return;
+
+    if (!item.behaviours) item.behaviours = {};
+    if (!item.behaviours.furniture) item.behaviours.furniture = {};
+
+    const keys = path.split('.');
+    let current: any = item.behaviours.furniture;
+    for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) current[keys[i]] = {};
+        current = current[keys[i]];
+    }
+    current[keys[keys.length - 1]] = value;
+
+    setProjectState(newState);
+  };
+
   // Ids tal y como los registra el plugin (sin carpeta): es lo que hay que escribir en las
   // recetas, en harvest.xfoods-id y en el combustible de las máquinas.
   const foodIdOptions = useMemo(
@@ -1417,18 +1446,54 @@ export default function StudioWorkspace() {
                         </p>
                     )}
                     {activeEditor === 'xmachines' && iaKind === 'furniture' && (
-                        <div className="space-y-2">
-                            <label className="label">Tipo de Mueble</label>
-                            <select
-                                value={linkedIaFurnitureEntry?.behaviours?.furniture?.entity || 'armor_stand'}
-                                onChange={(e) => updateLinkedFurnitureType(e.target.value)}
-                                className="input"
-                            >
-                                <option value="armor_stand">armor_stand (Suelo/Cajas)</option>
-                                <option value="item_frame">item_frame (Pared/Planos)</option>
-                                <option value="glow_item_frame">glow_item_frame (Pared Brillante)</option>
-                                <option value="item_display">item_display (Libre, escalable/rotable)</option>
-                            </select>
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="label">Tipo de Mueble</label>
+                                <select
+                                    value={linkedIaFurnitureEntry?.behaviours?.furniture?.entity || 'armor_stand'}
+                                    onChange={(e) => updateLinkedFurnitureType(e.target.value)}
+                                    className="input"
+                                >
+                                    <option value="armor_stand">armor_stand (Suelo/Cajas)</option>
+                                    <option value="item_frame">item_frame (Pared/Planos)</option>
+                                    <option value="glow_item_frame">glow_item_frame (Pared Brillante)</option>
+                                    <option value="item_display">item_display (Libre, escalable/rotable)</option>
+                                </select>
+                            </div>
+
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={linkedIaFurnitureEntry?.behaviours?.furniture?.solid || false}
+                                    onChange={(e) => updateLinkedFurnitureField('solid', e.target.checked)}
+                                    className="rounded bg-black border-white/10 text-purple-400"
+                                />
+                                <div>
+                                    <span className="eyebrow">Sólido (genera BARRIER)</span>
+                                    <p className="text-[10px] text-gray-500">Bloquea el hueco con el hitbox de abajo, para que el jugador no lo atraviese y pueda interactuar con toda la altura del modelo, no solo con la entidad.</p>
+                                </div>
+                            </label>
+
+                            <div className="space-y-2">
+                                <label className="label">Hitbox (bloques)</label>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {(['length', 'width', 'height'] as const).map((dim) => (
+                                        <div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5">
+                                            <label className="label">{dim}</label>
+                                            <input
+                                                type="number" min="1" step="1"
+                                                value={linkedIaFurnitureEntry?.behaviours?.furniture?.hitbox?.[dim] || 1}
+                                                onChange={(e) => updateLinkedFurnitureField(`hitbox.${dim}`, parseInt(e.target.value) || 1)}
+                                                className="input"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                                {linkedIaFurnitureEntry?.behaviours?.furniture?.entity === 'item_frame' &&
+                                 linkedIaFurnitureEntry?.behaviours?.furniture?.hitbox?.length !== linkedIaFurnitureEntry?.behaviours?.furniture?.hitbox?.width && (
+                                    <p className="text-[10px] text-yellow-400">item_frame solo admite length = width en ItemsAdder. Usa armor_stand o item_display si necesitas un hitbox rectangular.</p>
+                                )}
+                            </div>
                         </div>
                     )}
                     {isIAEnabled && (
