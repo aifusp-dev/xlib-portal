@@ -726,6 +726,32 @@ export default function StudioWorkspace() {
     }
   };
 
+  /**
+   * Cambia el tipo de entidad del Mueble de una Estación vinculada (ARMOR_STAND / ITEM_FRAME /
+   * GLOW_ITEM_FRAME). Solo tiene sentido cuando la Estación está vinculada como Mueble
+   * (linkedIaFurnitureEntry), no como Ítem.
+   */
+  const updateLinkedFurnitureType = (newType: string) => {
+    if (!projectState || !selectedItem) return;
+    const fullKey = `${XFOODS_NAMESPACE}/${leafId(selectedItem)}`;
+    const newState = { ...projectState };
+    const config = newState.iaFurnitures[fullKey] as Record<string, any>;
+    const item = config?.items?.[leafId(selectedItem)];
+    if (!item) return;
+
+    if (!item.behaviours) item.behaviours = {};
+    if (!item.behaviours.furniture) item.behaviours.furniture = {};
+    item.behaviours.furniture.furniture_type = newType;
+
+    // Igual que en el editor genérico de IA: armor_stand solo tiene sentido con ese tipo.
+    if (newType !== 'ARMOR_STAND') {
+        delete item.behaviours.furniture.armor_stand;
+    } else {
+        item.behaviours.furniture.armor_stand = { invisible: true, small: true };
+    }
+    setProjectState(newState);
+  };
+
   // Ids tal y como los registra el plugin (sin carpeta): es lo que hay que escribir en las
   // recetas, en harvest.xfoods-id y en el combustible de las máquinas.
   const foodIdOptions = useMemo(
@@ -1301,6 +1327,20 @@ export default function StudioWorkspace() {
                                 ? "Mueble: el modelo 3D también se ve colocado en el mundo. Se coloca y se rompe como un mueble de ItemsAdder, no como un bloque."
                                 : "Ítem: el modelo 3D solo se ve sostenido/en el inventario. Colocada se ve como el Material de arriba — usa uno colocable si quieres poder plantarla en el mundo."}
                         </p>
+                    )}
+                    {activeEditor === 'xmachines' && iaKind === 'furniture' && (
+                        <div className="space-y-2">
+                            <label className="label">Tipo de Mueble</label>
+                            <select
+                                value={linkedIaFurnitureEntry?.behaviours?.furniture?.furniture_type || 'ARMOR_STAND'}
+                                onChange={(e) => updateLinkedFurnitureType(e.target.value)}
+                                className="input"
+                            >
+                                <option value="ARMOR_STAND">ARMOR_STAND (Suelo/Cajas)</option>
+                                <option value="ITEM_FRAME">ITEM_FRAME (Pared/Planos)</option>
+                                <option value="GLOW_ITEM_FRAME">GLOW_ITEM_FRAME (Pared Brillante)</option>
+                            </select>
+                        </div>
                     )}
                     {isIAEnabled && (
                         <div
