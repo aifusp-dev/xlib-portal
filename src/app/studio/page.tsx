@@ -355,10 +355,15 @@ export default function StudioWorkspace() {
                                     generate: true,
                                     model_path: `${XFOODS_NAMESPACE}:furniture/${subfolder}/${itemId}`
                                 },
+                                // Esquema real de ItemsAdder (docs oficiales, wiki.itemsadder.com/adding-content/furnitures):
+                                // "entity" es una propiedad PLANA de behaviours.furniture (valores en minúscula:
+                                // armor_stand/item_frame/item_display/glow_item_frame, por defecto armor_stand si
+                                // se omite), no una sección anidada "armor_stand: {...}" ni una clave inventada
+                                // "furniture_type". small/solid/hitbox también van planos, como hermanos de entity.
                                 behaviours: {
                                     furniture: {
-                                        furniture_type: "ARMOR_STAND",
-                                        armor_stand: { invisible: true, small: true },
+                                        entity: "armor_stand",
+                                        small: true,
                                         hitbox: { length: 1, width: 1, height: 1 }
                                     }
                                 }
@@ -475,8 +480,8 @@ export default function StudioWorkspace() {
             resource: { material: "PAPER", generate: true, model_path: `${selectedNamespace}:furniture/${sid}` },
             behaviours: {
                 furniture: {
-                    furniture_type: "ARMOR_STAND",
-                    armor_stand: { invisible: true, small: true },
+                    entity: "armor_stand",
+                    small: true,
                     hitbox: { length: 1, width: 1, height: 1 }
                 }
             }
@@ -727,11 +732,12 @@ export default function StudioWorkspace() {
   };
 
   /**
-   * Cambia el tipo de entidad del Mueble de una Estación vinculada (ARMOR_STAND / ITEM_FRAME /
-   * GLOW_ITEM_FRAME). Solo tiene sentido cuando la Estación está vinculada como Mueble
-   * (linkedIaFurnitureEntry), no como Ítem.
+   * Cambia el tipo de entidad del Mueble de una Estación vinculada. "entity" es una propiedad
+   * plana de behaviours.furniture (armor_stand/item_frame/item_display/glow_item_frame, en
+   * minúsculas) — no una clave inventada "furniture_type" ni una sección anidada por tipo.
+   * Solo tiene sentido cuando la Estación está vinculada como Mueble (linkedIaFurnitureEntry).
    */
-  const updateLinkedFurnitureType = (newType: string) => {
+  const updateLinkedFurnitureType = (newEntity: string) => {
     if (!projectState || !selectedItem) return;
     const fullKey = `${XFOODS_NAMESPACE}/${leafId(selectedItem)}`;
     const newState = { ...projectState };
@@ -741,13 +747,13 @@ export default function StudioWorkspace() {
 
     if (!item.behaviours) item.behaviours = {};
     if (!item.behaviours.furniture) item.behaviours.furniture = {};
-    item.behaviours.furniture.furniture_type = newType;
+    item.behaviours.furniture.entity = newEntity;
 
-    // Igual que en el editor genérico de IA: armor_stand solo tiene sentido con ese tipo.
-    if (newType !== 'ARMOR_STAND') {
-        delete item.behaviours.furniture.armor_stand;
+    // "small" solo es relevante para armor_stand (ajusta el tamaño del modelo en Blockbench).
+    if (newEntity === 'armor_stand') {
+        item.behaviours.furniture.small = true;
     } else {
-        item.behaviours.furniture.armor_stand = { invisible: true, small: true };
+        delete item.behaviours.furniture.small;
     }
     setProjectState(newState);
   };
@@ -1210,30 +1216,35 @@ export default function StudioWorkspace() {
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
                                         <h4 className="section-title">Tipo de Mueble</h4>
-                                        <select 
-                                            value={selectedData.data.behaviours?.furniture?.furniture_type || 'ARMOR_STAND'} 
+                                        {/* "entity" es una propiedad PLANA de behaviours.furniture, en minúsculas
+                                            (armor_stand/item_frame/item_display/glow_item_frame). No existe una
+                                            clave "furniture_type" ni una sección anidada por tipo: ver docs
+                                            oficiales en wiki.itemsadder.com/adding-content/furnitures/example. */}
+                                        <select
+                                            value={selectedData.data.behaviours?.furniture?.entity || 'armor_stand'}
                                             onChange={(e) => {
-                                                const newType = e.target.value;
+                                                const newEntity = e.target.value;
                                                 const newState = { ...projectState } as EcosystemState;
                                                 const config = newState.iaFurnitures[selectedData.fullKey] as Record<string, any>;
                                                 const item = config.items[selectedItem as string];
-                                                
-                                                if (!item.behaviours) item.behaviours = { furniture: {} };
-                                                item.behaviours.furniture.furniture_type = newType;
 
-                                                // CLEANUP: IA only wants armor_stand keys if type is ARMOR_STAND
-                                                if (newType !== 'ARMOR_STAND') {
-                                                    delete item.behaviours.furniture.armor_stand;
+                                                if (!item.behaviours) item.behaviours = { furniture: {} };
+                                                item.behaviours.furniture.entity = newEntity;
+
+                                                // "small" solo es relevante para armor_stand.
+                                                if (newEntity === 'armor_stand') {
+                                                    item.behaviours.furniture.small = true;
                                                 } else {
-                                                    item.behaviours.furniture.armor_stand = { invisible: true, small: true };
+                                                    delete item.behaviours.furniture.small;
                                                 }
                                                 setProjectState(newState);
                                             }}
                                             className="input"
                                         >
-                                            <option value="ARMOR_STAND">ARMOR_STAND (Suelo/Cajas)</option>
-                                            <option value="ITEM_FRAME">ITEM_FRAME (Pared/Planos)</option>
-                                            <option value="GLOW_ITEM_FRAME">GLOW_ITEM_FRAME (Pared Brillante)</option>
+                                            <option value="armor_stand">armor_stand (Suelo/Cajas)</option>
+                                            <option value="item_frame">item_frame (Pared/Planos)</option>
+                                            <option value="glow_item_frame">glow_item_frame (Pared Brillante)</option>
+                                            <option value="item_display">item_display (Libre, escalable/rotable)</option>
                                         </select>
                                     </div>
                                     <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
@@ -1249,30 +1260,6 @@ export default function StudioWorkspace() {
                                     </div>
                                 </div>
 
-                                {selectedData.data.behaviours?.furniture?.furniture_type === 'ARMOR_STAND' && (
-                                    <div className="bg-surface-0 p-6 rounded-3xl border border-white/5 space-y-6 animate-in slide-in-from-top-2">
-                                        <h4 className="section-title">Ajustes Armor Stand</h4>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                            {[
-                                                { id: 'invisible', label: 'Invisible', default: true },
-                                                { id: 'small', label: 'Pequeño', default: true },
-                                                { id: 'arms', label: 'Brazos', default: false },
-                                                { id: 'baseplate', label: 'Placa Base', default: false }
-                                            ].map(opt => (
-                                                <label key={opt.id} className="flex items-center gap-2 cursor-pointer group/opt">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={selectedData.data.behaviours?.furniture?.armor_stand?.[opt.id] ?? opt.default} 
-                                                        onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.armor_stand.${opt.id}`, e.target.checked, selectedData.fullKey)}
-                                                        className="rounded bg-black border-white/10 text-purple-400"
-                                                    />
-                                                    <span className="label mb-0 group-hover/opt:text-ink transition-colors">{opt.label}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
                                         <h4 className="section-title">Interacción</h4>
@@ -1281,25 +1268,30 @@ export default function StudioWorkspace() {
                                                 <label className="label">Nivel Luz (0-15)</label>
                                                 <input type="number" min="0" max="15" value={selectedData.data.behaviours?.furniture?.light_level || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.light_level`, parseInt(e.target.value), selectedData.fullKey)} className="input" />
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="label">Offset Asiento (Y)</label>
-                                                <input type="number" step="0.1" value={selectedData.data.behaviours?.furniture?.seat?.y_offset || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.seat.y_offset`, parseFloat(e.target.value), selectedData.fullKey)} className="input" placeholder="0 = no seat" />
-                                            </div>
+                                            <label className="flex items-center gap-3 cursor-pointer">
+                                                <input type="checkbox" checked={selectedData.data.behaviours?.furniture?.solid || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.solid`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                                <span className="eyebrow">Sólido (hitbox de barreras)</span>
+                                            </label>
                                         </div>
                                     </div>
-                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
-                                        <h4 className="section-title">Almacenamiento</h4>
-                                        <div className="space-y-4">
-                                            <div className="space-y-1">
-                                                <label className="label">Huecos (Slots)</label>
-                                                <input type="number" step="9" min="0" max="54" value={selectedData.data.behaviours?.furniture?.container?.slots || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.container.slots`, parseInt(e.target.value), selectedData.fullKey)} className="input" />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="label">Título Inventario</label>
-                                                <input type="text" value={selectedData.data.behaviours?.furniture?.container?.title || ''} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.container.title`, e.target.value, selectedData.fullKey)} className="input" />
+                                    {selectedData.data.behaviours?.furniture?.entity === 'item_frame' && (
+                                        <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                            <h4 className="section-title">Colocable en</h4>
+                                            <div className="grid grid-cols-3 gap-3">
+                                                {['walls', 'ceiling', 'floor'].map(side => (
+                                                    <label key={side} className="flex items-center gap-2 cursor-pointer group/opt">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedData.data.behaviours?.furniture?.placeable_on?.[side] ?? (side === 'walls')}
+                                                            onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.placeable_on.${side}`, e.target.checked, selectedData.fullKey)}
+                                                            className="rounded bg-black border-white/10 text-purple-400"
+                                                        />
+                                                        <span className="label mb-0 group-hover/opt:text-ink transition-colors">{side}</span>
+                                                    </label>
+                                                ))}
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                                 </>
                             )}
@@ -1332,13 +1324,14 @@ export default function StudioWorkspace() {
                         <div className="space-y-2">
                             <label className="label">Tipo de Mueble</label>
                             <select
-                                value={linkedIaFurnitureEntry?.behaviours?.furniture?.furniture_type || 'ARMOR_STAND'}
+                                value={linkedIaFurnitureEntry?.behaviours?.furniture?.entity || 'armor_stand'}
                                 onChange={(e) => updateLinkedFurnitureType(e.target.value)}
                                 className="input"
                             >
-                                <option value="ARMOR_STAND">ARMOR_STAND (Suelo/Cajas)</option>
-                                <option value="ITEM_FRAME">ITEM_FRAME (Pared/Planos)</option>
-                                <option value="GLOW_ITEM_FRAME">GLOW_ITEM_FRAME (Pared Brillante)</option>
+                                <option value="armor_stand">armor_stand (Suelo/Cajas)</option>
+                                <option value="item_frame">item_frame (Pared/Planos)</option>
+                                <option value="glow_item_frame">glow_item_frame (Pared Brillante)</option>
+                                <option value="item_display">item_display (Libre, escalable/rotable)</option>
                             </select>
                         </div>
                     )}
