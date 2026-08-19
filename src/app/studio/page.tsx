@@ -341,7 +341,11 @@ export default function StudioWorkspace() {
                 if (isFurniture) {
                     newState.iaFurnitures[fullKey] = {
                         info: { namespace: XFOODS_NAMESPACE },
-                        furniture: {
+                        // ItemsAdder no tiene sección de nivel superior "furniture"/"furnitures": todo
+                        // vive bajo "items", y lo que lo hace mueble es el bloque behaviours.furniture
+                        // de cada entrada. Confirmado decompilando ItemsAdder_4.0.17.jar (el Converter
+                        // interno solo conoce y reordena la clave "items").
+                        items: {
                             [itemId]: {
                                 enabled: true,
                                 display_name: displayName || "Nuevo Mueble",
@@ -405,7 +409,7 @@ export default function StudioWorkspace() {
             // Mueble); solo uno de los dos mapas tiene la entrada en cada momento.
             const iaFullKeySync = `${XFOODS_NAMESPACE}/${leafId(selectedItem)}`;
             const linkedIaItem: any = (newState.iaItems[iaFullKeySync] as any)?.items?.[leafId(selectedItem)];
-            const linkedIaFurniture: any = (newState.iaFurnitures[iaFullKeySync] as any)?.furniture?.[leafId(selectedItem)];
+            const linkedIaFurniture: any = (newState.iaFurnitures[iaFullKeySync] as any)?.items?.[leafId(selectedItem)];
             const linkedIa = linkedIaItem || linkedIaFurniture;
 
             const esMaterial = path === 'config.item.material' || path === 'config.seed.material';
@@ -447,7 +451,9 @@ export default function StudioWorkspace() {
         const targetFileId = activeCategory === 'furnitures' ? "created_furnitures" : (activeCategory === 'blocks' ? "created_blocks" : "created_items");
         const fullKey = `${selectedNamespace}/${targetFileId}`;
         
-        let keyName = activeCategory === 'blocks' ? "blocks" : (activeCategory === 'furnitures' ? "furniture" : "items");
+        // "furnitures" es solo el nombre de la pestaña/categoría en la UI: ItemsAdder registra
+        // los muebles bajo la misma clave "items" que todo lo demás (ver nota más abajo).
+        let keyName = activeCategory === 'blocks' ? "blocks" : "items";
         
         let targetMap: any;
         if (activeCategory === 'items') targetMap = newState.iaItems;
@@ -591,7 +597,7 @@ export default function StudioWorkspace() {
     // ItemsAdder respeta el namespace elegido en el desplegable.
     const ns = isFoodContext ? XFOODS_NAMESPACE : (selectedNamespace as string);
     const fullKey = isFoodContext ? `${XFOODS_NAMESPACE}/${leafId(selectedItem)}` : (selectedData as any).fullKey;
-    const keyName = isFoodContext ? (machineIsFurniture ? "furniture" : "items") : currentIAKeyName;
+    const keyName = isFoodContext ? "items" : currentIAKeyName;
     const targetMap: Record<string, any> = isFoodContext
         ? (machineIsFurniture ? newState.iaFurnitures : newState.iaItems)
         : (activeCategory === 'items' ? newState.iaItems : (activeCategory === 'blocks' ? newState.iaBlocks : newState.iaFurnitures));
@@ -731,7 +737,7 @@ export default function StudioWorkspace() {
     ? (projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] as any)?.items?.[leafId(selectedItem)]
     : undefined;
   const linkedIaFurnitureEntry = selectedItem && projectState
-    ? (projectState.iaFurnitures[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] as any)?.furniture?.[leafId(selectedItem)]
+    ? (projectState.iaFurnitures[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] as any)?.items?.[leafId(selectedItem)]
     : undefined;
   const linkedIaEntry = linkedIaItemEntry || linkedIaFurnitureEntry;
   const isIAEnabled = !!linkedIaEntry;
@@ -773,7 +779,7 @@ export default function StudioWorkspace() {
     );
   }
 
-  const currentIAKeyName = activeCategory === 'blocks' ? "blocks" : (activeCategory === 'furnitures' ? "furniture" : "items");
+  const currentIAKeyName = activeCategory === 'blocks' ? "blocks" : "items";
 
   return (
     <div className="h-full flex flex-col space-y-6 animate-in slide-in-from-bottom-4 duration-500">
