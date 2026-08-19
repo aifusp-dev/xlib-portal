@@ -22,6 +22,7 @@ import {
   Copy,
   Search,
   Cloud,
+  Rocket,
   ChefHat,
   Sprout,
   Loader2,
@@ -30,7 +31,9 @@ import {
   Cpu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { generateZIP, parseUploadedFiles, EcosystemState, ConfigEntry, stringifyYaml, sanitizePath, isInternalNamespace, XFOODS_NAMESPACE, leafId, StudioFile } from "@/lib/studio";
+import { generateZIP, parseUploadedFiles, EcosystemState, ConfigEntry, stringifyYaml, sanitizePath, isInternalNamespace, XFOODS_NAMESPACE, leafId, StudioFile, PluginEditor, mapFor } from "@/lib/studio";
+import PublishModal from "@/components/PublishModal";
+import { extractPresetBundle } from "@/lib/preset-bundle";
 import { exportEcosystem } from "@/lib/export";
 import SyncModal from "@/components/SyncModal";
 import { Model3DViewer } from "@/components/Model3DViewer";
@@ -156,25 +159,6 @@ const SECCIONES = [
 const AUTOMATION_TYPES = ['AUTO_WATERER', 'SMART_LIGHT', 'AUTO_FERTILIZER_ORGANIC',
   'AUTO_FERTILIZER_CHEMICAL', 'AUTO_HARVESTER', 'AUTO_PESTICIDE'] as const;
 
-type PluginEditor = 'xfoods' | 'xcrops' | 'xmachines' | 'xpods' | 'xautomation';
-
-const EDITOR_MAPS: Record<PluginEditor, keyof Pick<EcosystemState, 'foods' | 'crops' | 'machines' | 'pods' | 'cropMachines'>> = {
-  xfoods: 'foods',
-  xcrops: 'crops',
-  xmachines: 'machines',
-  xpods: 'pods',
-  xautomation: 'cropMachines',
-};
-
-/**
- * Devuelve el mapa de configuraciones de la sección activa.
- * Antes esto era un ternario anidado repetido en cinco sitios, y añadir una sección obligaba a
- * acordarse de tocarlos todos: por eso los maceteros y la automatización nunca llegaron a
- * aparecer en el Studio.
- */
-const mapFor = (state: EcosystemState, editor: PluginEditor): Record<string, ConfigEntry> =>
-  state[EDITOR_MAPS[editor]] as Record<string, ConfigEntry>;
-
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
@@ -186,6 +170,7 @@ export default function StudioWorkspace() {
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
   const [activePreview, setActivePreview] = useState<'plugin' | 'ia'>('plugin');
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [isAutoImporting, setIsAutoImporting] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -240,6 +225,31 @@ export default function StudioWorkspace() {
     const state = await parseUploadedFiles(files);
     setProjectState(state);
     return state;
+  };
+
+  /** Devuelve un mensaje de error, o null si se publicó bien. Ver PublishModal. */
+  const handlePublish = async (title: string, description: string): Promise<string | null> => {
+    if (!projectState || !selectedItem || activeEditor === 'ia') return 'Nada seleccionado.';
+    try {
+        const blob = await extractPresetBundle(projectState, activeEditor as PluginEditor, selectedItem);
+        const formData = new FormData();
+        formData.append('file', blob, 'preset.zip');
+        formData.append('title', title);
+        formData.append('description', description);
+        formData.append('pluginEditor', activeEditor);
+        formData.append('itemId', selectedItem);
+
+        const res = await fetch('/api/discover/submit', { method: 'POST', body: formData });
+        if (res.status === 401) return 'Tienes que iniciar sesión con Google para publicar. Ábrelo en otra pestaña: /login';
+        if (!res.ok) {
+            const data = await res.json().catch(() => null);
+            return data?.error || 'Error al publicar.';
+        }
+        return null;
+    } catch (err) {
+        console.error('[Discover] Publish failed', err);
+        return 'Error inesperado al preparar el paquete.';
+    }
   };
 
   useEffect(() => {
@@ -929,6 +939,9 @@ export default function StudioWorkspace() {
                       </div>
                    </div>
                    <div className="flex flex-col gap-2">
+                        {activeEditor !== 'ia' && (
+                            <button onClick={() => setIsPublishModalOpen(true)} className="btn btn-ghost text-yellow-400"><Rocket className="w-3 h-3"/> Publicar en Descubrir</button>
+                        )}
                         <button onClick={(e) => handleCloneItem(selectedItem, e)} className="btn btn-ghost"><Copy className="w-3 h-3"/> Clonar</button>
                         <button className="btn btn-danger"><Trash2 className="w-3 h-3"/> Borrar</button>
                    </div>
@@ -1380,6 +1393,9 @@ export default function StudioWorkspace() {
       </div>
 
       <SyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} onSync={handleSyncToBridge} onImport={handleImportFromBridge} />
+      {selectedItem && (
+        <PublishModal isOpen={isPublishModalOpen} onClose={() => setIsPublishModalOpen(false)} itemId={selectedItem} onPublish={handlePublish} />
+      )}
     </div>
   );
 }

@@ -53,6 +53,25 @@ export const emptyState = (): EcosystemState => ({
   rawFiles: []
 });
 
+export type PluginEditor = 'xfoods' | 'xcrops' | 'xmachines' | 'xpods' | 'xautomation';
+
+export const EDITOR_MAPS: Record<PluginEditor, keyof Pick<EcosystemState, 'foods' | 'crops' | 'machines' | 'pods' | 'cropMachines'>> = {
+  xfoods: 'foods',
+  xcrops: 'crops',
+  xmachines: 'machines',
+  xpods: 'pods',
+  xautomation: 'cropMachines',
+};
+
+/**
+ * Devuelve el mapa de configuraciones de la sección activa.
+ * Antes esto era un ternario anidado repetido en cinco sitios, y añadir una sección obligaba a
+ * acordarse de tocarlos todos: por eso los maceteros y la automatización nunca llegaron a
+ * aparecer en el Studio.
+ */
+export const mapFor = (state: EcosystemState, editor: PluginEditor): Record<string, ConfigEntry> =>
+  state[EDITOR_MAPS[editor]] as Record<string, ConfigEntry>;
+
 export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   const zip = new JSZip();
   const defaultNs = state.projectName || 'xLib';
