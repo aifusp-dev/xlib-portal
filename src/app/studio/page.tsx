@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { generateZIP, parseUploadedFiles, emptyState, EcosystemState, ConfigEntry, stringifyYaml, sanitizePath, isInternalNamespace, XFOODS_NAMESPACE, leafId, StudioFile, PluginEditor, mapFor } from "@/lib/studio";
 import PublishModal from "@/components/PublishModal";
 import { extractPresetBundle, mergePresetIntoState } from "@/lib/preset-bundle";
+import { saveSnapshot, loadSnapshot, clearSnapshot } from "@/lib/studio-snapshot";
 import { exportEcosystem } from "@/lib/export";
 import SyncModal from "@/components/SyncModal";
 import { Model3DViewer } from "@/components/Model3DViewer";
@@ -181,6 +182,30 @@ export default function StudioWorkspace() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Autoguardado con debounce: reserializar rawFiles (potencialmente varios MB en base64) en
+  // cada tecla sería notable, así que se espera a una pausa de escritura antes de persistir.
+  useEffect(() => {
+    // Ojo: projectState empieza en null hasta que el efecto de rehidratación de abajo (o un
+    // ?token=/?installPreset=) lo rellena. Limpiar el snapshot aquí solo porque todavía es null
+    // en este render borraría el snapshot de la sesión anterior antes de poder leerlo. Cerrar sí
+    // limpia explícitamente (ver el botón "Cerrar").
+    if (!mounted || !projectState) return;
+    const timeout = setTimeout(() => saveSnapshot(projectState), 800);
+    return () => clearTimeout(timeout);
+  }, [mounted, projectState]);
+
+  // Recupera el snapshot al montar — cubre tanto un refresco accidental como (el caso que nos
+  // reportaron) volver de /discover tras perder projectState por ser una navegación de página
+  // completa. Se salta a propósito si viene un ?token=: ese flujo ya reemplaza el proyecto
+  // entero y no debe competir con un snapshot antiguo por quién "gana".
+  useEffect(() => {
+    if (!mounted || projectState) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('token')) return;
+    const snapshot = loadSnapshot();
+    if (snapshot) setProjectState(snapshot);
+  }, [mounted, projectState]);
 
   const availableNamespaces = useMemo(() => {
     if (!projectState) return [];
@@ -909,7 +934,7 @@ export default function StudioWorkspace() {
         <div className="flex gap-3">
           <a href="/discover" className="flex items-center gap-2 bg-yellow-400/10 text-yellow-400 px-6 py-2.5 rounded-xl font-bold hover:bg-yellow-400/20 transition-all border border-yellow-400/20"><Rocket className="w-4 h-4" /> Descubrir</a>
           <button onClick={() => setIsSyncModalOpen(true)} className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-2.5 rounded-xl font-bold hover:bg-blue-500/20 transition-all border border-blue-500/20"><Cloud className="w-4 h-4" /> Bridge</button>
-          <button onClick={() => { setProjectState(null); setSelectedItem(null); }} className="btn btn-ghost">Cerrar</button>
+          <button onClick={() => { setProjectState(null); setSelectedItem(null); clearSnapshot(); }} className="btn btn-ghost">Cerrar</button>
           <button onClick={() => exportEcosystem(projectState)} className="flex items-center gap-2 bg-accent text-white px-8 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"><Download className="w-4 h-4" /> ZIP</button>
         </div>
       </header>
