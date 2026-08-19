@@ -33,7 +33,7 @@ import {
 import { cn } from "@/lib/utils";
 import { generateZIP, parseUploadedFiles, emptyState, EcosystemState, ConfigEntry, stringifyYaml, sanitizePath, isInternalNamespace, XFOODS_NAMESPACE, leafId, StudioFile, PluginEditor, mapFor } from "@/lib/studio";
 import PublishModal from "@/components/PublishModal";
-import { extractPresetBundle, mergePresetIntoState } from "@/lib/preset-bundle";
+import { extractPresetBundle, mergePresetIntoState, PresetItemRef } from "@/lib/preset-bundle";
 import { saveSnapshot, loadSnapshot, clearSnapshot } from "@/lib/studio-snapshot";
 import { exportEcosystem } from "@/lib/export";
 import SyncModal from "@/components/SyncModal";
@@ -254,16 +254,19 @@ export default function StudioWorkspace() {
   };
 
   /** Devuelve un mensaje de error, o null si se publicó bien. Ver PublishModal. */
-  const handlePublish = async (title: string, description: string): Promise<string | null> => {
-    if (!projectState || !selectedItem || activeEditor === 'ia') return 'Nada seleccionado.';
+  const handlePublish = async (title: string, description: string, items: PresetItemRef[]): Promise<string | null> => {
+    if (!projectState || items.length === 0) return 'Nada seleccionado.';
     try {
-        const blob = await extractPresetBundle(projectState, activeEditor as PluginEditor, selectedItem);
+        const blob = await extractPresetBundle(projectState, items);
         const formData = new FormData();
         formData.append('file', blob, 'preset.zip');
         formData.append('title', title);
         formData.append('description', description);
-        formData.append('pluginEditor', activeEditor);
-        formData.append('itemId', selectedItem);
+        // items[0] es siempre el ítem principal (el que estaba seleccionado al pulsar
+        // "Publicar"): manda el titular pluginEditor/itemId de la tarjeta en Descubrir.
+        formData.append('pluginEditor', items[0].editor);
+        formData.append('itemId', items[0].itemId);
+        formData.append('items', JSON.stringify(items));
 
         const res = await fetch('/api/discover/submit', { method: 'POST', body: formData });
         if (res.status === 401) return 'Tienes que iniciar sesión con Google para publicar. Ábrelo en otra pestaña: /login';
@@ -1473,8 +1476,15 @@ export default function StudioWorkspace() {
       </div>
 
       <SyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} onSync={handleSyncToBridge} onImport={handleImportFromBridge} />
-      {selectedItem && (
-        <PublishModal isOpen={isPublishModalOpen} onClose={() => setIsPublishModalOpen(false)} itemId={selectedItem} onPublish={handlePublish} />
+      {selectedItem && activeEditor !== 'ia' && (
+        <PublishModal
+          isOpen={isPublishModalOpen}
+          onClose={() => setIsPublishModalOpen(false)}
+          projectState={projectState!}
+          primaryEditor={activeEditor as PluginEditor}
+          primaryItemId={selectedItem}
+          onPublish={handlePublish}
+        />
       )}
     </div>
   );

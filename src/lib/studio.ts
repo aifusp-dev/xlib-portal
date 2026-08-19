@@ -63,6 +63,15 @@ export const EDITOR_MAPS: Record<PluginEditor, keyof Pick<EcosystemState, 'foods
   xautomation: 'cropMachines',
 };
 
+/** Nombre legible de cada sección, para Descubrir/Moderar/el selector de paquete al publicar. */
+export const EDITOR_LABELS: Record<PluginEditor, string> = {
+  xfoods: 'Comida (xFoods)',
+  xcrops: 'Cultivo (xCrops)',
+  xmachines: 'Estación (xFoods)',
+  xpods: 'Macetero (xCrops)',
+  xautomation: 'Automatización (xCrops)',
+};
+
 /**
  * Devuelve el mapa de configuraciones de la sección activa.
  * Antes esto era un ternario anidado repetido en cinco sitios, y añadir una sección obligaba a

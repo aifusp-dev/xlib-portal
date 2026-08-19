@@ -9,24 +9,20 @@ import {
   XFOODS_NAMESPACE,
 } from './studio';
 
+export interface PresetItemRef {
+  editor: PluginEditor;
+  itemId: string;
+}
+
 /**
- * Construye un EcosystemState acotado a una sola entrada (comida/cultivo/
- * máquina/maceta/automatización) más, si la tiene, su vínculo de ItemsAdder
- * (ítem o mueble) y los assets (modelo/textura) que referencia. Reutiliza
- * generateZIP tal cual — un preset publicado es, literalmente, el mismo
- * formato de zip que ya produce el Studio para el proyecto entero.
+ * Añade una entrada (comida/cultivo/máquina/maceta/automatización) al EcosystemState acotado que
+ * se está construyendo, junto con su vínculo de ItemsAdder (ítem o mueble) y los assets
+ * (modelo/textura) que referencia, si los tiene.
  */
-export const extractPresetBundle = (
-  state: EcosystemState,
-  editor: PluginEditor,
-  itemId: string
-): Promise<Blob> => {
+const addItemToScope = (scoped: EcosystemState, state: EcosystemState, { editor, itemId }: PresetItemRef) => {
   const category = EDITOR_MAPS[editor];
   const entry = state[category][itemId];
   if (!entry) throw new Error(`No existe "${itemId}" en la sección "${editor}"`);
-
-  const scoped = emptyState();
-  scoped.projectName = state.projectName;
   (scoped[category] as Record<string, unknown>)[itemId] = entry;
 
   // Igual que linkedIaItemEntry/linkedIaFurnitureEntry en el Studio: el
@@ -41,10 +37,27 @@ export const extractPresetBundle = (
   // con sufijo "_<original>" cuando hay varias texturas). Basta con mirar el
   // nombre de fichero, la carpeta no importa aquí.
   const modelName = sanitizePath(leafId(itemId));
-  scoped.rawFiles = state.rawFiles.filter((file) => {
+  for (const file of state.rawFiles) {
     const fileName = file.inferredPath.split('/').pop() || '';
-    return fileName === `${modelName}.json` || fileName.startsWith(`${modelName}.png`) || fileName.startsWith(`${modelName}_`);
-  });
+    const belongsToItem = fileName === `${modelName}.json` || fileName.startsWith(`${modelName}.png`) || fileName.startsWith(`${modelName}_`);
+    if (belongsToItem && !scoped.rawFiles.some((f) => f.inferredPath === file.inferredPath)) {
+      scoped.rawFiles.push(file);
+    }
+  }
+};
+
+/**
+ * Construye un EcosystemState acotado a un "paquete" de entradas (p.ej. una Estación + la
+ * comida que produce, o un cultivo + el ítem que da al cosecharlo) más sus vínculos de
+ * ItemsAdder y assets. Reutiliza generateZIP tal cual — un preset publicado es, literalmente,
+ * el mismo formato de zip que ya produce el Studio para el proyecto entero.
+ */
+export const extractPresetBundle = (state: EcosystemState, items: PresetItemRef[]): Promise<Blob> => {
+  if (items.length === 0) throw new Error('No hay ningún ítem seleccionado para publicar.');
+
+  const scoped = emptyState();
+  scoped.projectName = state.projectName;
+  for (const ref of items) addItemToScope(scoped, state, ref);
 
   return generateZIP(scoped);
 };
