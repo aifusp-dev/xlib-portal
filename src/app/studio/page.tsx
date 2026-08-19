@@ -31,9 +31,9 @@ import {
   Cpu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { generateZIP, parseUploadedFiles, EcosystemState, ConfigEntry, stringifyYaml, sanitizePath, isInternalNamespace, XFOODS_NAMESPACE, leafId, StudioFile, PluginEditor, mapFor } from "@/lib/studio";
+import { generateZIP, parseUploadedFiles, emptyState, EcosystemState, ConfigEntry, stringifyYaml, sanitizePath, isInternalNamespace, XFOODS_NAMESPACE, leafId, StudioFile, PluginEditor, mapFor } from "@/lib/studio";
 import PublishModal from "@/components/PublishModal";
-import { extractPresetBundle } from "@/lib/preset-bundle";
+import { extractPresetBundle, mergePresetIntoState } from "@/lib/preset-bundle";
 import { exportEcosystem } from "@/lib/export";
 import SyncModal from "@/components/SyncModal";
 import { Model3DViewer } from "@/components/Model3DViewer";
@@ -172,6 +172,7 @@ export default function StudioWorkspace() {
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [isAutoImporting, setIsAutoImporting] = useState(false);
+  const [isInstallingPreset, setIsInstallingPreset] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -273,6 +274,59 @@ export default function StudioWorkspace() {
             .finally(() => setIsAutoImporting(false));
     }
   }, [projectState, isAutoImporting, mounted]);
+
+  /**
+   * Instalar desde Descubrir: a diferencia de ?token= (que reemplaza el proyecto entero),
+   * ?installPreset=<id> MERGEA el preset dentro del proyecto actual (o uno vacío si no había
+   * ninguno abierto), preguntando por cada id que ya exista. Nunca escribe nada en un servidor:
+   * solo en el EcosystemState de esta pestaña, igual que subir una carpeta a mano.
+   */
+  useEffect(() => {
+    if (!mounted || isAutoImporting || isInstallingPreset) return;
+    const params = new URLSearchParams(window.location.search);
+    const presetId = params.get('installPreset');
+    if (!presetId) return;
+
+    setIsInstallingPreset(true);
+    (async () => {
+        const res = await fetch(`/api/discover/${presetId}/install`, { method: 'POST' });
+
+        if (res.status === 401) {
+            window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+            return;
+        }
+        if (!res.ok) {
+            const data = await res.json().catch(() => null);
+            alert(data?.error || 'No se pudo instalar esa config.');
+            window.history.replaceState({}, '', window.location.pathname);
+            setIsInstallingPreset(false);
+            return;
+        }
+
+        const blob = await res.blob();
+        const JSZip = (await import('jszip')).default;
+        const zip = await JSZip.loadAsync(blob);
+        const files: File[] = [];
+        for (const [path, zipEntry] of Object.entries(zip.files)) {
+            if (zipEntry.dir) continue;
+            const buffer = await zipEntry.async('arraybuffer');
+            files.push(new File([buffer], path, { type: 'application/octet-stream' }));
+        }
+        const incoming = await parseUploadedFiles(files);
+
+        setProjectState((current) => {
+            const base = current ?? emptyState();
+            return mergePresetIntoState(base, incoming, (category, id) =>
+                window.confirm(`Ya tienes "${id}" en "${category}". ¿Sobrescribirlo con el que estás instalando?\n\nCancelar = mantener el tuyo.`)
+                    ? 'overwrite' : 'skip'
+            );
+        });
+
+        window.history.replaceState({}, '', window.location.pathname);
+        setIsInstallingPreset(false);
+        alert('¡Config instalada! Ya la tienes en tu proyecto — exporta o sincroniza cuando quieras.');
+    })();
+  }, [mounted, isAutoImporting, isInstallingPreset]);
 
   const handleFolderUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -788,11 +842,11 @@ export default function StudioWorkspace() {
 
   if (!mounted) return null;
 
-  if (isAutoImporting) {
+  if (isAutoImporting || isInstallingPreset) {
     return (
         <div className="h-screen flex flex-col items-center justify-center space-y-6 bg-surface-0">
             <div className="relative"><div className="w-24 h-24 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" /><Cloud className="absolute inset-0 m-auto w-8 h-8 text-yellow-400 animate-pulse" /></div>
-            <h2 className="text-lg font-medium text-ink">Sincronizando...</h2>
+            <h2 className="text-lg font-medium text-ink">{isInstallingPreset ? 'Instalando config de Descubrir...' : 'Sincronizando...'}</h2>
         </div>
     );
   }
@@ -853,6 +907,7 @@ export default function StudioWorkspace() {
             )}
         </div>
         <div className="flex gap-3">
+          <a href="/discover" className="flex items-center gap-2 bg-yellow-400/10 text-yellow-400 px-6 py-2.5 rounded-xl font-bold hover:bg-yellow-400/20 transition-all border border-yellow-400/20"><Rocket className="w-4 h-4" /> Descubrir</a>
           <button onClick={() => setIsSyncModalOpen(true)} className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-2.5 rounded-xl font-bold hover:bg-blue-500/20 transition-all border border-blue-500/20"><Cloud className="w-4 h-4" /> Bridge</button>
           <button onClick={() => { setProjectState(null); setSelectedItem(null); }} className="btn btn-ghost">Cerrar</button>
           <button onClick={() => exportEcosystem(projectState)} className="flex items-center gap-2 bg-accent text-white px-8 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"><Download className="w-4 h-4" /> ZIP</button>

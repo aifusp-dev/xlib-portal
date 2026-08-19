@@ -48,3 +48,47 @@ export const extractPresetBundle = (
 
   return generateZIP(scoped);
 };
+
+/** Categorías con ids "con nombre" que pueden chocar al instalar un preset sobre un proyecto
+ * que ya tenga un elemento con el mismo id. rawFiles se resuelve aparte (ver abajo): no tiene
+ * un id que mostrarle al usuario, así que ahí el entrante simplemente gana.
+ */
+const NAMED_CATEGORIES = ['foods', 'crops', 'machines', 'pods', 'cropMachines', 'iaItems', 'iaBlocks', 'iaFurnitures'] as const;
+
+/**
+ * Mergea un EcosystemState descargado (el resultado de parseUploadedFiles sobre el zip de un
+ * preset) dentro del proyecto actual del Studio. Es el inverso de extractPresetBundle: mismo
+ * formato de zip, sin ningún parser nuevo.
+ *
+ * onConflict decide qué hacer cuando el id ya existe en el proyecto actual — la UI lo resuelve
+ * con un confirm() por id en conflicto (ver src/app/studio/page.tsx).
+ */
+export const mergePresetIntoState = (
+  current: EcosystemState,
+  incoming: EcosystemState,
+  onConflict: (category: string, id: string) => 'overwrite' | 'skip'
+): EcosystemState => {
+  const next: EcosystemState = { ...current };
+
+  for (const category of NAMED_CATEGORIES) {
+    const currentMap = { ...(current[category] as Record<string, unknown>) };
+    const incomingMap = incoming[category] as Record<string, unknown>;
+
+    for (const [id, value] of Object.entries(incomingMap)) {
+      if (currentMap[id] && onConflict(category, id) === 'skip') continue;
+      currentMap[id] = value;
+    }
+    (next[category] as Record<string, unknown>) = currentMap;
+  }
+
+  // Los rawFiles no tienen un id que mostrar en un conflicto: por ruta, el entrante gana.
+  const rawFiles = [...current.rawFiles];
+  for (const file of incoming.rawFiles) {
+    const idx = rawFiles.findIndex((f) => f.inferredPath === file.inferredPath);
+    if (idx !== -1) rawFiles[idx] = file;
+    else rawFiles.push(file);
+  }
+  next.rawFiles = rawFiles;
+
+  return next;
+};
