@@ -21,7 +21,11 @@ export default function AutocompleteInput({
   value, onChange, options, placeholder, className, strict, hint,
 }: AutocompleteInputProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [cursor, setCursor] = useState(0);
+  // -1 = nada resaltado todavía. Antes empezaba en 0 (primer resultado), así que pulsar Enter
+  // justo después de escribir un valor exacto (ej. "IRON_INGOT") lo sustituía en silencio por lo
+  // que fuera que cayera primero en la lista filtrada (ej. "IRON_BARS", por venir antes en
+  // MATERIALS) en vez de confirmar lo que el usuario acababa de escribir.
+  const [cursor, setCursor] = useState(-1);
   const listRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
@@ -44,7 +48,7 @@ export default function AutocompleteInput({
   // Un valor vacío no es un error; uno escrito que no existe en la lista, sí.
   const invalido = strict && !!value && !options.includes(value);
 
-  const elegir = (opt: string) => { onChange(opt); setIsOpen(false); setCursor(0); };
+  const elegir = (opt: string) => { onChange(opt); setIsOpen(false); setCursor(-1); };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen || filtered.length === 0) return;
@@ -57,6 +61,9 @@ export default function AutocompleteInput({
       listRef.current?.children[next]?.scrollIntoView({ block: "nearest" });
     } else if (e.key === "Enter") {
       e.preventDefault();
+      // Sin navegar con flechas (cursor -1) Enter solo cierra la lista y deja el valor escrito
+      // tal cual — no hay nada "seleccionado" que deba imponerse sobre lo que el usuario escribió.
+      if (cursor === -1) { setIsOpen(false); return; }
       elegir(filtered[cursor]);
     } else if (e.key === "Escape") {
       setIsOpen(false);
@@ -68,8 +75,8 @@ export default function AutocompleteInput({
       <input
         type="text"
         value={value}
-        onChange={(e) => { onChange(e.target.value); setIsOpen(true); setCursor(0); }}
-        onFocus={() => setIsOpen(true)}
+        onChange={(e) => { onChange(e.target.value); setIsOpen(true); setCursor(-1); }}
+        onFocus={() => { setIsOpen(true); setCursor(-1); }}
         onBlur={() => setTimeout(() => setIsOpen(false), 150)}
         onKeyDown={onKeyDown}
         className={cn(className, invalido && "border-danger/60")}
