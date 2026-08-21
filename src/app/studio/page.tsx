@@ -910,16 +910,19 @@ export default function StudioWorkspace() {
   );
 
   /**
-   * Sugerencias para las celdas de CraftingGridEditor: materiales vanilla tal cual (se
-   * interpretan como "vanilla:X" al escribirlos) más los ids de comidas, maceteros y estaciones
-   * ya en formato de ref completo ("xfoods:harina", "xfoodscrops:pod:clay_pot"...), para poder
-   * craftear una cosa usando otra como ingrediente sin salir del Studio.
+   * Sugerencias para las celdas de CraftingGridEditor/DropsEditor: materiales vanilla tal cual
+   * (se interpretan como "vanilla:X" al escribirlos) más los ids de comidas, semillas, maceteros
+   * y estaciones ya en formato de ref completo ("xfoods:harina", "xfoodscrops:seed:lettuce",
+   * "xfoodscrops:pod:clay_pot"...), para poder usar cualquiera de ellos como ingrediente/drop sin
+   * salir del Studio. Las semillas (xcrops/species) faltaban aquí — el ref funcionaba igual si se
+   * escribía a mano, pero no salía sugerido en el desplegable.
    */
   const craftIngredientOptions = useMemo(() => {
     const foodRefs = foodIdOptions.map((id) => `xfoods:${id}`);
+    const seedRefs = Object.keys(projectState?.crops ?? {}).map((id) => `xfoodscrops:seed:${leafId(id)}`);
     const podRefs = Object.keys(projectState?.pods ?? {}).map((id) => `xfoodscrops:pod:${leafId(id)}`);
     const machineRefs = Object.keys(projectState?.machines ?? {}).map((id) => `xfoods:machine:${leafId(id)}`);
-    return [...MATERIALS, ...foodRefs, ...podRefs, ...machineRefs];
+    return [...MATERIALS, ...foodRefs, ...seedRefs, ...podRefs, ...machineRefs];
   }, [foodIdOptions, projectState]);
 
   const linkedIaItemEntry = selectedItem && projectState
