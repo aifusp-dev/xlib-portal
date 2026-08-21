@@ -32,6 +32,43 @@ export const craftResultRef = (kind: 'pod' | 'machine', id: string): string =>
   kind === 'pod' ? `xfoodscrops:pod:${leafId(id)}` : `xfoods:machine:${leafId(id)}`;
 
 /**
+ * Espejo en TypeScript de xFoods/drops.yml (mob-drops + block-drops), leído por
+ * MobDropListener/BlockDropListener. Cada ref de ítem acepta "namespace:key" completo o un id
+ * suelto (tratado como "xfoods:<id>" por el plugin).
+ *
+ * `present` distingue "el proyecto nunca tuvo drops.yml" de "lo tiene pero está vacío/desactivado":
+ * sin este flag, generateZIP no podría saber si debe escribir el fichero o no, y cualquier
+ * proyecto importado sin drops.yml habría hecho que un roundtrip por el Studio lo creara de la
+ * nada (inofensivo) o, peor, que sincronizarlo pisara un drops.yml real del servidor con uno vacío
+ * si algún día se generase incondicionalmente.
+ */
+export interface MobDropsConfig {
+  enabled: boolean;
+  /** ENTITY -> MATERIAL -> ref del ítem. */
+  replacements: Record<string, Record<string, string>>;
+}
+export interface BlockDropEntry {
+  item: string;
+  chance: number;
+  amount?: number;
+}
+export interface BlockDropsConfig {
+  enabled: boolean;
+  /** MATERIAL -> lista de posibles drops extra. */
+  drops: Record<string, BlockDropEntry[]>;
+}
+export interface DropsConfig {
+  present: boolean;
+  mobDrops: MobDropsConfig;
+  blockDrops: BlockDropsConfig;
+}
+export const emptyDropsConfig = (): DropsConfig => ({
+  present: false,
+  mobDrops: { enabled: false, replacements: {} },
+  blockDrops: { enabled: false, drops: {} },
+});
+
+/**
  * Un fichero del proyecto que el Studio reconoce como suyo pero para el que todavía no hay
  * editor (categories.yml, market.yml, config.yml...). Se guarda tal cual y se vuelve a escribir
  * sin tocarlo, para que pasar el proyecto por el Studio nunca pierda nada.
@@ -54,6 +91,8 @@ export interface EcosystemState {
   pods: Record<string, ConfigEntry>;
   /** Máquinas de automatización de xFoodsCrops (machines/*.yml). */
   cropMachines: Record<string, ConfigEntry>;
+  /** xFoods/drops.yml: mob-drops + block-drops. */
+  drops: DropsConfig;
   /** Ficheros reconocidos sin editor propio; se conservan intactos. */
   extraFiles: PassthroughFile[];
   rawFiles: StudioFile[];
@@ -70,6 +109,7 @@ export const emptyState = (): EcosystemState => ({
   machines: {},
   pods: {},
   cropMachines: {},
+  drops: emptyDropsConfig(),
   extraFiles: [],
   rawFiles: []
 });
@@ -152,6 +192,21 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
       ingredients: data.recipe!.ingredients,
     }));
   });
+
+  // 3e. drops.yml (xFoods): solo se escribe si el proyecto lo trajo importado o el usuario ya
+  // tocó la pestaña Drops — ver el comentario en DropsConfig sobre por qué hace falta el flag.
+  if (state.drops.present) {
+    zip.file('xFoods/drops.yml', stringifyYaml({
+      'mob-drops': {
+        enabled: state.drops.mobDrops.enabled,
+        replacements: state.drops.mobDrops.replacements,
+      },
+      'block-drops': {
+        enabled: state.drops.blockDrops.enabled,
+        drops: state.drops.blockDrops.drops,
+      },
+    }));
+  }
 
   // 3c. Ficheros sin editor propio (categories.yml, market.yml, config.yml...): se devuelven
   // exactamente como entraron, comentarios incluidos.
@@ -304,6 +359,8 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
             const relativePath = path.split('xFoodsCrops/machines/')[1];
             const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
             state.cropMachines[fullId] = { config, folder: fullId.split('/').slice(0, -1).join('/') };
+          } else if (path.endsWith('xFoods/drops.yml')) {
+            state.drops = parseDropsConfig(config);
           } else if (path.includes('xFoodsCrops/recipes/')) {
             const relativePath = path.split('xFoodsCrops/recipes/')[1];
             const recipe = parseCraftRecipe(config);
@@ -387,6 +444,44 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
  * escrita a mano por fuera del Studio se conserva en el servidor pero no se puede editar aquí, así
  * que se ignora en vez de intentar representarla a medias.
  */
+/** Lee xFoods/drops.yml ya parseado a objeto. Entradas malformadas se descartan, no abortan todo el fichero. */
+const parseDropsConfig = (config: Record<string, unknown>): DropsConfig => {
+  const result = emptyDropsConfig();
+  result.present = true;
+
+  const mob = config['mob-drops'] as Record<string, unknown> | undefined;
+  if (mob) {
+    result.mobDrops.enabled = !!mob.enabled;
+    const rep = mob.replacements as Record<string, Record<string, string>> | undefined;
+    if (rep && typeof rep === 'object') result.mobDrops.replacements = rep;
+  }
+
+  const block = config['block-drops'] as Record<string, unknown> | undefined;
+  if (block) {
+    result.blockDrops.enabled = !!block.enabled;
+    const drops = block.drops as Record<string, unknown> | undefined;
+    if (drops && typeof drops === 'object') {
+      const cleaned: Record<string, BlockDropEntry[]> = {};
+      for (const [material, entries] of Object.entries(drops)) {
+        if (!Array.isArray(entries)) continue;
+        const rules: BlockDropEntry[] = [];
+        for (const entry of entries) {
+          if (!entry || typeof entry !== 'object' || typeof (entry as any).item !== 'string') continue;
+          rules.push({
+            item: (entry as any).item,
+            chance: typeof (entry as any).chance === 'number' ? (entry as any).chance : 1,
+            amount: typeof (entry as any).amount === 'number' ? (entry as any).amount : undefined,
+          });
+        }
+        if (rules.length > 0) cleaned[material] = rules;
+      }
+      result.blockDrops.drops = cleaned;
+    }
+  }
+
+  return result;
+};
+
 const parseCraftRecipe = (config: Record<string, unknown>): CraftRecipeConfig | null => {
   const shape = config.shape;
   const ingredients = config.ingredients;

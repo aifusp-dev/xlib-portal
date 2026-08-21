@@ -44,6 +44,7 @@ import { MATERIALS, SOUNDS, PARTICLES } from "@/lib/minecraft";
 import CropStagesEditor from "@/components/CropStagesEditor";
 import MachineRecipesEditor from "@/components/MachineRecipesEditor";
 import CraftingGridEditor from "@/components/CraftingGridEditor";
+import DropsEditor from "@/components/DropsEditor";
 import PotionEffectsEditor, { PotionConfig } from "@/components/PotionEffectsEditor";
 import CommandActionRow from "@/components/CommandActionRow";
 
@@ -156,6 +157,7 @@ const SECCIONES = [
   { id: 'xpods',      label: 'Maceteros',     color: 'var(--color-sec-pods)',       desc: 'Modificadores de crecimiento y plagas' },
   { id: 'xautomation',label: 'Automatización',color: 'var(--color-sec-automation)', desc: 'Regadores, lámparas, recolectores' },
   { id: 'ia',         label: 'ItemsAdder',    color: 'var(--color-sec-ia)',         desc: 'Modelos 3D y texturas' },
+  { id: 'xdrops',     label: 'Drops',         color: 'var(--color-sec-drops)',      desc: 'Sustituciones de drops de mobs y bonus al romper bloques' },
 ] as const;
 
 /** Tipos de MachineConfiguration.MachineType que acepta xFoodsCrops. */
@@ -165,7 +167,7 @@ const AUTOMATION_TYPES = ['AUTO_WATERER', 'SMART_LIGHT', 'AUTO_FERTILIZER_ORGANI
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
-  const [activeEditor, setActiveEditor] = useState<PluginEditor | 'ia'>('xfoods');
+  const [activeEditor, setActiveEditor] = useState<PluginEditor | 'ia' | 'xdrops'>('xfoods');
   const [activeCategory, setActiveCategory] = useState<string>("items"); 
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null);
@@ -550,6 +552,14 @@ export default function StudioWorkspace() {
     setProjectState(newState);
   };
 
+  /** Para DropsEditor: no hay selectedItem, drops.yml es un único fichero global. */
+  const mutateDrops = (mutator: (drops: EcosystemState['drops']) => void) => {
+    if (!projectState) return;
+    const newState = { ...projectState, drops: { ...projectState.drops } };
+    mutator(newState.drops);
+    setProjectState(newState);
+  };
+
   const handleCreateNew = () => {
     if (!projectState) return;
     const timestamp = Date.now();
@@ -631,7 +641,7 @@ export default function StudioWorkspace() {
   };
 
   const filteredItems = useMemo(() => {
-    if (!projectState) return [];
+    if (!projectState || activeEditor === 'xdrops') return [];
     if (activeEditor === 'ia') {
         if (!selectedNamespace) return [];
         const result: [string, any][] = [];
@@ -656,13 +666,13 @@ export default function StudioWorkspace() {
   }, [projectState, activeEditor, activeCategory, selectedNamespace, searchTerm]);
 
   const selectedData = useMemo(() => {
-    if (!selectedItem || !projectState) return null;
+    if (!selectedItem || !projectState || activeEditor === 'xdrops') return null;
     if (activeEditor === 'ia') return filteredItems.find(([id]) => id === selectedItem)?.[1];
     return mapFor(projectState, activeEditor as PluginEditor)[selectedItem];
   }, [selectedItem, filteredItems, activeEditor, projectState]);
 
   const groupedX = useMemo(() => {
-    if (!projectState || activeEditor === 'ia') return {};
+    if (!projectState || activeEditor === 'ia' || activeEditor === 'xdrops') return {};
     const targetMap = mapFor(projectState, activeEditor as PluginEditor);
     const groups: Record<string, string[]> = {};
     Object.entries(targetMap).forEach(([id, data]) => {
@@ -969,9 +979,11 @@ export default function StudioWorkspace() {
                     const activa = activeEditor === sec.id;
                     const n = sec.id === 'ia'
                         ? Object.keys(projectState.iaItems).length + Object.keys(projectState.iaBlocks).length + Object.keys(projectState.iaFurnitures).length
+                        : sec.id === 'xdrops'
+                        ? Object.keys(projectState.drops.mobDrops.replacements).length + Object.keys(projectState.drops.blockDrops.drops).length
                         : Object.keys(mapFor(projectState, sec.id as PluginEditor)).length;
                     return (
-                        <button key={sec.id} onClick={() => { setActiveEditor(sec.id as PluginEditor | 'ia'); setSelectedItem(null); }}
+                        <button key={sec.id} onClick={() => { setActiveEditor(sec.id as PluginEditor | 'ia' | 'xdrops'); setSelectedItem(null); }}
                                 className="tab" data-active={activa} title={sec.desc}>
                             <span className="tab-dot" style={{ background: activa ? sec.color : 'var(--color-ink-3)' }} />
                             {sec.label}
@@ -997,6 +1009,11 @@ export default function StudioWorkspace() {
         </div>
       </header>
 
+      {activeEditor === 'xdrops' ? (
+      <div className="flex-1 panel overflow-hidden p-6">
+        <DropsEditor drops={projectState.drops} mutate={mutateDrops} refOptions={craftIngredientOptions} />
+      </div>
+      ) : (
       <div className="flex-1 grid grid-cols-12 gap-6 overflow-hidden">
         <aside className="col-span-3 panel flex flex-col overflow-hidden">
            {activeEditor === 'ia' && (
@@ -1584,6 +1601,7 @@ export default function StudioWorkspace() {
            <div className="p-4 bg-surface-1 border-t border-line"><button onClick={() => { if (selectedItem && selectedData) { const yaml = activePreview === 'plugin' ? stringifyYaml(activeEditor === 'ia' ? selectedData.data : selectedData.config) : stringifyYaml(projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`]); navigator.clipboard.writeText(yaml || ""); alert("Copiado"); } }} className="btn btn-ghost w-full">Copiar Código</button></div>
         </section>
       </div>
+      )}
 
       <SyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} onSync={handleSyncToBridge} onImport={handleImportFromBridge} />
       {selectedItem && activeEditor !== 'ia' && (
