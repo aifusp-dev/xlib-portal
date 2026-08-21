@@ -8,7 +8,28 @@ export interface StudioFile {
   inferredPath: string;
 }
 
-export type ConfigEntry = { config: Record<string, unknown>, folder?: string };
+export type ConfigEntry = { config: Record<string, unknown>, folder?: string, recipe?: CraftRecipeConfig | null };
+
+/**
+ * Receta de crafteo (mesa vanilla) de un macetero o una estación, editada visualmente en el grid
+ * de {@link CraftingGridEditor}. Espejo en TypeScript del esquema YAML que lee
+ * {@code org.aifusp.dev.xLib.crafting.CraftingRecipeLoader} en el plugin: "shape" es un array de
+ * 1 a 3 líneas de igual longitud (espacio = hueco vacío), "ingredients" mapea cada símbolo a un
+ * ref "namespace:key" (o "vanilla:MATERIAL"). Solo se soporta el modo shaped desde el Studio — el
+ * motor también entiende "ingredients-list" (shapeless) pero eso hay que escribirlo a mano.
+ */
+export interface CraftRecipeConfig {
+  shape: string[];
+  ingredients: Record<string, string>;
+}
+
+/** Ausencia de receta = el ítem no es crafteable, solo se consigue por comando. */
+export const isCraftable = (recipe: CraftRecipeConfig | null | undefined): boolean =>
+  !!recipe && recipe.shape.length > 0 && Object.keys(recipe.ingredients).length > 0;
+
+/** Id de resultado tal y como lo resuelve CustomItemFactories en el plugin: sin la carpeta. */
+export const craftResultRef = (kind: 'pod' | 'machine', id: string): string =>
+  kind === 'pod' ? `xfoodscrops:pod:${leafId(id)}` : `xfoods:machine:${leafId(id)}`;
 
 /**
  * Un fichero del proyecto que el Studio reconoce como suyo pero para el que todavía no hay
@@ -110,6 +131,28 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
     zip.file(`xFoodsCrops/machines/${id}.yml`, stringifyYaml(data.config));
   });
 
+  // 3d. Recetas de crafteo (mesa vanilla) de maceteros y estaciones, editadas visualmente en el
+  // Studio. Van en su propia carpeta ("recipes/"), separada de "pods/"/"machines/" porque así
+  // las lee org.aifusp.dev.xLib.crafting.RecipeManager en cada plugin. Un macetero/estación sin
+  // receta (isCraftable == false) simplemente no escribe fichero: no es crafteable, solo se
+  // consigue por comando, que es el estado por defecto.
+  Object.entries(state.pods).forEach(([id, data]) => {
+    if (!isCraftable(data.recipe)) return;
+    zip.file(`xFoodsCrops/recipes/${leafId(id)}.yml`, stringifyYaml({
+      result: craftResultRef('pod', id),
+      shape: data.recipe!.shape,
+      ingredients: data.recipe!.ingredients,
+    }));
+  });
+  Object.entries(state.machines).forEach(([id, data]) => {
+    if (!isCraftable(data.recipe)) return;
+    zip.file(`xFoods/recipes/${leafId(id)}.yml`, stringifyYaml({
+      result: craftResultRef('machine', id),
+      shape: data.recipe!.shape,
+      ingredients: data.recipe!.ingredients,
+    }));
+  });
+
   // 3c. Ficheros sin editor propio (categories.yml, market.yml, config.yml...): se devuelven
   // exactamente como entraron, comentarios incluidos.
   state.extraFiles.forEach(file => {
@@ -207,6 +250,13 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
 export const parseUploadedFiles = async (files: FileList | File[] | any[]): Promise<EcosystemState> => {
   const state: EcosystemState = emptyState();
 
+  // Recetas de crafteo leídas de "recipes/*.yml", guardadas por leafId aparte porque el fichero
+  // de la receta puede procesarse antes o después que el del pod/estación al que pertenece (el
+  // orden de fileList no está garantizado). Se enganchan a su pod/estación en una segunda pasada,
+  // cuando ya se sabe que todos los pods/estaciones están cargados.
+  const pendingPodRecipes: Record<string, CraftRecipeConfig> = {};
+  const pendingMachineRecipes: Record<string, CraftRecipeConfig> = {};
+
   const fileList = Array.from(files);
 
   // First pass: Detect project name (Namespace) - Just use the first valid ItemsAdder namespace found as default
@@ -254,6 +304,14 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
             const relativePath = path.split('xFoodsCrops/machines/')[1];
             const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
             state.cropMachines[fullId] = { config, folder: fullId.split('/').slice(0, -1).join('/') };
+          } else if (path.includes('xFoodsCrops/recipes/')) {
+            const relativePath = path.split('xFoodsCrops/recipes/')[1];
+            const recipe = parseCraftRecipe(config);
+            if (recipe) pendingPodRecipes[sanitizePath(relativePath.replace(/\.ya?ml$/, ''))] = recipe;
+          } else if (path.includes('xFoods/recipes/')) {
+            const relativePath = path.split('xFoods/recipes/')[1];
+            const recipe = parseCraftRecipe(config);
+            if (recipe) pendingMachineRecipes[sanitizePath(relativePath.replace(/\.ya?ml$/, ''))] = recipe;
           } else if (path.includes('ItemsAdder/contents/')) {
             const iaPath = path.split('ItemsAdder/contents/')[1];
             const iaParts = iaPath.split('/');
@@ -308,7 +366,36 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
     }
   }
 
+  // Engancha cada receta pendiente al pod/estación cuyo leafId coincide con el nombre del
+  // fichero de receta (result: no se usa para el match porque nada garantiza que el admin no lo
+  // haya tocado a mano; el nombre de fichero es la misma identidad que usa el plugin).
+  const attachRecipes = (map: Record<string, ConfigEntry>, recipes: Record<string, CraftRecipeConfig>) => {
+    Object.keys(map).forEach((fullId) => {
+      const recipe = recipes[leafId(fullId)];
+      if (recipe) map[fullId].recipe = recipe;
+    });
+  };
+  attachRecipes(state.pods, pendingPodRecipes);
+  attachRecipes(state.machines, pendingMachineRecipes);
+
   return state;
+};
+
+/**
+ * Lee un fichero de receta ya parseado a objeto. Solo entiende el modo "shaped" (shape +
+ * ingredients) que produce {@link CraftingGridEditor} — una receta "ingredients-list" (shapeless)
+ * escrita a mano por fuera del Studio se conserva en el servidor pero no se puede editar aquí, así
+ * que se ignora en vez de intentar representarla a medias.
+ */
+const parseCraftRecipe = (config: Record<string, unknown>): CraftRecipeConfig | null => {
+  const shape = config.shape;
+  const ingredients = config.ingredients;
+  if (!Array.isArray(shape) || shape.length === 0) return null;
+  if (typeof ingredients !== 'object' || ingredients === null) return null;
+  return {
+    shape: shape.map(String),
+    ingredients: ingredients as Record<string, string>,
+  };
 };
 
 /**

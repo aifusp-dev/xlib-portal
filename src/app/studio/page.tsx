@@ -28,7 +28,8 @@ import {
   Loader2,
   CheckCircle2,
   Flower2,
-  Cpu
+  Cpu,
+  Hammer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateZIP, parseUploadedFiles, emptyState, EcosystemState, ConfigEntry, stringifyYaml, sanitizePath, isInternalNamespace, XFOODS_NAMESPACE, leafId, StudioFile, PluginEditor, mapFor } from "@/lib/studio";
@@ -42,6 +43,7 @@ import AutocompleteInput from "@/components/AutocompleteInput";
 import { MATERIALS, SOUNDS, PARTICLES } from "@/lib/minecraft";
 import CropStagesEditor from "@/components/CropStagesEditor";
 import MachineRecipesEditor from "@/components/MachineRecipesEditor";
+import CraftingGridEditor from "@/components/CraftingGridEditor";
 import PotionEffectsEditor, { PotionConfig } from "@/components/PotionEffectsEditor";
 import CommandActionRow from "@/components/CommandActionRow";
 
@@ -537,6 +539,17 @@ export default function StudioWorkspace() {
     setProjectState(newState);
   };
 
+  /** Igual que mutateSelectedConfig pero da acceso al ConfigEntry entero (para el campo `recipe`,
+   * hermano de `config`, que usa CraftingGridEditor). */
+  const mutateSelectedEntry = (mutator: (entry: ConfigEntry) => void) => {
+    if (!projectState || !selectedItem) return;
+    const newState = { ...projectState };
+    const entry = mapFor(newState, activeEditor as PluginEditor)[selectedItem];
+    if (!entry) return;
+    mutator(entry);
+    setProjectState(newState);
+  };
+
   const handleCreateNew = () => {
     if (!projectState) return;
     const timestamp = Date.now();
@@ -885,6 +898,19 @@ export default function StudioWorkspace() {
     () => Array.from(new Set(Object.keys(projectState?.foods ?? {}).map(leafId))).sort(),
     [projectState]
   );
+
+  /**
+   * Sugerencias para las celdas de CraftingGridEditor: materiales vanilla tal cual (se
+   * interpretan como "vanilla:X" al escribirlos) más los ids de comidas, maceteros y estaciones
+   * ya en formato de ref completo ("xfoods:harina", "xfoodscrops:pod:clay_pot"...), para poder
+   * craftear una cosa usando otra como ingrediente sin salir del Studio.
+   */
+  const craftIngredientOptions = useMemo(() => {
+    const foodRefs = foodIdOptions.map((id) => `xfoods:${id}`);
+    const podRefs = Object.keys(projectState?.pods ?? {}).map((id) => `xfoodscrops:pod:${leafId(id)}`);
+    const machineRefs = Object.keys(projectState?.machines ?? {}).map((id) => `xfoods:machine:${leafId(id)}`);
+    return [...MATERIALS, ...foodRefs, ...podRefs, ...machineRefs];
+  }, [foodIdOptions, projectState]);
 
   const linkedIaItemEntry = selectedItem && projectState
     ? (projectState.iaItems[`${XFOODS_NAMESPACE}/${leafId(selectedItem)}`] as any)?.items?.[leafId(selectedItem)]
@@ -1248,6 +1274,14 @@ export default function StudioWorkspace() {
                                 <input type="number" step="0.01" min={0} max={1} value={(selectedData.config.probabilities as any)?.['pest-chance'] ?? 0.05} onChange={(e) => updateField('config.probabilities.pest-chance', parseFloat(e.target.value))} className="input" />
                                 <p className="hint">Entre 0.0 y 1.0. Con 0.05 la planta tiene un 5% de infectarse cada minuto.</p>
                             </div>
+
+                            <div className="section-head text-orange-400"><Hammer /><h4 className="section-title">Crafteo</h4></div>
+                            <CraftingGridEditor
+                                recipe={selectedData.recipe}
+                                onChange={(recipe) => mutateSelectedEntry((entry) => { entry.recipe = recipe; })}
+                                refOptions={craftIngredientOptions}
+                                resultLabel={String(selectedData.config['display-name'] || selectedItem)}
+                            />
                         </div>
                     )}
 
@@ -1293,7 +1327,18 @@ export default function StudioWorkspace() {
 
                     {activeEditor === 'xmachines' && (
                          <div className="space-y-8">
+                            <div>
+                                <div className="section-head is-first text-lime-400"><Hammer /><h4 className="section-title">Cómo se consigue esta estación</h4></div>
+                                <p className="hint mb-4">Receta de mesa de crafteo para obtener el ítem colocable. Sin esto, solo se consigue con /xfoods machine give.</p>
+                                <CraftingGridEditor
+                                    recipe={selectedData.recipe}
+                                    onChange={(recipe) => mutateSelectedEntry((entry) => { entry.recipe = recipe; })}
+                                    refOptions={craftIngredientOptions}
+                                    resultLabel={String(selectedData.config['display-name'] || selectedItem)}
+                                />
+                            </div>
                             <div className="section-head text-orange-400"><Flame /><h4 className="section-title">Recetas de la Estación</h4></div>
+                            <p className="hint -mt-4">Lo que la estación ya colocada cocina/procesa cuando un jugador la usa — distinto de la receta de arriba.</p>
                             <MachineRecipesEditor
                                 config={selectedData.config as { 'is-refrigerator'?: boolean; recipes?: Record<string, any> }}
                                 mutate={mutateSelectedConfig}
