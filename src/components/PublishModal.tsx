@@ -31,7 +31,7 @@ export default function PublishModal({ isOpen, onClose, projectState, primaryEdi
     // Todo lo que hay en el proyecto, agrupado por sección, para elegir qué añadir al paquete
     // (p.ej. la comida que produce esta Estación, o el ítem que da este cultivo).
     const candidatesByEditor = useMemo(() => {
-        const groups: Record<PluginEditor, string[]> = { xfoods: [], xcrops: [], xmachines: [], xpods: [], xautomation: [] };
+        const groups: Record<PluginEditor, string[]> = { xfoods: [], xcrops: [], xmachines: [], xpods: [], xautomation: [], xitems: [] };
         (Object.keys(EDITOR_MAPS) as PluginEditor[]).forEach((editor) => {
             const map = projectState[EDITOR_MAPS[editor]];
             groups[editor] = Object.keys(map)

@@ -91,6 +91,14 @@ export interface EcosystemState {
   pods: Record<string, ConfigEntry>;
   /** Máquinas de automatización de xFoodsCrops (machines/*.yml). */
   cropMachines: Record<string, ConfigEntry>;
+  /**
+   * Ítems 100% definidos en YAML de xFoodsCrops (items/*.yml): material/nombre/lore +
+   * `config.actions` (triggers -> pasos, ver org.aifusp.dev.xLib.actions). A diferencia de
+   * pods/foods/machines, aquí "actions" no tiene contraparte en Java — el YAML es la única
+   * fuente de verdad, así que se guarda tal cual dentro de `config` (como cualquier otro campo
+   * anidado, p.ej. modifiers en los pods) y se serializa sin ninguna traducción especial.
+   */
+  items: Record<string, ConfigEntry>;
   /** xFoods/drops.yml: mob-drops + block-drops. */
   drops: DropsConfig;
   /** Ficheros reconocidos sin editor propio; se conservan intactos. */
@@ -109,19 +117,21 @@ export const emptyState = (): EcosystemState => ({
   machines: {},
   pods: {},
   cropMachines: {},
+  items: {},
   drops: emptyDropsConfig(),
   extraFiles: [],
   rawFiles: []
 });
 
-export type PluginEditor = 'xfoods' | 'xcrops' | 'xmachines' | 'xpods' | 'xautomation';
+export type PluginEditor = 'xfoods' | 'xcrops' | 'xmachines' | 'xpods' | 'xautomation' | 'xitems';
 
-export const EDITOR_MAPS: Record<PluginEditor, keyof Pick<EcosystemState, 'foods' | 'crops' | 'machines' | 'pods' | 'cropMachines'>> = {
+export const EDITOR_MAPS: Record<PluginEditor, keyof Pick<EcosystemState, 'foods' | 'crops' | 'machines' | 'pods' | 'cropMachines' | 'items'>> = {
   xfoods: 'foods',
   xcrops: 'crops',
   xmachines: 'machines',
   xpods: 'pods',
   xautomation: 'cropMachines',
+  xitems: 'items',
 };
 
 /** Nombre legible de cada sección, para Descubrir/Moderar/el selector de paquete al publicar. */
@@ -131,6 +141,7 @@ export const EDITOR_LABELS: Record<PluginEditor, string> = {
   xmachines: 'Estación (xFoods)',
   xpods: 'Macetero (xCrops)',
   xautomation: 'Automatización (xCrops)',
+  xitems: 'Ítem custom (xCrops)',
 };
 
 /**
@@ -169,6 +180,11 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   });
   Object.entries(state.cropMachines).forEach(([id, data]) => {
     zip.file(`xFoodsCrops/machines/${id}.yml`, stringifyYaml(data.config));
+  });
+  // Ítems 100% en YAML (ver la nota en EcosystemState.items): "actions" viaja dentro de
+  // data.config como cualquier otro campo, sin traducción especial.
+  Object.entries(state.items).forEach(([id, data]) => {
+    zip.file(`xFoodsCrops/items/${id}.yml`, stringifyYaml(data.config));
   });
 
   // 3d. Recetas de crafteo (mesa vanilla) de maceteros y estaciones, editadas visualmente en el
@@ -359,6 +375,10 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
             const relativePath = path.split('xFoodsCrops/machines/')[1];
             const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
             state.cropMachines[fullId] = { config, folder: fullId.split('/').slice(0, -1).join('/') };
+          } else if (path.includes('xFoodsCrops/items/')) {
+            const relativePath = path.split('xFoodsCrops/items/')[1];
+            const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
+            state.items[fullId] = { config, folder: fullId.split('/').slice(0, -1).join('/') };
           } else if (path.endsWith('xFoods/drops.yml')) {
             state.drops = parseDropsConfig(config);
           } else if (path.includes('xFoodsCrops/recipes/')) {

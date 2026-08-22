@@ -45,6 +45,7 @@ import CropStagesEditor from "@/components/CropStagesEditor";
 import MachineRecipesEditor from "@/components/MachineRecipesEditor";
 import CraftingGridEditor from "@/components/CraftingGridEditor";
 import DropsEditor from "@/components/DropsEditor";
+import ItemActionsEditor, { ItemActionsConfig } from "@/components/ItemActionsEditor";
 import PotionEffectsEditor, { PotionConfig } from "@/components/PotionEffectsEditor";
 import CommandActionRow from "@/components/CommandActionRow";
 
@@ -158,11 +159,20 @@ const SECCIONES = [
   { id: 'xautomation',label: 'Automatización',color: 'var(--color-sec-automation)', desc: 'Regadores, lámparas, recolectores' },
   { id: 'ia',         label: 'ItemsAdder',    color: 'var(--color-sec-ia)',         desc: 'Modelos 3D y texturas' },
   { id: 'xdrops',     label: 'Drops',         color: 'var(--color-sec-drops)',      desc: 'Sustituciones de drops de mobs y bonus al romper bloques' },
+  { id: 'xitems',     label: 'Ítems',         color: 'var(--color-sec-items)',      desc: 'Ítems 100% en YAML: material, lore y sus acciones (triggers, estado, comandos)' },
 ] as const;
 
 /** Tipos de MachineConfiguration.MachineType que acepta xFoodsCrops. */
 const AUTOMATION_TYPES = ['AUTO_WATERER', 'SMART_LIGHT', 'AUTO_FERTILIZER_ORGANIC',
   'AUTO_FERTILIZER_CHEMICAL', 'AUTO_HARVESTER', 'AUTO_PESTICIDE'] as const;
+
+/**
+ * Ids de ItemActions.register(...) ya registrados en Java por xFoodsCrops (ver
+ * registerItemActions() en xFoodsCrops.java) — el Studio no puede leer el código Java para
+ * descubrirlos solo, así que se mantiene esta lista a mano. Un ítem puede referenciar cualquier
+ * otro id igualmente escribiéndolo a mano, esto es solo la sugerencia del autocompletado.
+ */
+const KNOWN_ITEM_ACTIONS = ['xfoodscrops:sickle_bonus_seed', 'xfoodscrops:lucky_roll'];
 
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
@@ -618,6 +628,7 @@ export default function StudioWorkspace() {
         else if (activeEditor === 'xcrops') newState.crops[id] = { config: { "display-name": "Nuevo Cultivo", seed: { material: "WHEAT_SEEDS" }, growth: { stages: {} } }, folder: "" };
         else if (activeEditor === 'xpods') newState.pods[id] = { config: { "display-name": "&fNuevo Macetero", item: { material: "FLOWER_POT" }, modifiers: { "growth-speed": 1.0, "nutrient-rate": 1.0, yield: 1.0 }, probabilities: { "pest-chance": 0.05 } }, folder: "" };
         else if (activeEditor === 'xautomation') newState.cropMachines[id] = { config: { "display-name": "&bNueva Máquina", type: "AUTO_WATERER", range: 5, item: { material: "DISPENSER" }, fuel: { "consume-per-action": 1 }, "storage-slots": 9 }, folder: "" };
+        else if (activeEditor === 'xitems') newState.items[id] = { config: { "display-name": "&fNuevo Ítem", material: "STICK", "custom-model-data": 0, lore: [], actions: {} }, folder: "" };
         else newState.machines[id] = { config: { "display-name": "Nueva Estación", recipes: {} }, folder: "" };
         setProjectState(newState);
         setSelectedItem(id);
@@ -922,7 +933,8 @@ export default function StudioWorkspace() {
     const seedRefs = Object.keys(projectState?.crops ?? {}).map((id) => `xfoodscrops:seed:${leafId(id)}`);
     const podRefs = Object.keys(projectState?.pods ?? {}).map((id) => `xfoodscrops:pod:${leafId(id)}`);
     const machineRefs = Object.keys(projectState?.machines ?? {}).map((id) => `xfoods:machine:${leafId(id)}`);
-    return [...MATERIALS, ...foodRefs, ...seedRefs, ...podRefs, ...machineRefs];
+    const customItemRefs = Object.keys(projectState?.items ?? {}).map((id) => `xfoodscrops:item:${leafId(id)}`);
+    return [...MATERIALS, ...foodRefs, ...seedRefs, ...podRefs, ...machineRefs, ...customItemRefs];
   }, [foodIdOptions, projectState]);
 
   const linkedIaItemEntry = selectedItem && projectState
@@ -1087,7 +1099,7 @@ export default function StudioWorkspace() {
                 <div className="flex justify-between items-start border-b border-line pb-8">
                    <div className="flex gap-6 items-center flex-1">
                       <VisualPreview 
-                        mcPath={activeEditor === 'ia' ? (selectedData.data.resource?.model_path || selectedData.data.resource?.textures?.[0]) : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : selectedData.config.item?.material)} 
+                        mcPath={activeEditor === 'ia' ? (selectedData.data.resource?.model_path || selectedData.data.resource?.textures?.[0]) : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : (activeEditor === 'xitems' ? selectedData.config.material : selectedData.config.item?.material))} 
                         rawFiles={projectState.rawFiles} 
                         namespace={activeEditor === 'ia' ? (selectedNamespace || projectState.projectName) : XFOODS_NAMESPACE}
                       />
@@ -1116,17 +1128,17 @@ export default function StudioWorkspace() {
                             <div className="space-y-2">
                                 <label className="label">Material</label>
                                 <AutocompleteInput
-                                    value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : selectedData.config.item?.material)) || ''}
-                                    onChange={(val) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xcrops' ? 'config.seed.material' : 'config.item.material'), val, activeEditor === 'ia' ? selectedData.fullKey : undefined)}
+                                    value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : (activeEditor === 'xitems' ? selectedData.config.material : selectedData.config.item?.material))) || ''}
+                                    onChange={(val) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xcrops' ? 'config.seed.material' : (activeEditor === 'xitems' ? 'config.material' : 'config.item.material')), val, activeEditor === 'ia' ? selectedData.fullKey : undefined)}
                                     options={MATERIALS} strict placeholder="BREAD" className="input" />
                                 {isIAEnabled && activeEditor !== 'ia' && (
                                     <p className="text-[10px] text-gray-500">Se aplica también al ítem de ItemsAdder, que es el que manda mientras la integración esté activa.</p>
                                 )}
                             </div>
-                            {(activeEditor === 'xfoods' || activeEditor === 'xcrops' || activeEditor === 'xmachines') && (
+                            {(activeEditor === 'xfoods' || activeEditor === 'xcrops' || activeEditor === 'xmachines' || activeEditor === 'xitems') && (
                                 <div className="space-y-2">
                                     <label className="label">Custom Model Data</label>
-                                    <input type="number" value={(activeEditor === 'xcrops' ? selectedData.config.seed?.['custom-model-data'] : selectedData.config.item?.['custom-model-data']) || 0} onChange={(e) => updateField(activeEditor === 'xcrops' ? 'config.seed.custom-model-data' : 'config.item.custom-model-data', parseInt(e.target.value))} className="input" />
+                                    <input type="number" value={(activeEditor === 'xcrops' ? selectedData.config.seed?.['custom-model-data'] : (activeEditor === 'xitems' ? selectedData.config['custom-model-data'] : selectedData.config.item?.['custom-model-data'])) || 0} onChange={(e) => updateField(activeEditor === 'xcrops' ? 'config.seed.custom-model-data' : (activeEditor === 'xitems' ? 'config.custom-model-data' : 'config.item.custom-model-data'), parseInt(e.target.value))} className="input" />
                                 </div>
                             )}
                         </div>
@@ -1342,6 +1354,25 @@ export default function StudioWorkspace() {
                                 <input type="number" min={1} value={(selectedData.config['storage-slots'] as number) ?? 9} onChange={(e) => updateField('config.storage-slots', parseInt(e.target.value))} className="input" />
                                 <p className="hint">Lo usa el recolector para guardar la cosecha, y limita cuánto combustible cabe.</p>
                             </div>
+                        </div>
+                    )}
+
+                    {activeEditor === 'xitems' && (
+                        <div className="space-y-6">
+                            <div className="space-y-2">
+                                <label className="label">Lore</label>
+                                <textarea rows={3} value={Array.isArray(selectedData.config.lore) ? selectedData.config.lore.join('\n') : ''} onChange={(e) => updateField('config.lore', e.target.value)} className="input" placeholder={"Una línea por renglón"} />
+                            </div>
+                            <div className="section-head text-pink-400"><Zap /><h4 className="section-title">Acciones</h4></div>
+                            <p className="hint -mt-4">Qué pasa al usar este ítem — sin esto es un ítem custom silencioso, sin comportamiento propio.</p>
+                            <ItemActionsEditor
+                                actions={(selectedData.config.actions as ItemActionsConfig) || {}}
+                                actionRefOptions={KNOWN_ITEM_ACTIONS}
+                                mutate={(fn) => mutateSelectedConfig((cfg) => {
+                                    if (!cfg.actions) cfg.actions = {};
+                                    fn(cfg.actions as ItemActionsConfig);
+                                })}
+                            />
                         </div>
                     )}
 
