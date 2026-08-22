@@ -14,11 +14,13 @@ export interface RawActionStep {
   toggle?: { key: string; default?: boolean };
   set?: { key: string; value: number | boolean };
   condition?: { key: string; equals?: boolean; default?: boolean };
+  cooldown?: { key: string; seconds?: number };
+  "grant-permission"?: string;
 }
 
 export type ItemActionsConfig = Record<string, RawActionStep[]>;
 
-type StepKind = "action" | "commands" | "increment" | "decrement" | "toggle" | "set" | "condition";
+type StepKind = "action" | "commands" | "increment" | "decrement" | "toggle" | "set" | "condition" | "cooldown" | "grant-permission";
 
 const TRIGGERS: { key: string; label: string }[] = [
   { key: "right-click-air", label: "Click derecho al aire" },
@@ -43,6 +45,8 @@ const STEP_KINDS: { kind: StepKind; label: string }[] = [
   { kind: "toggle", label: "Alternar (on/off)" },
   { kind: "set", label: "Fijar valor" },
   { kind: "condition", label: "Condición" },
+  { kind: "cooldown", label: "Cooldown" },
+  { kind: "grant-permission", label: "Dar permiso" },
 ];
 
 function stepKind(step: RawActionStep): StepKind {
@@ -52,6 +56,8 @@ function stepKind(step: RawActionStep): StepKind {
   if (step.toggle) return "toggle";
   if (step.set) return "set";
   if (step.condition) return "condition";
+  if (step.cooldown) return "cooldown";
+  if (step["grant-permission"] !== undefined) return "grant-permission";
   return "action";
 }
 
@@ -63,6 +69,8 @@ function emptyStep(kind: StepKind): RawActionStep {
     case "toggle": return { toggle: { key: "", default: false } };
     case "set": return { set: { key: "", value: 0 } };
     case "condition": return { condition: { key: "", equals: true, default: false } };
+    case "cooldown": return { cooldown: { key: "cooldown", seconds: 5 } };
+    case "grant-permission": return { "grant-permission": "" };
     default: return { action: "" };
   }
 }
@@ -270,6 +278,40 @@ function StepEditor({
 
       {kind === "set" && <SetStepFields step={step} onChange={onChange} />}
 
+      {kind === "cooldown" && (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Clave de estado">
+            <input
+              type="text"
+              value={step.cooldown?.key || ""}
+              onChange={(e) => onChange({ cooldown: { ...step.cooldown, key: e.target.value } })}
+              placeholder="cooldown"
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Segundos">
+            <input
+              type="number"
+              min={0}
+              step="any"
+              value={step.cooldown?.seconds ?? 5}
+              onChange={(e) => onChange({ cooldown: { key: step.cooldown?.key || "", seconds: parseFloat(e.target.value) || 0 } })}
+              className={inputCls}
+            />
+          </Field>
+        </div>
+      )}
+
+      {kind === "grant-permission" && (
+        <input
+          type="text"
+          value={step["grant-permission"] || ""}
+          onChange={(e) => onChange({ "grant-permission": e.target.value })}
+          placeholder="xfoods.recipe.cachopo"
+          className={inputCls}
+        />
+      )}
+
       {kind === "condition" && (
         <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-end">
           <Field label="Clave de estado">
@@ -303,6 +345,8 @@ function StepEditor({
       <p className="text-[9px] text-gray-600 italic">
         {kind === "condition" && "Si no se cumple, corta el resto de pasos de este trigger (no hace nada más, pero el click sigue quedando \"gestionado\")."}
         {kind === "action" && "Id de una acción ya registrada en Java por algún plugin (ver ItemActions.register)."}
+        {kind === "cooldown" && "Corta el resto de pasos si no ha pasado el tiempo indicado desde el último uso válido de esta misma clave. Se guarda en el propio ítem, sobrevive a reinicios."}
+        {kind === "grant-permission" && "Da este permiso al jugador (vía LuckPerms) al ejecutarse el paso. No manda ningún mensaje — añade un paso de Comandos después para avisar al jugador."}
       </p>
     </div>
   );

@@ -99,6 +99,12 @@ export interface EcosystemState {
    * anidado, p.ej. modifiers en los pods) y se serializa sin ninguna traducción especial.
    */
   items: Record<string, ConfigEntry>;
+  /**
+   * Ítems 100% definidos en YAML de xFoods (items/*.yml) — mismo esquema que {@link items}
+   * (xFoodsCrops), carpeta y plugin de destino aparte porque cada uno tiene su propio
+   * CustomItemManager en Java. Ejemplo típico: "papeles de receta" (grant-permission).
+   */
+  foodItems: Record<string, ConfigEntry>;
   /** xFoods/drops.yml: mob-drops + block-drops. */
   drops: DropsConfig;
   /** Ficheros reconocidos sin editor propio; se conservan intactos. */
@@ -118,20 +124,22 @@ export const emptyState = (): EcosystemState => ({
   pods: {},
   cropMachines: {},
   items: {},
+  foodItems: {},
   drops: emptyDropsConfig(),
   extraFiles: [],
   rawFiles: []
 });
 
-export type PluginEditor = 'xfoods' | 'xcrops' | 'xmachines' | 'xpods' | 'xautomation' | 'xitems';
+export type PluginEditor = 'xfoods' | 'xcrops' | 'xmachines' | 'xpods' | 'xautomation' | 'xitems' | 'xfooditems';
 
-export const EDITOR_MAPS: Record<PluginEditor, keyof Pick<EcosystemState, 'foods' | 'crops' | 'machines' | 'pods' | 'cropMachines' | 'items'>> = {
+export const EDITOR_MAPS: Record<PluginEditor, keyof Pick<EcosystemState, 'foods' | 'crops' | 'machines' | 'pods' | 'cropMachines' | 'items' | 'foodItems'>> = {
   xfoods: 'foods',
   xcrops: 'crops',
   xmachines: 'machines',
   xpods: 'pods',
   xautomation: 'cropMachines',
   xitems: 'items',
+  xfooditems: 'foodItems',
 };
 
 /** Nombre legible de cada sección, para Descubrir/Moderar/el selector de paquete al publicar. */
@@ -142,6 +150,7 @@ export const EDITOR_LABELS: Record<PluginEditor, string> = {
   xpods: 'Macetero (xCrops)',
   xautomation: 'Automatización (xCrops)',
   xitems: 'Ítem custom (xCrops)',
+  xfooditems: 'Ítem custom (xFoods)',
 };
 
 /**
@@ -185,6 +194,9 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   // data.config como cualquier otro campo, sin traducción especial.
   Object.entries(state.items).forEach(([id, data]) => {
     zip.file(`xFoodsCrops/items/${id}.yml`, stringifyYaml(data.config));
+  });
+  Object.entries(state.foodItems).forEach(([id, data]) => {
+    zip.file(`xFoods/items/${id}.yml`, stringifyYaml(data.config));
   });
 
   // 3d. Recetas de crafteo (mesa vanilla) de maceteros y estaciones, editadas visualmente en el
@@ -379,6 +391,10 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
             const relativePath = path.split('xFoodsCrops/items/')[1];
             const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
             state.items[fullId] = { config, folder: fullId.split('/').slice(0, -1).join('/') };
+          } else if (path.includes('xFoods/items/')) {
+            const relativePath = path.split('xFoods/items/')[1];
+            const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
+            state.foodItems[fullId] = { config, folder: fullId.split('/').slice(0, -1).join('/') };
           } else if (path.endsWith('xFoods/drops.yml')) {
             state.drops = parseDropsConfig(config);
           } else if (path.includes('xFoodsCrops/recipes/')) {

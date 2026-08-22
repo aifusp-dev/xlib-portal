@@ -447,7 +447,7 @@ economy:
       { id: "bites",     label: "Mordiscos y nutrición" },
       { id: "expiry",    label: "Caducidad y nevera" },
       { id: "machines",  label: "Máquinas y recetas" },
-      { id: "rpg",       label: "Modo RPG" },
+      { id: "rpg",       label: "Recetas bloqueadas" },
       { id: "language",  label: "Idiomas" },
       { id: "drops",     label: "Drops de mobs" },
       { id: "itemsadder",label: "ItemsAdder" },
@@ -484,12 +484,12 @@ economy:
         blocks: [
           { kind: "commands", list: [
             { cmd: "/xfoods recipes",              perm: "xfoods.use",   desc: "Recetario: máquinas y sus recetas. Para jugadores." },
-            { cmd: "/xfoods stats",                perm: "xfoods.use",   desc: "Tus niveles de cocina (solo si rpg-mode está activo)." },
             { cmd: "/xfoods menu",                 perm: "xfoods.admin", desc: "Editor visual de comidas dentro del juego." },
             { cmd: "/xfoods give <id> [cantidad]", perm: "xfoods.admin", desc: "Entrega una comida personalizada." },
+            { cmd: "/xfoods give item <id>",       perm: "xfoods.admin", desc: "Entrega un ítem 100% en YAML (papeles de receta y similares, ver items/*.yml)." },
             { cmd: "/xfoods machine create <tipo>",perm: "xfoods.admin", desc: "Convierte el bloque que miras en una máquina." },
             { cmd: "/xfoods machine remove",       perm: "xfoods.admin", desc: "Quita la máquina y te devuelve su contenido." },
-            { cmd: "/xfoods reload",               perm: "xfoods.admin", desc: "Recarga comidas, máquinas, categorías e idiomas." },
+            { cmd: "/xfoods reload",               perm: "xfoods.admin", desc: "Recarga comidas, máquinas, ítems e idiomas." },
           ]},
           { kind: "p", text: "El alias /foods hace lo mismo que /xfoods. El permiso xfoods.admin incluye xfoods.use, así que a un administrador le basta con el primero." },
           { kind: "callout", callout: { type: "warn", text: "Las máquinas de cocina no son ítems que se coloquen: se registran sobre un bloque ya existente con /xfoods machine create. Los maceteros y las máquinas de automatización de xCrops sí son ítems." } },
@@ -577,10 +577,7 @@ recipes:
     sounds:
       start:  "BLOCK_FIRE_AMBIENT"
       finish: "ENTITY_PLAYER_BURP"
-    rpg:
-      category: "cocina"
-      required-level: 1
-      xp-reward: 10` } },
+    required-permission: "xfoods.recipe.cachopo"   # opcional, ver la sección "Recetas bloqueadas"` } },
           { kind: "callout", callout: { type: "danger", text: "La sección se llama 'inputs' en plural, aunque la receta tenga un solo ingrediente. Con 'input:' en singular la receta se ignora y se avisa por consola: sin ingredientes nunca se podría cocinar." } },
           { kind: "h3", id: "minigame", text: "El minijuego" },
           { kind: "p", text: "Con use-minigame activado aparece una barra que se mueve y hay que pulsar cuando esté en verde. Si se falla o se agota el tiempo sale el burnt-id en lugar del resultado. Solo se puede intentar una vez por cocinado." },
@@ -588,22 +585,22 @@ recipes:
         ],
       },
       {
-        id: "rpg", title: "Modo RPG",
+        id: "rpg", title: "Recetas bloqueadas",
         blocks: [
-          { kind: "p", text: "Desactivado por defecto. Al activarlo, cada receta puede exigir un nivel mínimo en una categoría de cocina y dar experiencia al completarse. El jugador consulta su progreso con /xfoods stats." },
-          { kind: "code", block: { lang: "yaml", code: `# config.yml
-rpg-mode:
-  enabled: true
-
-# categories.yml
-categories:
-  cocina:
-    display-name: "&6Cocina"
-    xp-multiplier: 1.0
-  barista:
-    display-name: "&bBarista"
-    xp-multiplier: 1.2` } },
-          { kind: "callout", callout: { type: "warn", text: "Si activas rpg-mode sin crear categories.yml, el plugin avisa por consola y el modo RPG se queda sin categorías." } },
+          { kind: "p", text: "Cualquier receta de máquina puede exigir un permiso con required-permission (vacío u omitido = abierta para todos). La forma normal de dárselo a un jugador es un \"papel de receta\": un ítem 100% en YAML (items/*.yml) cuya acción de click derecho es grant-permission, que se lo da vía LuckPerms." },
+          { kind: "code", block: { lang: "yaml", code: `# items/receta_cachopo.yml
+display-name: "&e&lReceta: Cachopo"
+material: PAPER
+lore:
+  - "&7Clic derecho para aprender la receta."
+actions:
+  right-click-air:
+    - grant-permission: "xfoods.recipe.cachopo"
+    - commands:
+        - "console: tell %player% Has desbloqueado la receta del Cachopo."` } },
+          { kind: "p", text: "Entrega el papel con /xfoods give item receta_cachopo. grant-permission es un paso genérico del framework de acciones de xLib (org.aifusp.dev.xLib.actions), no algo propio de xFoods: cualquier ítem de cualquier plugin puede usarlo." },
+          { kind: "callout", callout: { type: "tip", text: "grant-permission solo da el permiso, no manda ningún mensaje ni consume el papel — para el aviso al jugador añade un paso de commands justo después, como en el ejemplo." } },
+          { kind: "callout", callout: { type: "warn", text: "Requiere LuckPerms instalado. Sin él, grant-permission no hace nada (se ignora en silencio) y ninguna receta con required-permission llegará a desbloquearse." } },
         ],
       },
       {

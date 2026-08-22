@@ -15,7 +15,7 @@ interface MachineRecipe {
   'burnt-id'?: string;
   'use-minigame'?: boolean;
   sounds?: { start?: string; finish?: string };
-  rpg?: { category?: string; 'required-level'?: number; 'xp-reward'?: number };
+  'required-permission'?: string;
 }
 
 interface MachineConfig {
@@ -173,16 +173,19 @@ export default function MachineRecipesEditor({ config, mutate, foodOptions }: Ma
                     </Field>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3 pt-3 border-t border-white/5">
-                    <Field label="Categoría RPG">
-                      <input type="text" value={recipe.rpg?.category || ''} onChange={(e) => setRecipeField(rid, ['rpg', 'category'], e.target.value)} placeholder="opcional" className={inputCls} />
+                  <div className="pt-3 border-t border-white/5">
+                    <Field label="Permiso requerido (opcional)">
+                      <input
+                        type="text"
+                        value={recipe['required-permission'] || ''}
+                        onChange={(e) => setRecipeField(rid, ['required-permission'], e.target.value || undefined)}
+                        placeholder="xfoods.recipe.cachopo — vacío = abierta para todos"
+                        className={inputCls}
+                      />
                     </Field>
-                    <Field label="Nivel Requerido">
-                      <input type="number" min={0} value={recipe.rpg?.['required-level'] ?? 0} onChange={(e) => setRecipeField(rid, ['rpg', 'required-level'], parseInt(e.target.value))} className={inputCls} />
-                    </Field>
-                    <Field label="XP Otorgada">
-                      <input type="number" min={0} value={recipe.rpg?.['xp-reward'] ?? 10} onChange={(e) => setRecipeField(rid, ['rpg', 'xp-reward'], parseInt(e.target.value))} className={inputCls} />
-                    </Field>
+                    <p className="text-[9px] text-gray-600 italic mt-1.5">
+                      Se desbloquea normalmente con un &quot;papel de receta&quot; (ítem con un paso <code>grant-permission</code> en sus acciones).
+                    </p>
                   </div>
                 </div>
               </div>
