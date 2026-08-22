@@ -46,6 +46,7 @@ import MachineRecipesEditor from "@/components/MachineRecipesEditor";
 import CraftingGridEditor from "@/components/CraftingGridEditor";
 import DropsEditor from "@/components/DropsEditor";
 import ItemActionsEditor, { ItemActionsConfig } from "@/components/ItemActionsEditor";
+import InitialStateEditor, { InitialStateConfig } from "@/components/InitialStateEditor";
 import PotionEffectsEditor, { PotionConfig } from "@/components/PotionEffectsEditor";
 import CommandActionRow from "@/components/CommandActionRow";
 
@@ -628,7 +629,7 @@ export default function StudioWorkspace() {
         else if (activeEditor === 'xcrops') newState.crops[id] = { config: { "display-name": "Nuevo Cultivo", seed: { material: "WHEAT_SEEDS" }, growth: { stages: {} } }, folder: "" };
         else if (activeEditor === 'xpods') newState.pods[id] = { config: { "display-name": "&fNuevo Macetero", item: { material: "FLOWER_POT" }, modifiers: { "growth-speed": 1.0, "nutrient-rate": 1.0, yield: 1.0 }, probabilities: { "pest-chance": 0.05 } }, folder: "" };
         else if (activeEditor === 'xautomation') newState.cropMachines[id] = { config: { "display-name": "&bNueva Máquina", type: "AUTO_WATERER", range: 5, item: { material: "DISPENSER" }, fuel: { "consume-per-action": 1 }, "storage-slots": 9 }, folder: "" };
-        else if (activeEditor === 'xitems') newState.items[id] = { config: { "display-name": "&fNuevo Ítem", material: "STICK", "custom-model-data": 0, lore: [], actions: {} }, folder: "" };
+        else if (activeEditor === 'xitems') newState.items[id] = { config: { "display-name": "&fNuevo Ítem", material: "STICK", "custom-model-data": 0, lore: [], "initial-state": {}, actions: {} }, folder: "" };
         else newState.machines[id] = { config: { "display-name": "Nueva Estación", recipes: {} }, folder: "" };
         setProjectState(newState);
         setSelectedItem(id);
@@ -1363,6 +1364,15 @@ export default function StudioWorkspace() {
                                 <label className="label">Lore</label>
                                 <textarea rows={3} value={Array.isArray(selectedData.config.lore) ? selectedData.config.lore.join('\n') : ''} onChange={(e) => updateField('config.lore', e.target.value)} className="input" placeholder={"Una línea por renglón"} />
                             </div>
+                            <div className="section-head text-pink-400"><Zap /><h4 className="section-title">Estado inicial</h4></div>
+                            <p className="hint -mt-4">Contadores/interruptores con los que nace cada unidad de este ítem (ver org.aifusp.dev.xLib.items.ItemState) — opcional, las acciones que los usan ya asumen su propio valor por defecto si no se pone nada aquí.</p>
+                            <InitialStateEditor
+                                state={(selectedData.config['initial-state'] as InitialStateConfig) || {}}
+                                mutate={(fn) => mutateSelectedConfig((cfg) => {
+                                    if (!cfg['initial-state']) cfg['initial-state'] = {};
+                                    fn(cfg['initial-state'] as InitialStateConfig);
+                                })}
+                            />
                             <div className="section-head text-pink-400"><Zap /><h4 className="section-title">Acciones</h4></div>
                             <p className="hint -mt-4">Qué pasa al usar este ítem — sin esto es un ítem custom silencioso, sin comportamiento propio.</p>
                             <ItemActionsEditor
