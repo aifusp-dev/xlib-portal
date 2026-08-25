@@ -162,9 +162,40 @@ const SECCIONES = [
   { id: 'xautomation',label: 'Automatización',color: 'var(--color-sec-automation)', desc: 'Regadores, lámparas, recolectores' },
   { id: 'ia',         label: 'ItemsAdder',    color: 'var(--color-sec-ia)',         desc: 'Modelos 3D y texturas' },
   { id: 'xdrops',     label: 'Drops',         color: 'var(--color-sec-drops)',      desc: 'Sustituciones de drops de mobs y bonus al romper bloques' },
-  { id: 'xitems',     label: 'Ítems (xCrops)',color: 'var(--color-sec-items)',      desc: 'Ítems 100% en YAML de xFoodsCrops: material, lore y sus acciones (triggers, estado, comandos)' },
-  { id: 'xfooditems', label: 'Ítems (xFoods)',color: 'var(--color-sec-items)',      desc: 'Ítems 100% en YAML de xFoods: papeles de receta y similares (mismo esquema que xCrops)' },
+  { id: 'xitems',     label: 'xCrops',        color: 'var(--color-sec-items)',      desc: 'Ítems 100% en YAML de xFoodsCrops: material, lore y sus acciones (triggers, estado, comandos)' },
+  { id: 'xfooditems', label: 'xFoods',        color: 'var(--color-sec-items)',      desc: 'Ítems 100% en YAML de xFoods: papeles de receta y similares (mismo esquema que xCrops)' },
   { id: 'xholograms', label: 'Hologramas',    color: 'var(--color-sec-items)',      desc: 'Plantillas de xHolograms: texto, tamaño de click y comandos (%param% por colocación)' },
+] as const;
+
+/**
+ * Agrupación de la barra superior: antes cada uno de los 10 editores era su propio botón de
+ * primer nivel (saturado). Ahora se agrupan por plugin dueño — xFoods incluye también xCrops,
+ * ya que vive dentro del mismo plugin xFoodsCrops — y "Items" (los ítems 100% en YAML de xLib,
+ * antes repartidos como "Ítems (xFoods)"/"Ítems (xCrops)") pasa a ser su propia sección de primer
+ * nivel, al mismo nivel que xFoods. Un grupo con un solo miembro (ItemsAdder, Hologramas) se
+ * comporta exactamente igual que antes; uno con varios muestra una fila de sub-pestañas debajo.
+ */
+const GROUPS = [
+  {
+    id: 'xfoods-group', label: 'xFoods', color: 'var(--color-sec-foods)',
+    desc: 'Comidas, estaciones, drops, cultivos, maceteros y automatización (xFoods + xFoodsCrops)',
+    members: ['xfoods', 'xmachines', 'xdrops', 'xcrops', 'xpods', 'xautomation'] as const,
+  },
+  {
+    id: 'items-group', label: 'Items', color: 'var(--color-sec-items)',
+    desc: 'Ítems 100% en YAML (xLib): material, lore y acciones, de xFoods o de xCrops',
+    members: ['xfooditems', 'xitems'] as const,
+  },
+  {
+    id: 'ia-group', label: 'ItemsAdder', color: 'var(--color-sec-ia)',
+    desc: 'Modelos 3D y texturas',
+    members: ['ia'] as const,
+  },
+  {
+    id: 'holograms-group', label: 'Hologramas', color: 'var(--color-sec-items)',
+    desc: 'Plantillas de xHolograms',
+    members: ['xholograms'] as const,
+  },
 ] as const;
 
 /** Tipos de MachineConfiguration.MachineType que acepta xFoodsCrops. */
@@ -1009,29 +1040,56 @@ export default function StudioWorkspace() {
 
   const currentIAKeyName = activeCategory === 'blocks' ? "blocks" : "items";
 
+  const countFor = (id: string): number => {
+    if (id === 'ia') return Object.keys(projectState.iaItems).length + Object.keys(projectState.iaBlocks).length + Object.keys(projectState.iaFurnitures).length;
+    if (id === 'xdrops') return Object.keys(projectState.drops.mobDrops.replacements).length + Object.keys(projectState.drops.blockDrops.drops).length;
+    if (id === 'xholograms') return Object.keys(projectState.holograms).length;
+    return Object.keys(mapFor(projectState, id as PluginEditor)).length;
+  };
+
+  const selectEditor = (id: string) => {
+    setActiveEditor(id as PluginEditor | 'ia' | 'xdrops' | 'xholograms');
+    setSelectedItem(null);
+  };
+
+  const activeGroup = GROUPS.find(g => (g.members as readonly string[]).includes(activeEditor))!;
+
   return (
     <div className="h-full flex flex-col space-y-6 animate-in slide-in-from-bottom-4 duration-500">
       <header className="panel px-5 py-3.5 flex justify-between items-center gap-6">
-        <div className="flex items-center gap-8">
-            <div className="flex items-center gap-0.5 bg-surface-0 p-1 rounded-[8px] border border-line">
-                {SECCIONES.map(sec => {
-                    const activa = activeEditor === sec.id;
-                    const n = sec.id === 'ia'
-                        ? Object.keys(projectState.iaItems).length + Object.keys(projectState.iaBlocks).length + Object.keys(projectState.iaFurnitures).length
-                        : sec.id === 'xdrops'
-                        ? Object.keys(projectState.drops.mobDrops.replacements).length + Object.keys(projectState.drops.blockDrops.drops).length
-                        : sec.id === 'xholograms'
-                        ? Object.keys(projectState.holograms).length
-                        : Object.keys(mapFor(projectState, sec.id as PluginEditor)).length;
-                    return (
-                        <button key={sec.id} onClick={() => { setActiveEditor(sec.id as PluginEditor | 'ia' | 'xdrops' | 'xholograms'); setSelectedItem(null); }}
-                                className="tab" data-active={activa} title={sec.desc}>
-                            <span className="tab-dot" style={{ background: activa ? sec.color : 'var(--color-ink-3)' }} />
-                            {sec.label}
-                            <span className="tab-count">{n}</span>
-                        </button>
-                    );
-                })}
+        <div className="flex items-center gap-4">
+            <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-0.5 bg-surface-0 p-1 rounded-[8px] border border-line">
+                    {GROUPS.map(group => {
+                        const activa = (group.members as readonly string[]).includes(activeEditor);
+                        const n = group.members.reduce((sum, id) => sum + countFor(id), 0);
+                        return (
+                            <button key={group.id} onClick={() => { if (!activa) selectEditor(group.members[0]); }}
+                                    className="tab" data-active={activa} title={group.desc}>
+                                <span className="tab-dot" style={{ background: activa ? group.color : 'var(--color-ink-3)' }} />
+                                {group.label}
+                                <span className="tab-count">{n}</span>
+                            </button>
+                        );
+                    })}
+                </div>
+                {activeGroup.members.length > 1 && (
+                    <div className="flex items-center gap-0.5 bg-surface-0/60 p-1 rounded-[8px] border border-line/60">
+                        {activeGroup.members.map(id => {
+                            const sec = SECCIONES.find(s => s.id === id)!;
+                            const activa = activeEditor === id;
+                            const n = countFor(id);
+                            return (
+                                <button key={id} onClick={() => selectEditor(id)}
+                                        className="tab text-xs" data-active={activa} title={sec.desc}>
+                                    <span className="tab-dot" style={{ background: activa ? sec.color : 'var(--color-ink-3)' }} />
+                                    {sec.label}
+                                    <span className="tab-count">{n}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
             {activeEditor === 'ia' && selectedNamespace && (
                 <div className="flex flex-col border-l border-line pl-8">
