@@ -48,6 +48,7 @@ import DropsEditor from "@/components/DropsEditor";
 import ItemActionsEditor, { ItemActionsConfig } from "@/components/ItemActionsEditor";
 import InitialStateEditor, { InitialStateConfig } from "@/components/InitialStateEditor";
 import HologramTemplatesEditor from "@/components/HologramTemplatesEditor";
+import HologramPlacementsEditor from "@/components/HologramPlacementsEditor";
 import PotionEffectsEditor, { PotionConfig } from "@/components/PotionEffectsEditor";
 import CommandActionRow from "@/components/CommandActionRow";
 
@@ -182,6 +183,7 @@ const KNOWN_ITEM_ACTIONS = ['xfoodscrops:sickle_bonus_seed', 'xfoodscrops:lucky_
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
   const [activeEditor, setActiveEditor] = useState<PluginEditor | 'ia' | 'xdrops' | 'xholograms'>('xfoods');
+  const [hologramSubTab, setHologramSubTab] = useState<'templates' | 'placements'>('templates');
   const [activeCategory, setActiveCategory] = useState<string>("items"); 
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null);
@@ -579,6 +581,14 @@ export default function StudioWorkspace() {
     if (!projectState) return;
     const newState = { ...projectState, holograms: { ...projectState.holograms } };
     mutator(newState.holograms);
+    setProjectState(newState);
+  };
+
+  /** Para HologramPlacementsEditor: igual que mutateHolograms, pero sobre las colocaciones en el mundo. */
+  const mutateHologramPlacements = (mutator: (placements: EcosystemState['hologramPlacements']) => void) => {
+    if (!projectState) return;
+    const newState = { ...projectState, hologramPlacements: { ...projectState.hologramPlacements } };
+    mutator(newState.hologramPlacements);
     setProjectState(newState);
   };
 
@@ -1045,8 +1055,22 @@ export default function StudioWorkspace() {
         <DropsEditor drops={projectState.drops} mutate={mutateDrops} refOptions={craftIngredientOptions} />
       </div>
       ) : activeEditor === 'xholograms' ? (
-      <div className="flex-1 panel overflow-hidden p-6 overflow-y-auto">
-        <HologramTemplatesEditor holograms={projectState.holograms} mutate={mutateHolograms} />
+      <div className="flex-1 panel overflow-hidden p-6 overflow-y-auto space-y-6">
+        <div className="flex gap-1 bg-surface-0 p-1 rounded-[8px] border border-line w-fit">
+          <button onClick={() => setHologramSubTab('templates')} className="tab" data-active={hologramSubTab === 'templates'}>Plantillas</button>
+          <button onClick={() => setHologramSubTab('placements')} className="tab" data-active={hologramSubTab === 'placements'}>
+            Colocaciones <span className="tab-count">{Object.keys(projectState.hologramPlacements).length}</span>
+          </button>
+        </div>
+        {hologramSubTab === 'templates' ? (
+          <HologramTemplatesEditor holograms={projectState.holograms} mutate={mutateHolograms} />
+        ) : (
+          <HologramPlacementsEditor
+            placements={projectState.hologramPlacements}
+            templates={projectState.holograms}
+            mutate={mutateHologramPlacements}
+          />
+        )}
       </div>
       ) : (
       <div className="flex-1 grid grid-cols-12 gap-6 overflow-hidden">

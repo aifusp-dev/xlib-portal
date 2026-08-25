@@ -108,6 +108,23 @@ export const emptyHologramTemplate = (): HologramTemplateConfig => ({
   leftClickCommands: [],
 });
 
+/**
+ * Espejo de {@code org.aifusp.xholograms.model.HologramPlacement}: UNA colocación concreta en el
+ * mundo de una {@link HologramTemplateConfig} — dónde está y su propio `param`. A diferencia de
+ * las plantillas, estas nunca se CREAN desde el Studio (solo nacen en el juego con
+ * {@code /xholograms create}): aquí solo se edita posición/param/plantilla o se borran. `uuid` es
+ * de solo lectura, viaja tal cual para que el plugin pueda seguir encontrando la entidad real.
+ */
+export interface HologramPlacementConfig {
+  template: string;
+  world: string;
+  x: number;
+  y: number;
+  z: number;
+  uuid: string;
+  param: string;
+}
+
 export interface EcosystemState {
   projectName: string;
   foods: Record<string, ConfigEntry>;
@@ -138,6 +155,8 @@ export interface EcosystemState {
   drops: DropsConfig;
   /** Plantillas de xHolograms (xHolograms/templates/*.yml) — ver {@link HologramTemplateConfig}. */
   holograms: Record<string, HologramTemplateConfig>;
+  /** Colocaciones en el mundo (xHolograms/placements.yml) — ver {@link HologramPlacementConfig}. */
+  hologramPlacements: Record<string, HologramPlacementConfig>;
   /** Ficheros reconocidos sin editor propio; se conservan intactos. */
   extraFiles: PassthroughFile[];
   rawFiles: StudioFile[];
@@ -158,6 +177,7 @@ export const emptyState = (): EcosystemState => ({
   foodItems: {},
   drops: emptyDropsConfig(),
   holograms: {},
+  hologramPlacements: {},
   extraFiles: [],
   rawFiles: []
 });
@@ -283,6 +303,18 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
       },
     }));
   });
+
+  // 3g. Colocaciones en el mundo (xHolograms/placements.yml): un único fichero, no uno por id
+  // como las plantillas — mismo formato que escribe/lee HologramPlacementManager.java. Solo se
+  // escribe si hay alguna, para no crear el fichero de la nada en un proyecto que nunca colocó
+  // ningún hologram.
+  if (Object.keys(state.hologramPlacements).length > 0) {
+    const placementsYaml: Record<string, unknown> = {};
+    Object.entries(state.hologramPlacements).forEach(([id, p]) => {
+      placementsYaml[id] = { template: p.template, world: p.world, x: p.x, y: p.y, z: p.z, uuid: p.uuid, param: p.param };
+    });
+    zip.file('xHolograms/placements.yml', stringifyYaml({ placements: placementsYaml }));
+  }
 
   // 3c. Ficheros sin editor propio (categories.yml, market.yml, config.yml...): se devuelven
   // exactamente como entraron, comentarios incluidos.
@@ -443,6 +475,8 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
             const relativePath = path.split('xFoods/items/')[1];
             const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
             state.foodItems[fullId] = { config, folder: fullId.split('/').slice(0, -1).join('/') };
+          } else if (path.endsWith('xHolograms/placements.yml')) {
+            state.hologramPlacements = parseHologramPlacements(config);
           } else if (path.includes('xHolograms/templates/')) {
             const relativePath = path.split('xHolograms/templates/')[1];
             const id = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
@@ -546,6 +580,30 @@ const parseHologramTemplate = (config: Record<string, unknown>): HologramTemplat
     rightClickCommands: Array.isArray(rightClick) ? rightClick.map(String) : [],
     leftClickCommands: Array.isArray(leftClick) ? leftClick.map(String) : [],
   };
+};
+
+/** Lee xHolograms/placements.yml ya parseado a objeto. Entradas sin `template`/`world`/`uuid` válidos se descartan (no abortan el resto). */
+const parseHologramPlacements = (config: Record<string, unknown>): Record<string, HologramPlacementConfig> => {
+  const result: Record<string, HologramPlacementConfig> = {};
+  const section = config.placements as Record<string, unknown> | undefined;
+  if (!section || typeof section !== 'object') return result;
+
+  for (const [id, raw] of Object.entries(section)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const entry = raw as Record<string, unknown>;
+    if (typeof entry.template !== 'string' || typeof entry.world !== 'string' || typeof entry.uuid !== 'string') continue;
+
+    result[id] = {
+      template: entry.template,
+      world: entry.world,
+      x: typeof entry.x === 'number' ? entry.x : 0,
+      y: typeof entry.y === 'number' ? entry.y : 0,
+      z: typeof entry.z === 'number' ? entry.z : 0,
+      uuid: entry.uuid,
+      param: typeof entry.param === 'string' ? entry.param : '',
+    };
+  }
+  return result;
 };
 
 /** Lee xFoods/drops.yml ya parseado a objeto. Entradas malformadas se descartan, no abortan todo el fichero. */
