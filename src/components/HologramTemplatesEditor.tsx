@@ -5,6 +5,7 @@ import { Trash2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HologramTemplateConfig, emptyHologramTemplate } from "@/lib/studio";
 import CommandActionRow from "@/components/CommandActionRow";
+import HologramTextEditor from "@/components/HologramTextEditor";
 
 interface HologramTemplatesEditorProps {
   holograms: Record<string, HologramTemplateConfig>;
@@ -79,13 +80,14 @@ export default function HologramTemplatesEditor({ holograms, mutate }: HologramT
           <>
             <div>
               <label className={labelCls}>Líneas</label>
-              <textarea
-                value={template.lines.join("\n")}
-                onChange={(e) => mutateTemplate((t) => { t.lines = e.target.value.split("\n"); })}
-                rows={4}
-                className={cn(inputCls, "font-mono mt-1")}
-                placeholder={"&b&lTítulo\n&7Subtítulo"}
-              />
+              <div className="mt-1">
+                <HologramTextEditor
+                  value={template.lines.join("\n")}
+                  onChange={(text) => mutateTemplate((t) => { t.lines = text.split("\n"); })}
+                  rows={4}
+                  placeholder={"Título\nSubtítulo"}
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -176,12 +178,9 @@ function PagesEditor({ pages, onChange }: { pages: string[][]; onChange: (p: str
         {pages.map((page, i) => (
           <div key={i} className="flex gap-2 items-start bg-black/20 border border-white/5 rounded-xl p-3">
             <span className="text-[10px] text-gray-500 font-bold pt-2 shrink-0">#{i + 2}</span>
-            <textarea
-              value={page.join("\n")}
-              onChange={(e) => updatePage(i, e.target.value)}
-              rows={2}
-              className={cn(inputCls, "font-mono")}
-            />
+            <div className="flex-1 min-w-0">
+              <HologramTextEditor value={page.join("\n")} onChange={(text) => updatePage(i, text)} rows={2} />
+            </div>
             <button onClick={() => removePage(i)} className="text-gray-600 hover:text-red-500 shrink-0 pt-2">
               <Trash2 className="w-3.5 h-3.5" />
             </button>
