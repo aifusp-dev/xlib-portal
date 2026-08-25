@@ -211,6 +211,14 @@ const AUTOMATION_TYPES = ['AUTO_WATERER', 'SMART_LIGHT', 'AUTO_FERTILIZER_ORGANI
  */
 const KNOWN_ITEM_ACTIONS = ['xfoodscrops:sickle_bonus_seed', 'xfoodscrops:lucky_roll'];
 
+/**
+ * Ids de HologramActions.register(...) ya registrados en Java por algún plugin (ver
+ * org.aifusp.xholograms.actions.HologramActions) — igual que KNOWN_ITEM_ACTIONS, el Studio no
+ * puede descubrirlos solo. Vacía por ahora: añade aquí el id en cuanto un plugin real (ej.
+ * RPXClockIn con "rpxclockin:clock_in") registre el suyo.
+ */
+const KNOWN_HOLOGRAM_ACTIONS: string[] = [];
+
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
@@ -1155,7 +1163,7 @@ export default function StudioWorkspace() {
           </button>
         </div>
         {hologramSubTab === 'templates' ? (
-          <HologramTemplatesEditor holograms={projectState.holograms} mutate={mutateHolograms} />
+          <HologramTemplatesEditor holograms={projectState.holograms} mutate={mutateHolograms} actionRefOptions={KNOWN_HOLOGRAM_ACTIONS} />
         ) : (
           <HologramPlacementsEditor
             placements={projectState.hologramPlacements}
