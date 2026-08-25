@@ -160,6 +160,14 @@ export interface EcosystemState {
    * CustomItemManager en Java. Ejemplo típico: "papeles de receta" (grant-permission).
    */
   foodItems: Record<string, ConfigEntry>;
+  /**
+   * Ítems del plugin standalone xItems (items/*.yml) — mismo esquema que {@link items}/
+   * {@link foodItems}, pero sin ningún plugin de dominio detrás: aquí el ítem no significa nada
+   * hasta que se le cuelga una acción (mensaje, sonido, dar otro ítem...). También editable desde
+   * el editor GUI in-game del propio plugin (`/xitems editor`) — ambos caminos escriben/leen el
+   * mismo YAML, así que son intercambiables.
+   */
+  xItemsPlugin: Record<string, ConfigEntry>;
   /** xFoods/drops.yml: mob-drops + block-drops. */
   drops: DropsConfig;
   /** Plantillas de xHolograms (xHolograms/templates/*.yml) — ver {@link HologramTemplateConfig}. */
@@ -184,6 +192,7 @@ export const emptyState = (): EcosystemState => ({
   cropMachines: {},
   items: {},
   foodItems: {},
+  xItemsPlugin: {},
   drops: emptyDropsConfig(),
   holograms: {},
   hologramPlacements: {},
@@ -191,9 +200,9 @@ export const emptyState = (): EcosystemState => ({
   rawFiles: []
 });
 
-export type PluginEditor = 'xfoods' | 'xcrops' | 'xmachines' | 'xpods' | 'xautomation' | 'xitems' | 'xfooditems';
+export type PluginEditor = 'xfoods' | 'xcrops' | 'xmachines' | 'xpods' | 'xautomation' | 'xitems' | 'xfooditems' | 'xitemsplugin';
 
-export const EDITOR_MAPS: Record<PluginEditor, keyof Pick<EcosystemState, 'foods' | 'crops' | 'machines' | 'pods' | 'cropMachines' | 'items' | 'foodItems'>> = {
+export const EDITOR_MAPS: Record<PluginEditor, keyof Pick<EcosystemState, 'foods' | 'crops' | 'machines' | 'pods' | 'cropMachines' | 'items' | 'foodItems' | 'xItemsPlugin'>> = {
   xfoods: 'foods',
   xcrops: 'crops',
   xmachines: 'machines',
@@ -201,6 +210,7 @@ export const EDITOR_MAPS: Record<PluginEditor, keyof Pick<EcosystemState, 'foods
   xautomation: 'cropMachines',
   xitems: 'items',
   xfooditems: 'foodItems',
+  xitemsplugin: 'xItemsPlugin',
 };
 
 /** Nombre legible de cada sección, para Descubrir/Moderar/el selector de paquete al publicar. */
@@ -212,6 +222,7 @@ export const EDITOR_LABELS: Record<PluginEditor, string> = {
   xautomation: 'Automatización (xCrops)',
   xitems: 'Ítem custom (xCrops)',
   xfooditems: 'Ítem custom (xFoods)',
+  xitemsplugin: 'Ítem custom (xItems)',
 };
 
 /**
@@ -258,6 +269,9 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   });
   Object.entries(state.foodItems).forEach(([id, data]) => {
     zip.file(`xFoods/items/${id}.yml`, stringifyYaml(data.config));
+  });
+  Object.entries(state.xItemsPlugin).forEach(([id, data]) => {
+    zip.file(`xItems/items/${id}.yml`, stringifyYaml(data.config));
   });
 
   // 3d. Recetas de crafteo (mesa vanilla) de maceteros y estaciones, editadas visualmente en el
@@ -485,6 +499,10 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
             const relativePath = path.split('xFoods/items/')[1];
             const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
             state.foodItems[fullId] = { config, folder: fullId.split('/').slice(0, -1).join('/') };
+          } else if (path.includes('xItems/items/')) {
+            const relativePath = path.split('xItems/items/')[1];
+            const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
+            state.xItemsPlugin[fullId] = { config, folder: fullId.split('/').slice(0, -1).join('/') };
           } else if (path.endsWith('xHolograms/placements.yml')) {
             state.hologramPlacements = parseHologramPlacements(config);
           } else if (path.includes('xHolograms/templates/')) {
@@ -681,7 +699,7 @@ const parseCraftRecipe = (config: Record<string, unknown>): CraftRecipeConfig | 
 const pluginRelativePath = (path: string): string | null => {
   // xFoodsCrops va primero: "xFoods" es un prefijo suyo y si no, todo xFoodsCrops
   // se detectaría como xFoods.
-  for (const plugin of ['xFoodsCrops', 'xFoods', 'xHolograms']) {
+  for (const plugin of ['xFoodsCrops', 'xFoods', 'xHolograms', 'xItems']) {
     const marker = `${plugin}/`;
     const idx = path.indexOf(marker);
     if (idx === -1) continue;

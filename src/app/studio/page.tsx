@@ -165,6 +165,7 @@ const SECCIONES = [
   { id: 'xdrops',     label: 'Drops',         color: 'var(--color-sec-drops)',      desc: 'Sustituciones de drops de mobs y bonus al romper bloques' },
   { id: 'xitems',     label: 'xCrops',        color: 'var(--color-sec-items)',      desc: 'Ítems 100% en YAML de xFoodsCrops: material, lore y sus acciones (triggers, estado, comandos)' },
   { id: 'xfooditems', label: 'xFoods',        color: 'var(--color-sec-items)',      desc: 'Ítems 100% en YAML de xFoods: papeles de receta y similares (mismo esquema que xCrops)' },
+  { id: 'xitemsplugin', label: 'xItems',      color: 'var(--color-sec-items)',      desc: 'Ítems del plugin standalone xItems: sin mecánica de dominio, mismo esquema (también editable con /xitems editor en el juego)' },
   { id: 'xholograms', label: 'Hologramas',    color: 'var(--color-sec-items)',      desc: 'Plantillas de xHolograms: texto, tamaño de click y comandos (%param% por colocación)' },
 ] as const;
 
@@ -185,7 +186,7 @@ const GROUPS = [
   {
     id: 'items-group', label: 'Items', color: 'var(--color-sec-items)',
     desc: 'Ítems 100% en YAML (xLib): material, lore y acciones, de xFoods o de xCrops',
-    members: ['xfooditems', 'xitems'] as const,
+    members: ['xfooditems', 'xitems', 'xitemsplugin'] as const,
   },
   {
     id: 'ia-group', label: 'ItemsAdder', color: 'var(--color-sec-ia)',
@@ -698,6 +699,7 @@ export default function StudioWorkspace() {
         else if (activeEditor === 'xautomation') newState.cropMachines[id] = { config: { "display-name": "&bNueva Máquina", type: "AUTO_WATERER", range: 5, item: { material: "DISPENSER" }, fuel: { "consume-per-action": 1 }, "storage-slots": 9 }, folder: "" };
         else if (activeEditor === 'xitems') newState.items[id] = { config: { "display-name": "&fNuevo Ítem", material: "STICK", "custom-model-data": 0, lore: [], "initial-state": {}, actions: {} }, folder: "" };
         else if (activeEditor === 'xfooditems') newState.foodItems[id] = { config: { "display-name": "&fNuevo Ítem", material: "STICK", "custom-model-data": 0, lore: [], "initial-state": {}, actions: {} }, folder: "" };
+        else if (activeEditor === 'xitemsplugin') newState.xItemsPlugin[id] = { config: { "display-name": "&fNuevo Ítem", material: "STICK", "custom-model-data": 0, lore: [], "initial-state": {}, actions: {} }, folder: "" };
         else newState.machines[id] = { config: { "display-name": "Nueva Estación", recipes: {} }, folder: "" };
         setProjectState(newState);
         setSelectedItem(id);
@@ -1247,7 +1249,7 @@ export default function StudioWorkspace() {
                 <div className="flex justify-between items-start border-b border-line pb-8">
                    <div className="flex gap-6 items-center flex-1">
                       <VisualPreview 
-                        mcPath={activeEditor === 'ia' ? (selectedData.data.resource?.model_path || selectedData.data.resource?.textures?.[0]) : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : ((activeEditor === 'xitems' || activeEditor === 'xfooditems') ? selectedData.config.material : selectedData.config.item?.material))}
+                        mcPath={activeEditor === 'ia' ? (selectedData.data.resource?.model_path || selectedData.data.resource?.textures?.[0]) : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : ((activeEditor === 'xitems' || activeEditor === 'xfooditems' || activeEditor === 'xitemsplugin') ? selectedData.config.material : selectedData.config.item?.material))}
                         rawFiles={projectState.rawFiles} 
                         namespace={activeEditor === 'ia' ? (selectedNamespace || projectState.projectName) : XFOODS_NAMESPACE}
                       />
@@ -1276,17 +1278,17 @@ export default function StudioWorkspace() {
                             <div className="space-y-2">
                                 <label className="label">Material</label>
                                 <AutocompleteInput
-                                    value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : ((activeEditor === 'xitems' || activeEditor === 'xfooditems') ? selectedData.config.material : selectedData.config.item?.material))) || ''}
-                                    onChange={(val) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xcrops' ? 'config.seed.material' : ((activeEditor === 'xitems' || activeEditor === 'xfooditems') ? 'config.material' : 'config.item.material')), val, activeEditor === 'ia' ? selectedData.fullKey : undefined)}
+                                    value={(activeEditor === 'ia' ? selectedData.data.resource?.material : (activeEditor === 'xcrops' ? selectedData.config.seed?.material : ((activeEditor === 'xitems' || activeEditor === 'xfooditems' || activeEditor === 'xitemsplugin') ? selectedData.config.material : selectedData.config.item?.material))) || ''}
+                                    onChange={(val) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xcrops' ? 'config.seed.material' : ((activeEditor === 'xitems' || activeEditor === 'xfooditems' || activeEditor === 'xitemsplugin') ? 'config.material' : 'config.item.material')), val, activeEditor === 'ia' ? selectedData.fullKey : undefined)}
                                     options={MATERIALS} strict placeholder="BREAD" className="input" />
                                 {isIAEnabled && activeEditor !== 'ia' && (
                                     <p className="text-[10px] text-gray-500">Se aplica también al ítem de ItemsAdder, que es el que manda mientras la integración esté activa.</p>
                                 )}
                             </div>
-                            {(activeEditor === 'xfoods' || activeEditor === 'xcrops' || activeEditor === 'xmachines' || activeEditor === 'xitems' || activeEditor === 'xfooditems') && (
+                            {(activeEditor === 'xfoods' || activeEditor === 'xcrops' || activeEditor === 'xmachines' || activeEditor === 'xitems' || activeEditor === 'xfooditems' || activeEditor === 'xitemsplugin') && (
                                 <div className="space-y-2">
                                     <label className="label">Custom Model Data</label>
-                                    <input type="number" value={(activeEditor === 'xcrops' ? selectedData.config.seed?.['custom-model-data'] : ((activeEditor === 'xitems' || activeEditor === 'xfooditems') ? selectedData.config['custom-model-data'] : selectedData.config.item?.['custom-model-data'])) || 0} onChange={(e) => updateField(activeEditor === 'xcrops' ? 'config.seed.custom-model-data' : ((activeEditor === 'xitems' || activeEditor === 'xfooditems') ? 'config.custom-model-data' : 'config.item.custom-model-data'), parseInt(e.target.value))} className="input" />
+                                    <input type="number" value={(activeEditor === 'xcrops' ? selectedData.config.seed?.['custom-model-data'] : ((activeEditor === 'xitems' || activeEditor === 'xfooditems' || activeEditor === 'xitemsplugin') ? selectedData.config['custom-model-data'] : selectedData.config.item?.['custom-model-data'])) || 0} onChange={(e) => updateField(activeEditor === 'xcrops' ? 'config.seed.custom-model-data' : ((activeEditor === 'xitems' || activeEditor === 'xfooditems' || activeEditor === 'xitemsplugin') ? 'config.custom-model-data' : 'config.item.custom-model-data'), parseInt(e.target.value))} className="input" />
                                 </div>
                             )}
                         </div>
@@ -1505,7 +1507,7 @@ export default function StudioWorkspace() {
                         </div>
                     )}
 
-                    {(activeEditor === 'xitems' || activeEditor === 'xfooditems') && (
+                    {(activeEditor === 'xitems' || activeEditor === 'xfooditems' || activeEditor === 'xitemsplugin') && (
                         <div className="space-y-6">
                             <div className="space-y-2">
                                 <label className="label">Lore</label>
