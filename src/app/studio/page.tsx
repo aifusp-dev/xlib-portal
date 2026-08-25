@@ -29,7 +29,8 @@ import {
   CheckCircle2,
   Flower2,
   Cpu,
-  Hammer
+  Hammer,
+  Pencil
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateZIP, parseUploadedFiles, emptyState, EcosystemState, ConfigEntry, stringifyYaml, sanitizePath, isInternalNamespace, XFOODS_NAMESPACE, leafId, StudioFile, PluginEditor, mapFor } from "@/lib/studio";
@@ -676,7 +677,13 @@ export default function StudioWorkspace() {
         setProjectState(newState);
         setSelectedItem(sid);
     } else {
-        const id = sanitizePath(`nuevo_${timestamp}`);
+        const targetMap = mapFor(newState, activeEditor as PluginEditor);
+        const raw = prompt("Id (así se llamará el fichero, y es el id que usa el plugin):", `nuevo_${timestamp}`);
+        if (!raw) return;
+        const id = sanitizePath(raw);
+        if (!id) return;
+        if (targetMap[id]) { alert("Ya existe un elemento con ese id."); return; }
+
         if (activeEditor === 'xfoods') newState.foods[id] = { config: { "display-name": "Nueva Comida", stats: { "food-level": 4, saturation: 2.0, bites: 1, consumable: true }, item: { material: "PORKCHOP" } }, folder: "" };
         else if (activeEditor === 'xcrops') newState.crops[id] = { config: { "display-name": "Nuevo Cultivo", seed: { material: "WHEAT_SEEDS" }, growth: { stages: {} } }, folder: "" };
         else if (activeEditor === 'xpods') newState.pods[id] = { config: { "display-name": "&fNuevo Macetero", item: { material: "FLOWER_POT" }, modifiers: { "growth-speed": 1.0, "nutrient-rate": 1.0, yield: 1.0 }, probabilities: { "pest-chance": 0.05 } }, folder: "" };
@@ -687,6 +694,33 @@ export default function StudioWorkspace() {
         setProjectState(newState);
         setSelectedItem(id);
     }
+  };
+
+  /**
+   * Cambia el id (= nombre de fichero) de un elemento ya creado, conservando su config/folder/recipe.
+   * Solo se pide el nombre "hoja" (sin subcarpeta) — si el elemento vivía dentro de una subcarpeta,
+   * se mantiene, solo cambia el nombre de fichero dentro de ella.
+   */
+  const handleRenameItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!projectState) return;
+    const raw = prompt("Nuevo id:", leafId(id));
+    if (!raw) return;
+    const newLeaf = sanitizePath(raw);
+    if (!newLeaf) return;
+
+    const newState = { ...projectState };
+    const currentMap = mapFor(newState, activeEditor as PluginEditor);
+    const entry = currentMap[id];
+    if (!entry) return;
+    const newId = entry.folder ? `${entry.folder}/${newLeaf}` : newLeaf;
+    if (newId === id) return;
+    if (currentMap[newId]) { alert("Ya existe un elemento con ese id."); return; }
+
+    delete currentMap[id];
+    currentMap[newId] = entry;
+    setProjectState(newState);
+    if (selectedItem === id) setSelectedItem(newId);
   };
 
   const handleCloneItem = (id: string, e: React.MouseEvent) => {
@@ -1178,6 +1212,10 @@ export default function StudioWorkspace() {
                                                     </span>
                                                 )}
                                                 {conIA && <span className="badge badge-ia">3D</span>}
+                                                <button onClick={(e) => handleRenameItem(id, e)} title="Renombrar"
+                                                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all flex-none">
+                                                    <Pencil className="w-3 h-3" />
+                                                </button>
                                                 <button onClick={(e) => handleCloneItem(id, e)} title="Duplicar"
                                                         className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all flex-none">
                                                     <Copy className="w-3 h-3" />
