@@ -116,14 +116,20 @@ export default function HologramTemplatesEditor({ holograms, mutate }: HologramT
             </div>
 
             <div>
-              <label className={labelCls}>Permiso (vacío = cualquiera)</label>
+              <label className={labelCls}>Permiso para VER el hologram (vacío = cualquiera lo ve)</label>
               <input
                 type="text" value={template.permission}
                 onChange={(e) => mutateTemplate((t) => { t.permission = e.target.value; })}
                 className={cn(inputCls, "mt-1")}
                 placeholder="xholograms.usar"
               />
+              <p className="text-[9px] text-gray-600 italic mt-1">Quien no tenga este permiso no ve el hologram en absoluto, no solo se le bloquean sus acciones de click.</p>
             </div>
+
+            <PagesEditor
+              pages={template.pages}
+              onChange={(pages) => mutateTemplate((t) => { t.pages = pages; })}
+            />
 
             <CommandListEditor
               label="Click derecho"
@@ -139,10 +145,50 @@ export default function HologramTemplatesEditor({ holograms, mutate }: HologramT
             <p className="text-[10px] text-gray-600 italic">
               Usa %param% en cualquier comando: se sustituye por el valor propio de cada colocación
               (ej. <code>/xholograms create {selected} macdonalds</code> hace que %param% sea &quot;macdonalds&quot; solo ahí).
+              {template.pages.length > 0 && " Con páginas, los comandos se siguen ejecutando en cada click además de cambiar de página."}
             </p>
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Páginas extra (además de "Líneas", que es siempre la página principal/compartida). Si hay
+ * alguna, click derecho/izquierdo pasan a navegar entre páginas — cada una la ve solo, de forma
+ * privada, el jugador que la pida (ver HologramPlacementManager#turnPage en el plugin).
+ */
+function PagesEditor({ pages, onChange }: { pages: string[][]; onChange: (p: string[][]) => void }) {
+  const addPage = () => onChange([...pages, ["&aNueva página"]]);
+  const updatePage = (i: number, text: string) => onChange(pages.map((p, idx) => (idx === i ? text.split("\n") : p)));
+  const removePage = (i: number) => onChange(pages.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between items-center">
+        <label className={labelCls}>Páginas extra (privadas, navegables con click)</label>
+        <button onClick={addPage} className={addButtonCls}>
+          <Plus className="w-3 h-3" /> Página
+        </button>
+      </div>
+      <div className="space-y-2">
+        {pages.map((page, i) => (
+          <div key={i} className="flex gap-2 items-start bg-black/20 border border-white/5 rounded-xl p-3">
+            <span className="text-[10px] text-gray-500 font-bold pt-2 shrink-0">#{i + 2}</span>
+            <textarea
+              value={page.join("\n")}
+              onChange={(e) => updatePage(i, e.target.value)}
+              rows={2}
+              className={cn(inputCls, "font-mono")}
+            />
+            <button onClick={() => removePage(i)} className="text-gray-600 hover:text-red-500 shrink-0 pt-2">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+      {pages.length === 0 && <p className="text-[10px] text-gray-600 italic">Sin páginas extra: click solo ejecuta las acciones de abajo, si tiene.</p>}
     </div>
   );
 }

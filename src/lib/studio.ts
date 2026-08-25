@@ -90,9 +90,17 @@ export interface PassthroughFile {
  */
 export interface HologramTemplateConfig {
   lines: string[];
+  /**
+   * Páginas EXTRA además de `lines` (que es siempre la página principal, la que ve todo el
+   * mundo por defecto). Si hay alguna, click derecho/izquierdo pasan a navegar entre páginas
+   * (además de seguir ejecutando los comandos de abajo) — cada página solo la ve, de forma
+   * privada, el jugador que la pida (ver {@code HologramPlacementManager#turnPage} en el plugin).
+   */
+  pages: string[][];
   width: number;
   height: number;
   scale: number;
+  /** Permiso para VER el hologram (no solo para usar sus acciones) — vacío = cualquiera lo ve. */
   permission: string;
   rightClickCommands: string[];
   leftClickCommands: string[];
@@ -100,6 +108,7 @@ export interface HologramTemplateConfig {
 
 export const emptyHologramTemplate = (): HologramTemplateConfig => ({
   lines: ['&b&lNuevo hologram'],
+  pages: [],
   width: 1.5,
   height: 1.5,
   scale: 1.0,
@@ -293,6 +302,7 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   Object.entries(state.holograms).forEach(([id, tpl]) => {
     zip.file(`xHolograms/templates/${id}.yml`, stringifyYaml({
       lines: tpl.lines,
+      ...(tpl.pages.length > 0 ? { pages: tpl.pages } : {}),
       width: tpl.width,
       height: tpl.height,
       scale: tpl.scale,
@@ -571,8 +581,14 @@ const parseHologramTemplate = (config: Record<string, unknown>): HologramTemplat
   const actions = (config.actions as Record<string, unknown>) || {};
   const rightClick = actions['right-click'];
   const leftClick = actions['left-click'];
+  const rawPages = Array.isArray(config.pages) ? config.pages : [];
+  const pages: string[][] = rawPages
+    .filter((p): p is unknown[] => Array.isArray(p))
+    .map((p) => p.map(String));
+
   return {
     lines: Array.isArray(config.lines) ? config.lines.map(String) : [],
+    pages,
     width: typeof config.width === 'number' ? config.width : 1.5,
     height: typeof config.height === 'number' ? config.height : 1.5,
     scale: typeof config.scale === 'number' ? config.scale : 1.0,
