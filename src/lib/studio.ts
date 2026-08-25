@@ -79,6 +79,35 @@ export interface PassthroughFile {
   content: string;
 }
 
+/**
+ * Espejo en TypeScript de {@code org.aifusp.xholograms.model.HologramTemplate}: el CONTENIDO de
+ * un hologram (texto, tamaño del hitbox de click, permiso, comandos), sin ninguna ubicación — la
+ * misma plantilla se coloca en el mundo tantas veces como se quiera con
+ * {@code /xholograms create <id>}, cada colocación guarda solo dónde está y su propio "param"
+ * (sustituye {@code %param%} en los comandos de abajo). Por eso este tipo no lleva `folder` ni
+ * `recipe` como {@link ConfigEntry}: no comparte nada de la forma de comida/ítem (sin material,
+ * sin ItemsAdder), así que vive en su propia sección del Studio en vez de reutilizar esa.
+ */
+export interface HologramTemplateConfig {
+  lines: string[];
+  width: number;
+  height: number;
+  scale: number;
+  permission: string;
+  rightClickCommands: string[];
+  leftClickCommands: string[];
+}
+
+export const emptyHologramTemplate = (): HologramTemplateConfig => ({
+  lines: ['&b&lNuevo hologram'],
+  width: 1.5,
+  height: 1.5,
+  scale: 1.0,
+  permission: '',
+  rightClickCommands: [],
+  leftClickCommands: [],
+});
+
 export interface EcosystemState {
   projectName: string;
   foods: Record<string, ConfigEntry>;
@@ -107,6 +136,8 @@ export interface EcosystemState {
   foodItems: Record<string, ConfigEntry>;
   /** xFoods/drops.yml: mob-drops + block-drops. */
   drops: DropsConfig;
+  /** Plantillas de xHolograms (xHolograms/templates/*.yml) — ver {@link HologramTemplateConfig}. */
+  holograms: Record<string, HologramTemplateConfig>;
   /** Ficheros reconocidos sin editor propio; se conservan intactos. */
   extraFiles: PassthroughFile[];
   rawFiles: StudioFile[];
@@ -126,6 +157,7 @@ export const emptyState = (): EcosystemState => ({
   items: {},
   foodItems: {},
   drops: emptyDropsConfig(),
+  holograms: {},
   extraFiles: [],
   rawFiles: []
 });
@@ -235,6 +267,22 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
       },
     }));
   }
+
+  // 3f. Plantillas de xHolograms — sin ubicación, esa vive solo en el mundo (placements.yml del
+  // propio plugin, no editable desde aquí).
+  Object.entries(state.holograms).forEach(([id, tpl]) => {
+    zip.file(`xHolograms/templates/${id}.yml`, stringifyYaml({
+      lines: tpl.lines,
+      width: tpl.width,
+      height: tpl.height,
+      scale: tpl.scale,
+      permission: tpl.permission,
+      actions: {
+        'right-click': tpl.rightClickCommands,
+        'left-click': tpl.leftClickCommands,
+      },
+    }));
+  });
 
   // 3c. Ficheros sin editor propio (categories.yml, market.yml, config.yml...): se devuelven
   // exactamente como entraron, comentarios incluidos.
@@ -395,6 +443,10 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
             const relativePath = path.split('xFoods/items/')[1];
             const fullId = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
             state.foodItems[fullId] = { config, folder: fullId.split('/').slice(0, -1).join('/') };
+          } else if (path.includes('xHolograms/templates/')) {
+            const relativePath = path.split('xHolograms/templates/')[1];
+            const id = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
+            state.holograms[id] = parseHologramTemplate(config);
           } else if (path.endsWith('xFoods/drops.yml')) {
             state.drops = parseDropsConfig(config);
           } else if (path.includes('xFoodsCrops/recipes/')) {
@@ -480,6 +532,22 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
  * escrita a mano por fuera del Studio se conserva en el servidor pero no se puede editar aquí, así
  * que se ignora en vez de intentar representarla a medias.
  */
+/** Lee una plantilla de xHolograms/templates/*.yml ya parseada a objeto. Campos ausentes caen a los mismos valores por defecto que {@code HologramTemplateLoader.java}. */
+const parseHologramTemplate = (config: Record<string, unknown>): HologramTemplateConfig => {
+  const actions = (config.actions as Record<string, unknown>) || {};
+  const rightClick = actions['right-click'];
+  const leftClick = actions['left-click'];
+  return {
+    lines: Array.isArray(config.lines) ? config.lines.map(String) : [],
+    width: typeof config.width === 'number' ? config.width : 1.5,
+    height: typeof config.height === 'number' ? config.height : 1.5,
+    scale: typeof config.scale === 'number' ? config.scale : 1.0,
+    permission: typeof config.permission === 'string' ? config.permission : '',
+    rightClickCommands: Array.isArray(rightClick) ? rightClick.map(String) : [],
+    leftClickCommands: Array.isArray(leftClick) ? leftClick.map(String) : [],
+  };
+};
+
 /** Lee xFoods/drops.yml ya parseado a objeto. Entradas malformadas se descartan, no abortan todo el fichero. */
 const parseDropsConfig = (config: Record<string, unknown>): DropsConfig => {
   const result = emptyDropsConfig();
@@ -539,7 +607,7 @@ const parseCraftRecipe = (config: Record<string, unknown>): CraftRecipeConfig | 
 const pluginRelativePath = (path: string): string | null => {
   // xFoodsCrops va primero: "xFoods" es un prefijo suyo y si no, todo xFoodsCrops
   // se detectaría como xFoods.
-  for (const plugin of ['xFoodsCrops', 'xFoods']) {
+  for (const plugin of ['xFoodsCrops', 'xFoods', 'xHolograms']) {
     const marker = `${plugin}/`;
     const idx = path.indexOf(marker);
     if (idx === -1) continue;

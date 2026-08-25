@@ -47,6 +47,7 @@ import CraftingGridEditor from "@/components/CraftingGridEditor";
 import DropsEditor from "@/components/DropsEditor";
 import ItemActionsEditor, { ItemActionsConfig } from "@/components/ItemActionsEditor";
 import InitialStateEditor, { InitialStateConfig } from "@/components/InitialStateEditor";
+import HologramTemplatesEditor from "@/components/HologramTemplatesEditor";
 import PotionEffectsEditor, { PotionConfig } from "@/components/PotionEffectsEditor";
 import CommandActionRow from "@/components/CommandActionRow";
 
@@ -162,6 +163,7 @@ const SECCIONES = [
   { id: 'xdrops',     label: 'Drops',         color: 'var(--color-sec-drops)',      desc: 'Sustituciones de drops de mobs y bonus al romper bloques' },
   { id: 'xitems',     label: 'Ítems (xCrops)',color: 'var(--color-sec-items)',      desc: 'Ítems 100% en YAML de xFoodsCrops: material, lore y sus acciones (triggers, estado, comandos)' },
   { id: 'xfooditems', label: 'Ítems (xFoods)',color: 'var(--color-sec-items)',      desc: 'Ítems 100% en YAML de xFoods: papeles de receta y similares (mismo esquema que xCrops)' },
+  { id: 'xholograms', label: 'Hologramas',    color: 'var(--color-sec-items)',      desc: 'Plantillas de xHolograms: texto, tamaño de click y comandos (%param% por colocación)' },
 ] as const;
 
 /** Tipos de MachineConfiguration.MachineType que acepta xFoodsCrops. */
@@ -179,7 +181,7 @@ const KNOWN_ITEM_ACTIONS = ['xfoodscrops:sickle_bonus_seed', 'xfoodscrops:lucky_
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
-  const [activeEditor, setActiveEditor] = useState<PluginEditor | 'ia' | 'xdrops'>('xfoods');
+  const [activeEditor, setActiveEditor] = useState<PluginEditor | 'ia' | 'xdrops' | 'xholograms'>('xfoods');
   const [activeCategory, setActiveCategory] = useState<string>("items"); 
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [selectedNamespace, setSelectedNamespace] = useState<string | null>(null);
@@ -572,6 +574,14 @@ export default function StudioWorkspace() {
     setProjectState(newState);
   };
 
+  /** Para HologramTemplatesEditor: no hay selectedItem, es su propia sección con su propia lista. */
+  const mutateHolograms = (mutator: (holograms: EcosystemState['holograms']) => void) => {
+    if (!projectState) return;
+    const newState = { ...projectState, holograms: { ...projectState.holograms } };
+    mutator(newState.holograms);
+    setProjectState(newState);
+  };
+
   const handleCreateNew = () => {
     if (!projectState) return;
     const timestamp = Date.now();
@@ -655,7 +665,7 @@ export default function StudioWorkspace() {
   };
 
   const filteredItems = useMemo(() => {
-    if (!projectState || activeEditor === 'xdrops') return [];
+    if (!projectState || activeEditor === 'xdrops' || activeEditor === 'xholograms') return [];
     if (activeEditor === 'ia') {
         if (!selectedNamespace) return [];
         const result: [string, any][] = [];
@@ -680,13 +690,13 @@ export default function StudioWorkspace() {
   }, [projectState, activeEditor, activeCategory, selectedNamespace, searchTerm]);
 
   const selectedData = useMemo(() => {
-    if (!selectedItem || !projectState || activeEditor === 'xdrops') return null;
+    if (!selectedItem || !projectState || activeEditor === 'xdrops' || activeEditor === 'xholograms') return null;
     if (activeEditor === 'ia') return filteredItems.find(([id]) => id === selectedItem)?.[1];
     return mapFor(projectState, activeEditor as PluginEditor)[selectedItem];
   }, [selectedItem, filteredItems, activeEditor, projectState]);
 
   const groupedX = useMemo(() => {
-    if (!projectState || activeEditor === 'ia' || activeEditor === 'xdrops') return {};
+    if (!projectState || activeEditor === 'ia' || activeEditor === 'xdrops' || activeEditor === 'xholograms') return {};
     const targetMap = mapFor(projectState, activeEditor as PluginEditor);
     const groups: Record<string, string[]> = {};
     Object.entries(targetMap).forEach(([id, data]) => {
@@ -1000,9 +1010,11 @@ export default function StudioWorkspace() {
                         ? Object.keys(projectState.iaItems).length + Object.keys(projectState.iaBlocks).length + Object.keys(projectState.iaFurnitures).length
                         : sec.id === 'xdrops'
                         ? Object.keys(projectState.drops.mobDrops.replacements).length + Object.keys(projectState.drops.blockDrops.drops).length
+                        : sec.id === 'xholograms'
+                        ? Object.keys(projectState.holograms).length
                         : Object.keys(mapFor(projectState, sec.id as PluginEditor)).length;
                     return (
-                        <button key={sec.id} onClick={() => { setActiveEditor(sec.id as PluginEditor | 'ia' | 'xdrops'); setSelectedItem(null); }}
+                        <button key={sec.id} onClick={() => { setActiveEditor(sec.id as PluginEditor | 'ia' | 'xdrops' | 'xholograms'); setSelectedItem(null); }}
                                 className="tab" data-active={activa} title={sec.desc}>
                             <span className="tab-dot" style={{ background: activa ? sec.color : 'var(--color-ink-3)' }} />
                             {sec.label}
@@ -1031,6 +1043,10 @@ export default function StudioWorkspace() {
       {activeEditor === 'xdrops' ? (
       <div className="flex-1 panel overflow-hidden p-6">
         <DropsEditor drops={projectState.drops} mutate={mutateDrops} refOptions={craftIngredientOptions} />
+      </div>
+      ) : activeEditor === 'xholograms' ? (
+      <div className="flex-1 panel overflow-hidden p-6 overflow-y-auto">
+        <HologramTemplatesEditor holograms={projectState.holograms} mutate={mutateHolograms} />
       </div>
       ) : (
       <div className="flex-1 grid grid-cols-12 gap-6 overflow-hidden">
