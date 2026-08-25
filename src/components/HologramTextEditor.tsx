@@ -74,7 +74,7 @@ export default function HologramTextEditor({ value, onChange, rows = 4, placehol
       <div className="flex flex-wrap items-center gap-2 bg-black/30 border border-white/10 rounded-lg p-2">
         <div className="flex items-center gap-1">
           <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className={swatchCls} title="Elegir color" />
-          <button onClick={() => wrapSelection(`<${color}>`, "</color>")} className={cn(toolBtnCls, "w-auto px-2 text-[10px] font-black uppercase")} title="Aplicar color a la selección">
+          <button onClick={() => wrapSelection(`<color:${color}>`, "</color>")} className={cn(toolBtnCls, "w-auto px-2 text-[10px] font-black uppercase")} title="Aplicar color a la selección">
             Color
           </button>
         </div>
