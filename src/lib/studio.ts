@@ -234,6 +234,22 @@ export const EDITOR_LABELS: Record<PluginEditor, string> = {
 export const mapFor = (state: EcosystemState, editor: PluginEditor): Record<string, ConfigEntry> =>
   state[EDITOR_MAPS[editor]] as Record<string, ConfigEntry>;
 
+/**
+ * El Studio guarda internamente cada raw file (textura/modelo/sonido de ItemsAdder) bajo la
+ * convención genérica de resourcepack de Minecraft, "resource_pack/assets/<ns>/...", tanto al
+ * importar un proyecto (ver el normalizedPath de parseUploadedFiles) como al subir un archivo
+ * nuevo desde el panel de Recursos (handleIAFileUpload). Esa NO es la carpeta que ItemsAdder
+ * escanea de verdad: su convención real es "resourcepack/<ns>/..." (sin guion bajo y sin el nivel
+ * "assets/") — la misma que ya usan namespaces existentes como rpx/textures/gui en el server real.
+ * Sin este remapeo, el asset viaja en el ZIP a una carpeta que ItemsAdder ignora, así que la
+ * furniture/bloque queda con la entrada de config apuntando a un modelo "not found in any pack".
+ * Se remapea aquí, en el único punto de escritura a disco, para no tener que tocar todos los
+ * sitios que ya buscan/comparan rutas usando la convención interna (VisualPreview, el matching de
+ * texturas que falta, etc.).
+ */
+const toItemsAdderDiskPath = (inferredPath: string): string =>
+  inferredPath.replace(/^(plugins\/ItemsAdder\/contents\/[^/]+\/)resource_pack\/assets\//, '$1resourcepack/');
+
 export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   const zip = new JSZip();
   const defaultNs = state.projectName || 'xLib';
@@ -385,7 +401,7 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
 
   // 5. Pack original raw files (textures/models) with final JSON remapping
   state.rawFiles.forEach(file => {
-    const cleanPath = file.inferredPath.replace(/^plugins\//, '');
+    const cleanPath = toItemsAdderDiskPath(file.inferredPath).replace(/^plugins\//, '');
     let finalContent: string | ArrayBuffer | Blob = file.content;
 
     // IF JSON model, perform final texture remapping

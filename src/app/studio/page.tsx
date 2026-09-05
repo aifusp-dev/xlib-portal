@@ -665,7 +665,13 @@ export default function StudioWorkspace() {
             enabled: true,
             display_name: id,
             permission: `${selectedNamespace}.furniture.${sid}`,
-            resource: { material: "PAPER", generate: true, model_path: `${selectedNamespace}:furniture/${sid}` },
+            // Sin model_path: hasta que se suba un modelo propio desde el panel de Recursos
+            // (handleIAFileUpload, que sí rellena model_path y pone generate:false), la furniture
+            // se queda con generate:true a secas — igual que "blocks" arriba. Poner aquí un
+            // model_path que apunta a un fichero que todavía no existe es lo que hacía que
+            // ItemsAdder fallara al arrancar con "Model file ... not found in any pack" en cuanto
+            // se creaba el objeto, antes incluso de subir ningún archivo.
+            resource: { material: "PAPER", generate: true },
             behaviours: {
                 furniture: {
                     entity: "armor_stand",
