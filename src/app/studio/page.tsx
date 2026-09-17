@@ -643,11 +643,12 @@ export default function StudioWorkspace() {
         const sid = sanitizePath(id);
         const targetFileId = activeCategory === 'furnitures' ? "created_furnitures" : (activeCategory === 'blocks' ? "created_blocks" : "created_items");
         const fullKey = `${selectedNamespace}/${targetFileId}`;
-        
-        // "furnitures" es solo el nombre de la pestaña/categoría en la UI: ItemsAdder registra
-        // los muebles bajo la misma clave "items" que todo lo demás (ver nota más abajo).
-        let keyName = activeCategory === 'blocks' ? "blocks" : "items";
-        
+
+        // "furnitures"/"blocks" son solo el nombre de la pestaña/categoría en la UI: ItemsAdder
+        // registra muebles y bloques bajo la misma clave "items" que todo lo demás (ver nota en
+        // currentIAKeyName más abajo).
+        const keyName = "items";
+
         let targetMap: any;
         if (activeCategory === 'items') targetMap = newState.iaItems;
         else if (activeCategory === 'blocks') targetMap = newState.iaBlocks;
@@ -682,9 +683,22 @@ export default function StudioWorkspace() {
         } : (activeCategory === 'blocks' ? {
             enabled: true,
             display_name: id,
-            resource: { material: "STONE", generate: true },
-            specific_properties: { block: { can_be_placed: true } }
-        } : { 
+            permission: `${selectedNamespace}.block.${sid}`,
+            // PAPER, no un bloque vanilla: ItemsAdder avisa que usar un material colocable
+            // (STONE, DIRT...) como base produce un bloque "glitched" al colocarlo.
+            resource: { material: "PAPER", generate: true, textures: [`${selectedNamespace}:block/${sid}`] },
+            // Esquema real de bloques de ItemsAdder (wiki.itemsadder.com/adding-content/blocks):
+            // todo vive bajo behaviours.block, no bajo "specific_properties" (eso no es un campo
+            // real de la API). REAL_NOTE es el tipo recomendado por defecto: bloque 100% real,
+            // sin lag, hasta 750 bloques custom en total.
+            behaviours: {
+                block: {
+                    placed_model: { type: "REAL_NOTE" },
+                    hardness: 1.5,
+                    drop_when_mined: true,
+                }
+            }
+        } : {
             enabled: true,
             display_name: id, 
             resource: { material: "PAPER", generate: true, textures: [`${selectedNamespace}:item/${sid}`] } 
@@ -761,7 +775,7 @@ export default function StudioWorkspace() {
         if (!selectedNamespace) return [];
         const result: [string, any][] = [];
         let targetMap: any;
-        const keyName = activeCategory === 'blocks' ? "blocks" : "items";
+        const keyName = "items";
         if (activeCategory === 'items') targetMap = projectState.iaItems;
         else if (activeCategory === 'blocks') targetMap = projectState.iaBlocks;
         else targetMap = projectState.iaFurnitures;
@@ -1088,7 +1102,11 @@ export default function StudioWorkspace() {
     );
   }
 
-  const currentIAKeyName = activeCategory === 'blocks' ? "blocks" : "items";
+  // ItemsAdder no tiene sección de nivel superior "blocks"/"furnitures": todo vive bajo "items"
+  // (confirmado decompilando ItemsAdder_4.0.17.jar, ver comentario en updateField más arriba).
+  // Las tres categorías de la UI (Ítems/Bloques/Muebles) son solo mapas internos del Studio para
+  // organizar la edición; el YAML que se exporta siempre usa "items".
+  const currentIAKeyName = "items";
 
   const countFor = (id: string): number => {
     if (id === 'ia') return Object.keys(projectState.iaItems).length + Object.keys(projectState.iaBlocks).length + Object.keys(projectState.iaFurnitures).length;
@@ -1678,6 +1696,164 @@ export default function StudioWorkspace() {
                                             </div>
                                         </div>
                                     )}
+                                </div>
+                                </>
+                            )}
+
+                            {activeCategory === 'blocks' && (
+                                <>
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                        <h4 className="section-title">Tipo de Generación</h4>
+                                        {/* behaviours.block.placed_model.type: cada tipo usa un bloque vanilla
+                                            distinto por debajo, con su propio límite de bloques custom en total
+                                            para todo el server (no solo este namespace). Ver
+                                            wiki.itemsadder.com/adding-content/blocks. */}
+                                        <select
+                                            value={selectedData.data.behaviours?.block?.placed_model?.type || 'REAL_NOTE'}
+                                            onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.type`, e.target.value, selectedData.fullKey)}
+                                            className="input"
+                                        >
+                                            <option value="REAL_NOTE">REAL_NOTE (recomendado, hasta 750)</option>
+                                            <option value="REAL">REAL (mushroom, hasta 191)</option>
+                                            <option value="REAL_TRANSPARENT">REAL_TRANSPARENT (con transparencia, hasta 63)</option>
+                                            <option value="REAL_WIRE">REAL_WIRE (tripwire, hasta 127)</option>
+                                            <option value="TILE">TILE (spawner, ilimitado, no usar para menas)</option>
+                                            <option value="FIRE">FIRE (bloque de fuego, hasta 14)</option>
+                                        </select>
+                                        <p className="hint">Todos los tipos son bloques 100% reales, sin lag ni entidades (salvo TILE, que retextura un spawner).</p>
+                                    </div>
+                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                        <h4 className="section-title">Rotación Direccional</h4>
+                                        <p className="hint -mt-2">Ocupa 4-6 ids de bloque custom por cada bloque (uno por cara). Requiere IA 4.0.10+.</p>
+                                        <select
+                                            value={selectedData.data.behaviours?.block?.placed_model?.directional_mode || ''}
+                                            onChange={(e) => {
+                                                const v = e.target.value;
+                                                if (v) updateField(`items.${selectedItem}.behaviours.block.placed_model.directional_mode`, v, selectedData.fullKey);
+                                                else {
+                                                    const newState = { ...projectState } as EcosystemState;
+                                                    const config = newState.iaBlocks[selectedData.fullKey] as Record<string, unknown>;
+                                                    const items = config?.items as Record<string, unknown> | undefined;
+                                                    const item = items?.[selectedItem as string] as Record<string, unknown> | undefined;
+                                                    const behaviours = item?.behaviours as Record<string, unknown> | undefined;
+                                                    const block = behaviours?.block as Record<string, unknown> | undefined;
+                                                    const placedModel = block?.placed_model as Record<string, unknown> | undefined;
+                                                    if (placedModel) delete placedModel.directional_mode;
+                                                    setProjectState(newState);
+                                                }
+                                            }}
+                                            className="input"
+                                        >
+                                            <option value="">Ninguna</option>
+                                            <option value="ALL">ALL (como un tronco + dropper)</option>
+                                            <option value="LOG">LOG (como un tronco vanilla)</option>
+                                            <option value="FURNACE">FURNACE (como un horno vanilla)</option>
+                                            <option value="DROPPER">DROPPER (como un dispensador)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                        <h4 className="section-title">Resistencia</h4>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="label">Dureza (-1 = instantáneo)</label>
+                                                <input type="number" step="0.1" value={selectedData.data.behaviours?.block?.hardness ?? 1.5} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.hardness`, parseFloat(e.target.value), selectedData.fullKey)} className="input" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="label">Resist. Explosión</label>
+                                                <input type="number" step="0.1" placeholder="auto (dureza x3)" value={selectedData.data.behaviours?.block?.blast_resistance ?? ''} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.blast_resistance`, e.target.value === '' ? undefined : parseFloat(e.target.value), selectedData.fullKey)} className="input" />
+                                            </div>
+                                        </div>
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.no_explosion || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.no_explosion`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <span className="eyebrow">Inmune a explosiones</span>
+                                        </label>
+                                    </div>
+                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                        <h4 className="section-title">Drops</h4>
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.drop_when_mined ?? true} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.drop_when_mined`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <span className="eyebrow">Suelta el ítem al minar</span>
+                                        </label>
+                                        <p className="hint -mt-2">Desactívalo si le pones un loot custom en loots.yml, para evitar duplicar.</p>
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.drop_on_shears || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.drop_on_shears`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <span className="eyebrow">Suelta con tijeras</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.drop_on_silk_touch ?? true} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.drop_on_silk_touch`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <span className="eyebrow">Suelta con Toque de Seda</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-6">
+                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                        <h4 className="section-title">Colocación</h4>
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.placeable_on_water || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.placeable_on_water`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <span className="eyebrow">Colocable en agua</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.placeable_on_lava || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.placeable_on_lava`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <span className="eyebrow">Colocable en lava</span>
+                                        </label>
+                                        <label className="flex items-center gap-3 cursor-pointer">
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.shift_up || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.shift_up`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <span className="eyebrow">Colocado 1 bloque arriba (plantas altas)</span>
+                                        </label>
+                                        {selectedData.data.behaviours?.block?.placed_model?.type === 'REAL_WIRE' && (
+                                            <label className="flex items-center gap-3 cursor-pointer">
+                                                <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.placeable_on_other_real_wire || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.placeable_on_other_real_wire`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                                <span className="eyebrow">Colocable sobre otro REAL_WIRE</span>
+                                            </label>
+                                        )}
+                                    </div>
+                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                        <h4 className="section-title">Sonido y Luz</h4>
+                                        <div className="space-y-1">
+                                            <label className="label">Nivel de Luz (0-15)</label>
+                                            <input type="number" min="0" max="15" value={selectedData.data.behaviours?.block?.light_level || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.light_level`, parseInt(e.target.value) || 0, selectedData.fullKey)} className="input" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="space-y-1">
+                                                <label className="label">Sonido al Romper</label>
+                                                <input type="text" placeholder="BLOCK_STONE_BREAK" value={selectedData.data.behaviours?.block?.sound?.break?.name || ''} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.sound.break.name`, e.target.value, selectedData.fullKey)} className="input" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="label">Sonido al Colocar</label>
+                                                <input type="text" placeholder="BLOCK_STONE_PLACE" value={selectedData.data.behaviours?.block?.sound?.place?.name || ''} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.sound.place.name`, e.target.value, selectedData.fullKey)} className="input" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                    <h4 className="section-title">Herramientas (una por línea)</h4>
+                                    <p className="hint -mt-2">Coincide por nombre parcial: «PICKAXE» vale para cualquier picueta, «ruby_» para cualquier herramienta custom que empiece así.</p>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="space-y-1">
+                                            <label className="label">Whitelist (si se define, solo estas rompen el bloque)</label>
+                                            <textarea
+                                                value={(selectedData.data.behaviours?.block?.break_tools_whitelist || []).join('\n')}
+                                                onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.break_tools_whitelist`, e.target.value.split('\n').map((s: string) => s.trim()).filter(Boolean), selectedData.fullKey)}
+                                                className="input h-20 font-mono text-[11px]"
+                                                placeholder={"DIAMOND_PICKAXE\nPICKAXE"}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="label">Blacklist</label>
+                                            <textarea
+                                                value={(selectedData.data.behaviours?.block?.break_tools_blacklist || []).join('\n')}
+                                                onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.break_tools_blacklist`, e.target.value.split('\n').map((s: string) => s.trim()).filter(Boolean), selectedData.fullKey)}
+                                                className="input h-20 font-mono text-[11px]"
+                                                placeholder={"WOODEN_PICKAXE\nSTONE_PICKAXE"}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                                 </>
                             )}

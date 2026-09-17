@@ -10,6 +10,7 @@
     "test:roundtrip": "tsx scripts/roundtrip.test.mts",
     "test:content": "tsx scripts/content.test.mts",
     "test:itemsadder": "tsx scripts/itemsadder.test.mts",
+    "test:blocks": "tsx scripts/blocks.test.mts",
     "test:namespace": "tsx scripts/namespace.test.mts",
     "test:foodid": "tsx scripts/foodid.test.mts",
     "test:textures": "tsx scripts/textures.test.mts",
