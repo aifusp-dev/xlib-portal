@@ -31,6 +31,9 @@ export const isCraftable = (recipe: CraftRecipeConfig | null | undefined): boole
 export const craftResultRef = (kind: 'pod' | 'machine', id: string): string =>
   kind === 'pod' ? `xfoodscrops:pod:${leafId(id)}` : `xfoods:machine:${leafId(id)}`;
 
+/** Clave namespaced de un evento de sonido de ItemsAdder, tal y como lo reproduce SoundUtils.playRandom en xLib. */
+export const soundKeyRef = (namespace: string, soundId: string): string => `${namespace}:${soundId}`;
+
 /**
  * Espejo en TypeScript de xFoods/drops.yml (mob-drops + block-drops), leído por
  * MobDropListener/BlockDropListener. Cada ref de ítem acepta "namespace:key" completo o un id
@@ -141,6 +144,12 @@ export interface EcosystemState {
   iaItems: Record<string, Record<string, unknown>>;
   iaBlocks: Record<string, Record<string, unknown>>;
   iaFurnitures: Record<string, Record<string, unknown>>;
+  /**
+   * Eventos de sonido custom de ItemsAdder (assets/<ns>/sounds.json), clave "<namespace>/<soundId>".
+   * El binario en sí (.ogg) vive en {@link rawFiles} como cualquier textura/modelo — aquí solo el
+   * metadato de qué claves de sonido existen y a qué fichero(s) namespaced apuntan.
+   */
+  iaSounds: Record<string, { sounds: string[] }>;
   machines: Record<string, ConfigEntry>;
   /** Maceteros de xFoodsCrops (pods/*.yml). */
   pods: Record<string, ConfigEntry>;
@@ -187,6 +196,7 @@ export const emptyState = (): EcosystemState => ({
   iaItems: {},
   iaBlocks: {},
   iaFurnitures: {},
+  iaSounds: {},
   machines: {},
   pods: {},
   cropMachines: {},
@@ -399,6 +409,25 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
     }
   });
 
+  // Sounds.json — un fichero por namespace, agrupando todas las entradas de state.iaSounds cuya
+  // clave empieza por "<ns>/". El .ogg de cada sonido va aparte, en rawFiles (sección 5).
+  const soundsByNamespace: Record<string, Record<string, { sounds: string[] }>> = {};
+  Object.entries(state.iaSounds).forEach(([fullId, def]) => {
+    const slashIdx = fullId.indexOf('/');
+    if (slashIdx === -1) return;
+    const ns = fullId.slice(0, slashIdx);
+    const soundId = fullId.slice(slashIdx + 1);
+    (soundsByNamespace[ns] ??= {})[soundId] = def;
+  });
+  Object.entries(soundsByNamespace).forEach(([ns, sounds]) => {
+    // Mismo remapeo que las texturas/modelos (ver toItemsAdderDiskPath): "resource_pack/assets/"
+    // es la convención de origen, pero ItemsAdder escanea de verdad "resourcepack/<ns>/" sin el
+    // nivel "assets/". Sin este paso, sounds.json viajaría a una carpeta que IA ignora.
+    const diskPath = toItemsAdderDiskPath(`plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/sounds.json`)
+      .replace(/^plugins\//, '');
+    zip.file(diskPath, JSON.stringify(sounds, null, 2));
+  });
+
   // 5. Pack original raw files (textures/models) with final JSON remapping
   state.rawFiles.forEach(file => {
     const cleanPath = toItemsAdderDiskPath(file.inferredPath).replace(/^plugins\//, '');
@@ -567,6 +596,23 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
           }
       } catch (e) {
           console.error("Error parsing YAML file:", path, e);
+      }
+    } else if (path.endsWith('sounds.json') && path.includes('ItemsAdder/contents/')) {
+      // Metadatos de eventos de sonido custom -> state.iaSounds (como iaItems/iaBlocks para las
+      // .yml de configs/), NO a rawFiles: si cayera en rawFiles, generateZIP lo reescribiría tal
+      // cual sin fusionar los sonidos que se suban/borren desde la pestaña Sonidos del Studio.
+      try {
+        const content = await file.text();
+        const iaPath = path.split('ItemsAdder/contents/')[1];
+        const ns = sanitizePath(iaPath.split('/')[0]);
+        if (!isInternalNamespace(ns)) {
+          const parsed = JSON.parse(content) as Record<string, { sounds?: string[] }>;
+          Object.entries(parsed).forEach(([soundId, def]) => {
+            state.iaSounds[`${ns}/${sanitizePath(soundId)}`] = { sounds: def?.sounds ?? [] };
+          });
+        }
+      } catch (e) {
+        console.error("Error parsing sounds.json:", path, e);
       }
     } else if (path.match(/\.(png|json|ogg)$/i)) {
       if (path.includes('ItemsAdder/contents/')) {

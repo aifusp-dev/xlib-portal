@@ -49,6 +49,7 @@ import DropsEditor from "@/components/DropsEditor";
 import ItemActionsEditor, { ItemActionsConfig } from "@/components/ItemActionsEditor";
 import InitialStateEditor, { InitialStateConfig } from "@/components/InitialStateEditor";
 import HologramTemplatesEditor from "@/components/HologramTemplatesEditor";
+import IASoundsEditor from "@/components/IASoundsEditor";
 import HologramPlacementsEditor from "@/components/HologramPlacementsEditor";
 import PotionEffectsEditor, { PotionConfig } from "@/components/PotionEffectsEditor";
 import CommandActionRow from "@/components/CommandActionRow";
@@ -712,6 +713,20 @@ export default function StudioWorkspace() {
     setProjectState(newState);
   };
 
+  /** Para IASoundsEditor: metadatos de sounds.json (el .ogg en sí viaja por mutateRawFiles). */
+  const mutateIaSounds = (mutator: (sounds: EcosystemState['iaSounds']) => void) => {
+    if (!projectState) return;
+    const newState = { ...projectState, iaSounds: { ...projectState.iaSounds } };
+    mutator(newState.iaSounds);
+    setProjectState(newState);
+  };
+
+  /** Para IASoundsEditor: upsert/borrado de un rawFile por inferredPath, sin pasar por handleIAFileUpload (que exige un ítem seleccionado). */
+  const mutateRawFiles = (updater: (rawFiles: EcosystemState['rawFiles']) => EcosystemState['rawFiles']) => {
+    if (!projectState) return;
+    setProjectState({ ...projectState, rawFiles: updater(projectState.rawFiles) });
+  };
+
   /** Para HologramPlacementsEditor: igual que mutateHolograms, pero sobre las colocaciones en el mundo. */
   const mutateHologramPlacements = (mutator: (placements: EcosystemState['hologramPlacements']) => void) => {
     if (!projectState) return;
@@ -1285,6 +1300,26 @@ export default function StudioWorkspace() {
           />
         )}
       </div>
+      ) : (activeEditor === 'ia' && activeCategory === 'sounds') ? (
+      <div className="flex-1 panel overflow-hidden p-6 overflow-y-auto space-y-6">
+        <div className="p-1 flex gap-2 overflow-x-auto scrollbar-hide bg-surface-0 rounded-[8px] border border-line w-fit">
+          <button onClick={() => { setActiveCategory('items'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 text-gray-500 hover:text-gray-300">Ítems</button>
+          <button onClick={() => { setActiveCategory('blocks'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 text-gray-500 hover:text-gray-300">Bloques</button>
+          <button onClick={() => { setActiveCategory('furnitures'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 text-gray-500 hover:text-gray-300">Muebles</button>
+          <button onClick={() => { setActiveCategory('sounds'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 bg-white/10 text-white">Sonidos</button>
+        </div>
+        {selectedNamespace ? (
+          <IASoundsEditor
+            namespace={selectedNamespace}
+            sounds={projectState.iaSounds}
+            rawFiles={projectState.rawFiles}
+            mutateSounds={mutateIaSounds}
+            mutateRawFiles={mutateRawFiles}
+          />
+        ) : (
+          <p className="hint">Elige un namespace arriba primero.</p>
+        )}
+      </div>
       ) : (
       <div className="flex-1 grid grid-cols-12 gap-6 overflow-hidden">
         <aside className="col-span-3 panel flex flex-col overflow-hidden">
@@ -1293,6 +1328,7 @@ export default function StudioWorkspace() {
                   <button onClick={() => { setActiveCategory('items'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'items' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Ítems</button>
                   <button onClick={() => { setActiveCategory('blocks'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'blocks' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Bloques</button>
                   <button onClick={() => { setActiveCategory('furnitures'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'furnitures' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Muebles</button>
+                  <button onClick={() => { setActiveCategory('sounds'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", "text-gray-500 hover:text-gray-300")}>Sonidos</button>
                </div>
            )}
            <div className="flex-1 overflow-y-auto p-4 space-y-4">
