@@ -220,6 +220,97 @@ const KNOWN_ITEM_ACTIONS = ['xfoodscrops:sickle_bonus_seed', 'xfoodscrops:lucky_
  */
 const KNOWN_HOLOGRAM_ACTIONS: string[] = [];
 
+/**
+ * Roles de textura por cara que necesita cada directional_mode de ItemsAdder
+ * (wiki.itemsadder.com/adding-content/blocks/directional-blocks). Agrupados por rol en vez de
+ * exponer las 6 caras sueltas siempre: en LOG/FURNACE/DROPPER varias caras comparten textura
+ * (ej. las 4 caras laterales de un tronco), así que el usuario solo sube una imagen por rol y
+ * syncDirectionalBlockResource() la reparte a las caras que le tocan.
+ */
+const DIRECTIONAL_FACE_ROLES: Record<string, { key: string; label: string; faces: string[] }[]> = {
+    LOG: [
+        { key: 'top', label: 'Tapa (arriba/abajo)', faces: ['up', 'down'] },
+        { key: 'side', label: 'Corteza (lados)', faces: ['north', 'south', 'east', 'west'] },
+    ],
+    FURNACE: [
+        { key: 'front', label: 'Frente', faces: ['north'] },
+        { key: 'side', label: 'Lados', faces: ['south', 'east', 'west'] },
+        { key: 'top', label: 'Arriba/Abajo', faces: ['up', 'down'] },
+    ],
+    DROPPER: [
+        { key: 'front', label: 'Frente', faces: ['north'] },
+        { key: 'side', label: 'Lados', faces: ['south', 'east', 'west'] },
+        { key: 'top', label: 'Arriba/Abajo', faces: ['up', 'down'] },
+    ],
+    ALL: [
+        { key: 'north', label: 'Norte', faces: ['north'] },
+        { key: 'south', label: 'Sur', faces: ['south'] },
+        { key: 'east', label: 'Este', faces: ['east'] },
+        { key: 'west', label: 'Oeste', faces: ['west'] },
+        { key: 'up', label: 'Arriba', faces: ['up'] },
+        { key: 'down', label: 'Abajo', faces: ['down'] },
+    ],
+};
+
+/** Ruta en disco de la textura subida para un rol de cara de un bloque direccional. */
+const directionalFaceTexturePath = (ns: string, sid: string, roleKey: string) =>
+    `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/block/${sid}_${roleKey}.png`;
+
+/**
+ * Decompilando ItemsAdder_4.0.18.jar (itemsadder/m/sm.class) se confirma que un bloque con
+ * directional_mode exige resource.getTextures().size() >= 6 o directamente rechaza el bloque
+ * ("Not enough textures for directional block"), y ese conteo sale de las claves del texture map
+ * del model.json, NO de resource.textures (que solo vale para el bloque "plano" no direccional).
+ * Por eso un bloque recién marcado como LOG con el resource.textures de 1 sola imagen de siempre
+ * queda roto en cuanto se activa el modo: hace falta un model.json con las 6 caras declaradas.
+ * "block/cube" es el modelo vanilla que expone exactamente esas 6 variables de textura.
+ * Si el usuario aún no ha subido ninguna cara, se rellenan las 6 con la textura base del bloque
+ * para que el modelo ya sea válido (aunque se vea igual en todas las caras) en vez de mandar un
+ * pack roto; según vaya subiendo texturas por rol desde el editor, se van sustituyendo aquí.
+ */
+function syncDirectionalBlockResource(newState: EcosystemState, fullKey: string, sid: string) {
+    const ns = fullKey.split('/')[0];
+    const config = newState.iaBlocks[fullKey] as Record<string, unknown> | undefined;
+    const items = config?.items as Record<string, unknown> | undefined;
+    const item = items?.[sid] as Record<string, unknown> | undefined;
+    const behaviours = item?.behaviours as Record<string, unknown> | undefined;
+    const block = behaviours?.block as Record<string, unknown> | undefined;
+    const placedModel = block?.placed_model as Record<string, unknown> | undefined;
+    const mode = placedModel?.directional_mode as string | undefined;
+    const roles = mode ? DIRECTIONAL_FACE_ROLES[mode] : undefined;
+    if (!item || !roles) return;
+
+    const resource = (item.resource ?? (item.resource = {})) as Record<string, unknown>;
+    const fallbackTex = `${ns}:block/${sid}`;
+
+    const faceTextures: Record<string, string> = {};
+    roles.forEach(role => {
+        const has = newState.rawFiles.some(f => f.inferredPath === directionalFaceTexturePath(ns, sid, role.key));
+        const texRef = has ? `${ns}:block/${sid}_${role.key}` : fallbackTex;
+        role.faces.forEach(face => { faceTextures[face] = texRef; });
+    });
+
+    const model = {
+        parent: "block/cube",
+        textures: { ...faceTextures, particle: faceTextures.north },
+    };
+
+    const modelInferredPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/models/block/${sid}.json`;
+    const modelFile: StudioFile = {
+        name: `${sid}.json`,
+        content: new TextEncoder().encode(JSON.stringify(model, null, 2)).buffer,
+        type: 'raw',
+        inferredPath: modelInferredPath,
+    };
+    const existingIdx = newState.rawFiles.findIndex(f => f.inferredPath === modelInferredPath);
+    if (existingIdx !== -1) newState.rawFiles[existingIdx] = modelFile;
+    else newState.rawFiles.push(modelFile);
+
+    resource.model_path = `${ns}:block/${sid}`;
+    resource.generate = false;
+    delete resource.textures;
+}
+
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
@@ -1730,18 +1821,25 @@ export default function StudioWorkspace() {
                                             value={selectedData.data.behaviours?.block?.placed_model?.directional_mode || ''}
                                             onChange={(e) => {
                                                 const v = e.target.value;
-                                                if (v) updateField(`items.${selectedItem}.behaviours.block.placed_model.directional_mode`, v, selectedData.fullKey);
-                                                else {
-                                                    const newState = { ...projectState } as EcosystemState;
-                                                    const config = newState.iaBlocks[selectedData.fullKey] as Record<string, unknown>;
-                                                    const items = config?.items as Record<string, unknown> | undefined;
-                                                    const item = items?.[selectedItem as string] as Record<string, unknown> | undefined;
-                                                    const behaviours = item?.behaviours as Record<string, unknown> | undefined;
-                                                    const block = behaviours?.block as Record<string, unknown> | undefined;
-                                                    const placedModel = block?.placed_model as Record<string, unknown> | undefined;
-                                                    if (placedModel) delete placedModel.directional_mode;
-                                                    setProjectState(newState);
+                                                const newState = { ...projectState } as EcosystemState;
+                                                const config = newState.iaBlocks[selectedData.fullKey] as Record<string, unknown>;
+                                                const items = config?.items as Record<string, unknown> | undefined;
+                                                const item = items?.[selectedItem as string] as Record<string, unknown> | undefined;
+                                                const behaviours = item?.behaviours as Record<string, unknown> | undefined;
+                                                const block = behaviours?.block as Record<string, unknown> | undefined;
+                                                const placedModel = block?.placed_model as Record<string, unknown> | undefined;
+                                                if (placedModel) {
+                                                    if (v) {
+                                                        placedModel.directional_mode = v;
+                                                        // Sin esto el bloque se queda con el resource de 1 sola textura de
+                                                        // siempre y sale directamente roto ("Not enough textures for
+                                                        // directional block") en cuanto ItemsAdder recarga.
+                                                        syncDirectionalBlockResource(newState, selectedData.fullKey, selectedItem as string);
+                                                    } else {
+                                                        delete placedModel.directional_mode;
+                                                    }
                                                 }
+                                                setProjectState(newState);
                                             }}
                                             className="input"
                                         >
@@ -1751,6 +1849,44 @@ export default function StudioWorkspace() {
                                             <option value="FURNACE">FURNACE (como un horno vanilla)</option>
                                             <option value="DROPPER">DROPPER (como un dispensador)</option>
                                         </select>
+                                        {(() => {
+                                            const mode = selectedData.data.behaviours?.block?.placed_model?.directional_mode as string | undefined;
+                                            const roles = mode ? DIRECTIONAL_FACE_ROLES[mode] : undefined;
+                                            if (!roles || !projectState) return null;
+                                            const ns = selectedData.fullKey.split('/')[0];
+                                            const sid = selectedItem as string;
+                                            return (
+                                                <div className="space-y-2 pt-2 border-t border-white/5">
+                                                    <p className="hint">Sube una textura por rol. El que dejes sin subir usa de momento la textura base del bloque, para que el modelo generado nunca se quede corto de caras.</p>
+                                                    {roles.map(role => {
+                                                        const uploaded = projectState.rawFiles.some(f => f.inferredPath === directionalFaceTexturePath(ns, sid, role.key));
+                                                        return (
+                                                            <label key={role.key} className="flex items-center justify-between gap-3 cursor-pointer">
+                                                                <span className="label">{role.label}{uploaded ? " ✓" : ""}</span>
+                                                                <input
+                                                                    type="file"
+                                                                    accept=".png"
+                                                                    className="hidden"
+                                                                    onChange={async (ev) => {
+                                                                        const file = ev.target.files?.[0];
+                                                                        if (!file || !projectState) return;
+                                                                        const buffer = await file.arrayBuffer();
+                                                                        const ns2 = { ...projectState } as EcosystemState;
+                                                                        const inferredPath = directionalFaceTexturePath(ns, sid, role.key);
+                                                                        const newFile: StudioFile = { name: `${sid}_${role.key}.png`, content: buffer, type: 'raw', inferredPath };
+                                                                        const existingIdx = ns2.rawFiles.findIndex(f => f.inferredPath === inferredPath);
+                                                                        if (existingIdx !== -1) ns2.rawFiles[existingIdx] = newFile; else ns2.rawFiles.push(newFile);
+                                                                        syncDirectionalBlockResource(ns2, selectedData.fullKey, sid);
+                                                                        setProjectState(ns2);
+                                                                    }}
+                                                                />
+                                                                <span className="badge badge-ia">{uploaded ? "Cambiar" : "Subir"}</span>
+                                                            </label>
+                                                        );
+                                                    })}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 </div>
 
