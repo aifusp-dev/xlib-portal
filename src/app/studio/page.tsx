@@ -257,16 +257,23 @@ const directionalFaceTexturePath = (ns: string, sid: string, roleKey: string) =>
     `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/block/${sid}_${roleKey}.png`;
 
 /**
- * Decompilando ItemsAdder_4.0.18.jar (itemsadder/m/sm.class) se confirma que un bloque con
- * directional_mode exige resource.getTextures().size() >= 6 o directamente rechaza el bloque
- * ("Not enough textures for directional block"), y ese conteo sale de las claves del texture map
- * del model.json, NO de resource.textures (que solo vale para el bloque "plano" no direccional).
- * Por eso un bloque recién marcado como LOG con el resource.textures de 1 sola imagen de siempre
- * queda roto en cuanto se activa el modo: hace falta un model.json con las 6 caras declaradas.
- * "block/cube" es el modelo vanilla que expone exactamente esas 6 variables de textura.
- * Si el usuario aún no ha subido ninguna cara, se rellenan las 6 con la textura base del bloque
- * para que el modelo ya sea válido (aunque se vea igual en todas las caras) en vez de mandar un
- * pack roto; según vaya subiendo texturas por rol desde el editor, se van sustituyendo aquí.
+ * Orden de caras que ItemsAdder espera en resource.textures para un bloque direccional
+ * (wiki.itemsadder.com/adding-content/blocks/directional-blocks: "ALL requiere 6 texturas, una
+ * por cara: down, east, north, south, up, west").
+ */
+const DIRECTIONAL_FACE_ORDER = ['down', 'east', 'north', 'south', 'up', 'west'] as const;
+
+/**
+ * La primera versión de esto generaba un model.json "block/cube" con 6 claves de textura,
+ * asumiendo (por el bytecode de itemsadder/m/sm.class) que resource.getTextures().size() >= 6
+ * se resolvía contra el texture map del modelo. FALSO: probado en vivo contra el server real
+ * (LoomiRP/CT101) el 2026-09-19 — hasta 'craved_stripped_dark_oak_log', que ya tenía ese
+ * model.json con 6 claves reales desde antes, seguía dando "Not enough textures for directional
+ * block" al reload. getTextures() solo mira la lista plana resource.textures (null o <6 = warn),
+ * sin resolver el model_path en absoluto. La solución real, confirmada por el log tras el fix
+ * ("Created 2 directional items ... Directional states: 6", sin warning): resource.textures debe
+ * ser una lista de exactamente 6 entradas en el orden de DIRECTIONAL_FACE_ORDER, con
+ * generate:true y SIN model_path (que quedaba ignorado para este chequeo de todos modos).
  */
 function syncDirectionalBlockResource(newState: EcosystemState, fullKey: string, sid: string) {
     const ns = fullKey.split('/')[0];
@@ -290,25 +297,14 @@ function syncDirectionalBlockResource(newState: EcosystemState, fullKey: string,
         role.faces.forEach(face => { faceTextures[face] = texRef; });
     });
 
-    const model = {
-        parent: "block/cube",
-        textures: { ...faceTextures, particle: faceTextures.north },
-    };
+    resource.generate = true;
+    resource.textures = DIRECTIONAL_FACE_ORDER.map(face => faceTextures[face]);
+    delete resource.model_path;
 
+    // Limpia el model.json huérfano si el bloque venía de la versión anterior de este fix.
     const modelInferredPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/models/block/${sid}.json`;
-    const modelFile: StudioFile = {
-        name: `${sid}.json`,
-        content: new TextEncoder().encode(JSON.stringify(model, null, 2)).buffer,
-        type: 'raw',
-        inferredPath: modelInferredPath,
-    };
     const existingIdx = newState.rawFiles.findIndex(f => f.inferredPath === modelInferredPath);
-    if (existingIdx !== -1) newState.rawFiles[existingIdx] = modelFile;
-    else newState.rawFiles.push(modelFile);
-
-    resource.model_path = `${ns}:block/${sid}`;
-    resource.generate = false;
-    delete resource.textures;
+    if (existingIdx !== -1) newState.rawFiles.splice(existingIdx, 1);
 }
 
 // --- MAIN PAGE ---
