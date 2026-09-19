@@ -713,18 +713,28 @@ export default function StudioWorkspace() {
     setProjectState(newState);
   };
 
-  /** Para IASoundsEditor: metadatos de sounds.json (el .ogg en sí viaja por mutateRawFiles). */
+  /**
+   * Para IASoundsEditor: metadatos de sounds.json (el .ogg en sí viaja por mutateRawFiles).
+   * Forma funcional (setProjectState(prev => ...)) a propósito: al subir un sonido,
+   * IASoundsEditor llama a mutateRawFiles y luego a mutateIaSounds seguidos, en el mismo tick.
+   * Con la forma no funcional (setProjectState({...projectState, ...})) ambas leían el mismo
+   * projectState "stale" (el de cuando se renderizó el componente), así que la segunda llamada
+   * pisaba silenciosamente el cambio de la primera -- el .ogg subido desaparecía de rawFiles y
+   * solo sobrevivía la entrada de iaSounds (síntoma: "Falta el .ogg" en la fila igual después de
+   * subirlo).
+   */
   const mutateIaSounds = (mutator: (sounds: EcosystemState['iaSounds']) => void) => {
-    if (!projectState) return;
-    const newState = { ...projectState, iaSounds: { ...projectState.iaSounds } };
-    mutator(newState.iaSounds);
-    setProjectState(newState);
+    setProjectState(prev => {
+      if (!prev) return prev;
+      const newSounds = { ...prev.iaSounds };
+      mutator(newSounds);
+      return { ...prev, iaSounds: newSounds };
+    });
   };
 
-  /** Para IASoundsEditor: upsert/borrado de un rawFile por inferredPath, sin pasar por handleIAFileUpload (que exige un ítem seleccionado). */
+  /** Para IASoundsEditor: upsert/borrado de un rawFile por inferredPath, sin pasar por handleIAFileUpload (que exige un ítem seleccionado). Forma funcional por el mismo motivo que mutateIaSounds. */
   const mutateRawFiles = (updater: (rawFiles: EcosystemState['rawFiles']) => EcosystemState['rawFiles']) => {
-    if (!projectState) return;
-    setProjectState({ ...projectState, rawFiles: updater(projectState.rawFiles) });
+    setProjectState(prev => prev ? { ...prev, rawFiles: updater(prev.rawFiles) } : prev);
   };
 
   /** Para HologramPlacementsEditor: igual que mutateHolograms, pero sobre las colocaciones en el mundo. */
