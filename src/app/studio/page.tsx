@@ -50,6 +50,7 @@ import ItemActionsEditor, { ItemActionsConfig } from "@/components/ItemActionsEd
 import InitialStateEditor, { InitialStateConfig } from "@/components/InitialStateEditor";
 import HologramTemplatesEditor from "@/components/HologramTemplatesEditor";
 import IASoundsEditor from "@/components/IASoundsEditor";
+import BoomboxSongsEditor from "@/components/BoomboxSongsEditor";
 import HologramPlacementsEditor from "@/components/HologramPlacementsEditor";
 import PotionEffectsEditor, { PotionConfig } from "@/components/PotionEffectsEditor";
 import CommandActionRow from "@/components/CommandActionRow";
@@ -168,6 +169,7 @@ const SECCIONES = [
   { id: 'xfooditems', label: 'xFoods',        color: 'var(--color-sec-items)',      desc: 'Ítems 100% en YAML de xFoods: papeles de receta y similares (mismo esquema que xCrops)' },
   { id: 'xitemsplugin', label: 'xItems',      color: 'var(--color-sec-items)',      desc: 'Ítems del plugin standalone xItems: sin mecánica de dominio, mismo esquema (también editable con /xitems editor en el juego)' },
   { id: 'xholograms', label: 'Hologramas',    color: 'var(--color-sec-items)',      desc: 'Plantillas de xHolograms: texto, tamaño de click y comandos (%param% por colocación)' },
+  { id: 'xboombox',   label: 'Boombox',       color: 'var(--color-sec-items)',      desc: 'Canciones de xBoomBox: sube el .ogg y los metadatos del disco' },
 ] as const;
 
 /**
@@ -198,6 +200,11 @@ const GROUPS = [
     id: 'holograms-group', label: 'Hologramas', color: 'var(--color-sec-items)',
     desc: 'Plantillas de xHolograms',
     members: ['xholograms'] as const,
+  },
+  {
+    id: 'boombox-group', label: 'Boombox', color: 'var(--color-sec-items)',
+    desc: 'Canciones de xBoomBox',
+    members: ['xboombox'] as const,
   },
 ] as const;
 
@@ -311,7 +318,7 @@ function syncDirectionalBlockResource(newState: EcosystemState, fullKey: string,
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
-  const [activeEditor, setActiveEditor] = useState<PluginEditor | 'ia' | 'xdrops' | 'xholograms'>('xfoods');
+  const [activeEditor, setActiveEditor] = useState<PluginEditor | 'ia' | 'xdrops' | 'xholograms' | 'xboombox'>('xfoods');
   const [hologramSubTab, setHologramSubTab] = useState<'templates' | 'placements'>('templates');
   const [activeCategory, setActiveCategory] = useState<string>("items"); 
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
@@ -745,6 +752,21 @@ export default function StudioWorkspace() {
     setProjectState(newState);
   };
 
+  /**
+   * Para BoomboxSongsEditor: al añadir una canción se llama seguido a mutateRawFiles,
+   * mutateIaSounds y mutateSongs en el mismo tick (el .ogg, el sounds.json y el metadato de la
+   * canción nacen juntos) — forma funcional obligatoria por el mismo motivo documentado en
+   * mutateIaSounds, si no la del medio pisaría el projectState "stale" de la primera.
+   */
+  const mutateSongs = (mutator: (songs: EcosystemState['songs']) => void) => {
+    setProjectState(prev => {
+      if (!prev) return prev;
+      const newSongs = { ...prev.songs };
+      mutator(newSongs);
+      return { ...prev, songs: newSongs };
+    });
+  };
+
   const handleCreateNew = () => {
     if (!projectState) return;
     const timestamp = Date.now();
@@ -882,7 +904,7 @@ export default function StudioWorkspace() {
   };
 
   const filteredItems = useMemo(() => {
-    if (!projectState || activeEditor === 'xdrops' || activeEditor === 'xholograms') return [];
+    if (!projectState || activeEditor === 'xdrops' || activeEditor === 'xholograms' || activeEditor === 'xboombox') return [];
     if (activeEditor === 'ia') {
         if (!selectedNamespace) return [];
         const result: [string, any][] = [];
@@ -907,13 +929,13 @@ export default function StudioWorkspace() {
   }, [projectState, activeEditor, activeCategory, selectedNamespace, searchTerm]);
 
   const selectedData = useMemo(() => {
-    if (!selectedItem || !projectState || activeEditor === 'xdrops' || activeEditor === 'xholograms') return null;
+    if (!selectedItem || !projectState || activeEditor === 'xdrops' || activeEditor === 'xholograms' || activeEditor === 'xboombox') return null;
     if (activeEditor === 'ia') return filteredItems.find(([id]) => id === selectedItem)?.[1];
     return mapFor(projectState, activeEditor as PluginEditor)[selectedItem];
   }, [selectedItem, filteredItems, activeEditor, projectState]);
 
   const groupedX = useMemo(() => {
-    if (!projectState || activeEditor === 'ia' || activeEditor === 'xdrops' || activeEditor === 'xholograms') return {};
+    if (!projectState || activeEditor === 'ia' || activeEditor === 'xdrops' || activeEditor === 'xholograms' || activeEditor === 'xboombox') return {};
     const targetMap = mapFor(projectState, activeEditor as PluginEditor);
     const groups: Record<string, string[]> = {};
     Object.entries(targetMap).forEach(([id, data]) => {
@@ -1224,11 +1246,12 @@ export default function StudioWorkspace() {
     if (id === 'ia') return Object.keys(projectState.iaItems).length + Object.keys(projectState.iaBlocks).length + Object.keys(projectState.iaFurnitures).length;
     if (id === 'xdrops') return Object.keys(projectState.drops.mobDrops.replacements).length + Object.keys(projectState.drops.blockDrops.drops).length;
     if (id === 'xholograms') return Object.keys(projectState.holograms).length;
+    if (id === 'xboombox') return Object.keys(projectState.songs).length;
     return Object.keys(mapFor(projectState, id as PluginEditor)).length;
   };
 
   const selectEditor = (id: string) => {
-    setActiveEditor(id as PluginEditor | 'ia' | 'xdrops' | 'xholograms');
+    setActiveEditor(id as PluginEditor | 'ia' | 'xdrops' | 'xholograms' | 'xboombox');
     setSelectedItem(null);
   };
 
@@ -1309,6 +1332,16 @@ export default function StudioWorkspace() {
             mutate={mutateHologramPlacements}
           />
         )}
+      </div>
+      ) : activeEditor === 'xboombox' ? (
+      <div className="flex-1 panel overflow-hidden p-6 overflow-y-auto space-y-6">
+        <BoomboxSongsEditor
+          songs={projectState.songs}
+          mutateSongs={mutateSongs}
+          mutateSounds={mutateIaSounds}
+          rawFiles={projectState.rawFiles}
+          mutateRawFiles={mutateRawFiles}
+        />
       </div>
       ) : (activeEditor === 'ia' && activeCategory === 'sounds') ? (
       <div className="flex-1 panel overflow-hidden p-6 overflow-y-auto space-y-6">

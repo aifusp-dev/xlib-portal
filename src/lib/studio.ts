@@ -121,6 +121,21 @@ export const emptyHologramTemplate = (): HologramTemplateConfig => ({
 });
 
 /**
+ * Espejo de una canción de xBoomBox ({@code org.aifusp.dev.xLib.audio.Song}, leída por
+ * {@code SongLoader} desde {@code xBoomBox/songs/<id>.yml}). `soundId` es la clave namespaced
+ * completa ("xboombox:midnight_drive") de un evento de sonido ya registrado en
+ * {@code state.iaSounds} — el .ogg en sí viaja por {@code rawFiles}, igual que cualquier sonido de
+ * ItemsAdder (ver {@link soundKeyRef}/IASoundsEditor). Namespace fijo "xboombox": a diferencia de
+ * items/foods, esta sección no es multi-namespace, así que BoomboxSongsEditor no necesita selector.
+ */
+export interface SongConfig {
+  displayName: string;
+  artist: string;
+  duration: string;
+  soundId: string;
+}
+
+/**
  * Espejo de {@code org.aifusp.xholograms.model.HologramPlacement}: UNA colocación concreta en el
  * mundo de una {@link HologramTemplateConfig} — dónde está y su propio `param`. A diferencia de
  * las plantillas, estas nunca se CREAN desde el Studio (solo nacen en el juego con
@@ -183,6 +198,8 @@ export interface EcosystemState {
   holograms: Record<string, HologramTemplateConfig>;
   /** Colocaciones en el mundo (xHolograms/placements.yml) — ver {@link HologramPlacementConfig}. */
   hologramPlacements: Record<string, HologramPlacementConfig>;
+  /** Canciones de xBoomBox (xBoomBox/songs/*.yml) — ver {@link SongConfig}. */
+  songs: Record<string, SongConfig>;
   /** Ficheros reconocidos sin editor propio; se conservan intactos. */
   extraFiles: PassthroughFile[];
   rawFiles: StudioFile[];
@@ -206,6 +223,7 @@ export const emptyState = (): EcosystemState => ({
   drops: emptyDropsConfig(),
   holograms: {},
   hologramPlacements: {},
+  songs: {},
   extraFiles: [],
   rawFiles: []
 });
@@ -365,6 +383,19 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
     });
     zip.file('xHolograms/placements.yml', stringifyYaml({ placements: placementsYaml }));
   }
+
+  // 3h. Canciones de xBoomBox (xBoomBox/songs/<id>.yml) — un fichero por canción, mismo esquema
+  // que lee SongLoader.java. El .ogg y el sounds.json del namespace "xboombox" ya se escriben
+  // solos más abajo (secciones 4/5) porque BoomboxSongsEditor registra cada sonido subido en
+  // state.iaSounds/state.rawFiles exactamente igual que IASoundsEditor.
+  Object.entries(state.songs).forEach(([id, song]) => {
+    zip.file(`xBoomBox/songs/${id}.yml`, stringifyYaml({
+      'display-name': song.displayName,
+      artist: song.artist,
+      duration: song.duration,
+      'sound-id': song.soundId,
+    }));
+  });
 
   // 3c. Ficheros sin editor propio (categories.yml, market.yml, config.yml...): se devuelven
   // exactamente como entraron, comentarios incluidos.
@@ -554,6 +585,15 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
             const relativePath = path.split('xHolograms/templates/')[1];
             const id = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
             state.holograms[id] = parseHologramTemplate(config);
+          } else if (path.includes('xBoomBox/songs/')) {
+            const relativePath = path.split('xBoomBox/songs/')[1];
+            const id = sanitizePath(relativePath.replace(/\.ya?ml$/, ''));
+            state.songs[id] = {
+              displayName: typeof config['display-name'] === 'string' ? config['display-name'] : id,
+              artist: typeof config.artist === 'string' ? config.artist : '',
+              duration: typeof config.duration === 'string' ? config.duration : '0:00',
+              soundId: typeof config['sound-id'] === 'string' ? config['sound-id'] : '',
+            };
           } else if (path.endsWith('xFoods/drops.yml')) {
             state.drops = parseDropsConfig(config);
           } else if (path.includes('xFoodsCrops/recipes/')) {
