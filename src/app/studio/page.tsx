@@ -389,6 +389,7 @@ export default function StudioWorkspace() {
         body: formData
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al publicar');
     return data.token;
   };
 

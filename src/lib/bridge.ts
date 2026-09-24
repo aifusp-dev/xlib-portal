@@ -4,7 +4,7 @@ import crypto from 'crypto';
 
 const SYNC_DIR = path.join(process.cwd(), 'tmp_sync');
 const EXPIRY_MS = 15 * 60 * 1000;
-export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
+export const MAX_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB (subido de 20MB: proyectos con canciones .ogg reales lo superaban)
 
 // Ensure sync directory exists
 if (!fs.existsSync(SYNC_DIR)) {

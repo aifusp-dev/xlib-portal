@@ -30,7 +30,7 @@ export default function SyncModal({ isOpen, onClose, onSync, onImport }: SyncMod
                 setToken(generatedToken);
             }
         } catch (err) {
-            setError('Error al generar la sincronización.');
+            setError(err instanceof Error ? err.message : 'Error al generar la sincronización.');
         } finally {
             setLoading(false);
         }
@@ -103,6 +103,7 @@ export default function SyncModal({ isOpen, onClose, onSync, onImport }: SyncMod
                                         {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400" />}
                                         Generar Token de Sincronización
                                     </button>
+                                    {error && <p className="text-red-400 text-xs font-bold uppercase">{error}</p>}
                                 </div>
                             ) : (
                                 <div className="space-y-6 animate-in fade-in slide-in-from-top-4">
