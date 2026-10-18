@@ -51,3 +51,17 @@ export const presets = pgTable('presets', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Anuncios de "Notificaciones Versión" de xPhone: la app preinstalada hace GET a
+ * /api/version-news/list (sin auth, lectura pública) para mostrarlos. Se publican desde
+ * /admin/version-news (solo admin), ver app/admin/version-news/actions.ts.
+ */
+export const versionAnnouncements = pgTable('version_announcements', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  version: text('version').notNull(),
+  title: text('title').notNull(),
+  message: text('message').notNull(),
+  authorId: uuid('author_id').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
