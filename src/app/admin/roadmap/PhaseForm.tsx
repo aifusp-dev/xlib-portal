@@ -20,11 +20,12 @@ export default function PhaseForm() {
                 const status = (form.elements.namedItem('status') as HTMLSelectElement).value;
                 const description = (form.elements.namedItem('description') as HTMLTextAreaElement).value;
                 const orderIndex = Number((form.elements.namedItem('orderIndex') as HTMLInputElement).value || 0);
+                const progressPercent = Number((form.elements.namedItem('progressPercent') as HTMLInputElement).value || 0);
 
                 setError(null);
                 startTransition(async () => {
                     try {
-                        await createPhase(plugin, phaseName, status, description, orderIndex);
+                        await createPhase(plugin, phaseName, status, description, orderIndex, progressPercent);
                         formRef.current?.reset();
                     } catch (err) {
                         setError((err as Error).message);
@@ -47,13 +48,27 @@ export default function PhaseForm() {
                 <label className="text-xs text-ink-3 block mb-1">Nombre de fase</label>
                 <input name="phaseName" className="input w-full" maxLength={120} required disabled={isPending} />
             </div>
-            <div>
-                <label className="text-xs text-ink-3 block mb-1">Estado</label>
-                <select name="status" className="input w-full" defaultValue="planned" disabled={isPending}>
-                    <option value="planned">Planeado</option>
-                    <option value="in_progress">En progreso</option>
-                    <option value="done">Completo</option>
-                </select>
+            <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className="text-xs text-ink-3 block mb-1">Estado</label>
+                    <select name="status" className="input w-full" defaultValue="planned" disabled={isPending}>
+                        <option value="planned">Planeado</option>
+                        <option value="in_progress">En progreso</option>
+                        <option value="done">Completo</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="text-xs text-ink-3 block mb-1">Progreso (%)</label>
+                    <input
+                        name="progressPercent"
+                        type="number"
+                        min={0}
+                        max={100}
+                        defaultValue={0}
+                        className="input w-full"
+                        disabled={isPending}
+                    />
+                </div>
             </div>
             <div>
                 <label className="text-xs text-ink-3 block mb-1">Descripción</label>

@@ -19,7 +19,8 @@ export async function createPhase(
     phaseName: string,
     status: string,
     description: string,
-    orderIndex: number
+    orderIndex: number,
+    progressPercent: number
 ) {
     const session = await requireAdmin();
 
@@ -32,6 +33,7 @@ export async function createPhase(
     if (!['planned', 'in_progress', 'done'].includes(status)) {
         throw new Error('Estado inválido');
     }
+    const cleanProgress = Math.min(100, Math.max(0, Math.round(progressPercent) || 0));
 
     await db.insert(roadmapPhases).values({
         plugin: cleanPlugin,
@@ -39,6 +41,7 @@ export async function createPhase(
         status,
         description: cleanDescription || null,
         orderIndex,
+        progressPercent: cleanProgress,
         authorId: session.userId,
     });
     revalidatePath('/admin/roadmap');

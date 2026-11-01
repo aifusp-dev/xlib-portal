@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { colorForPlugin } from '@/lib/roadmap-colors';
 import type { roadmapPhases, changelogEntries } from '@/lib/db/schema';
 
 type Phase = typeof roadmapPhases.$inferSelect;
@@ -33,24 +34,36 @@ export default function PluginRoadmapCard({
     entries: Entry[];
 }) {
     const [open, setOpen] = useState(false);
+    const color = colorForPlugin(plugin);
 
     return (
         <div className="bg-surface-0 rounded-3xl border border-white/5 overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/5">
-                <h2 className="text-lg font-bold text-ink">{plugin}</h2>
+            <div className="px-6 py-4 border-b border-white/5 flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                <h2 className="eyebrow text-[13px] tracking-widest text-ink">{plugin}</h2>
             </div>
 
             {phases.length > 0 && (
-                <div className="px-6 py-4 space-y-2 border-b border-white/5">
+                <div className="px-6 py-4 space-y-4 border-b border-white/5">
                     {phases.map((phase) => (
-                        <div key={phase.id} className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                                <p className="text-sm font-medium text-ink">{phase.phaseName}</p>
-                                {phase.description && (
-                                    <p className="text-xs text-ink-3 mt-0.5">{phase.description}</p>
-                                )}
+                        <div key={phase.id} className="space-y-1.5">
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-ink">{phase.phaseName}</p>
+                                    {phase.description && (
+                                        <p className="text-xs text-ink-3 mt-0.5">{phase.description}</p>
+                                    )}
+                                </div>
+                                <StatusBadge status={phase.status} />
                             </div>
-                            <StatusBadge status={phase.status} />
+                            <div className="flex items-center gap-3">
+                                <div className="progress-track flex-1" style={{ '--roadmap-color': color } as React.CSSProperties}>
+                                    <div className="progress-fill" style={{ width: `${phase.progressPercent}%` }} />
+                                </div>
+                                <span className="text-[11px] text-ink-3 font-mono tabular-nums w-9 text-right">
+                                    {phase.progressPercent}%
+                                </span>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -67,13 +80,16 @@ export default function PluginRoadmapCard({
             {open && (
                 <div className="px-6 pb-5 space-y-3">
                     {entries.map((entry) => (
-                        <div key={entry.id} className="text-sm">
-                            <p className="text-ink-3">
-                                <span className="text-yellow-400 font-semibold">v{entry.version}</span>
-                                {entry.section && <span className="ml-2 text-[11px] uppercase tracking-wide">{entry.section}</span>}
-                                <span className="ml-2 text-[11px]">{new Date(entry.entryDate).toLocaleDateString('es-ES')}</span>
-                            </p>
-                            <p className="text-ink mt-0.5">{entry.content}</p>
+                        <div key={entry.id} className="text-sm flex items-start gap-3">
+                            <span className="pill shrink-0 mt-0.5">v{entry.version}</span>
+                            <div className="min-w-0">
+                                <p className="text-ink">{entry.content}</p>
+                                <p className="text-[11px] text-ink-3 mt-0.5">
+                                    {entry.section && <span className="uppercase tracking-wide">{entry.section}</span>}
+                                    {entry.section && ' · '}
+                                    {new Date(entry.entryDate).toLocaleDateString('es-ES')}
+                                </p>
+                            </div>
                         </div>
                     ))}
                     {entries.length === 0 && (

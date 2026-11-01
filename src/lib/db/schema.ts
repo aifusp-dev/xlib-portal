@@ -101,6 +101,8 @@ export const roadmapPhases = pgTable('roadmap_phases', {
   status: text('status').notNull().default('planned'), // planned | in_progress | done
   description: text('description'),
   orderIndex: integer('order_index').notNull().default(0),
+  // Barra de progreso visual en /roadmap, independiente de `status` (que es el badge de texto).
+  progressPercent: integer('progress_percent').notNull().default(0),
   authorId: uuid('author_id').notNull().references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

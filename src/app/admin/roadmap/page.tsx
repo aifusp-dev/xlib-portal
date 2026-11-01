@@ -38,7 +38,7 @@ export default async function RoadmapAdminPage() {
                         <div className="min-w-0">
                             <p className="text-sm font-medium text-ink">
                                 <span className="text-yellow-400">{p.plugin}</span> — {p.phaseName}{' '}
-                                <span className="text-xs text-ink-3">({p.status})</span>
+                                <span className="text-xs text-ink-3">({p.status}, {p.progressPercent}%)</span>
                             </p>
                             {p.description && <p className="text-xs text-ink-3 mt-1 whitespace-pre-wrap">{p.description}</p>}
                         </div>
