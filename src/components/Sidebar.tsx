@@ -6,7 +6,7 @@ import {
   Home, Book, Zap, ChefHat, Sprout, Shield,
   HeartPulse, Coins, Clock, UserCircle, Library,
   Smartphone, Album, Users, Search, ChevronDown, ChevronRight,
-  Gavel, Hammer, Swords, Building2, Wrench, Car, Briefcase
+  Gavel, Hammer, Swords, Building2, Wrench, Car, Briefcase, Map
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -66,6 +66,12 @@ const navigation: NavGroup[] = [
     group: "Studio",
     items: [
       { label: "Studio Workspace", href: "/studio", icon: Zap },
+    ],
+  },
+  {
+    group: "Roadmap",
+    items: [
+      { label: "Roadmap RPX", href: "/roadmap", icon: Map },
     ],
   },
 ];

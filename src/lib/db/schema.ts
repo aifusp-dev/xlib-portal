@@ -65,3 +65,43 @@ export const versionAnnouncements = pgTable('version_announcements', {
   authorId: uuid('author_id').notNull().references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * Changelog público del ecosistema RPX/xLib, consumido por /roadmap y por
+ * GET /api/changelog/list (sin auth). Dos orígenes conviven en la misma tabla, distinguidos
+ * por `source`:
+ * - 'sync': generadas por scripts/sync-changelogs.sh (host) a partir del CHANGELOG.md real de
+ *   cada módulo — ver POST /api/changelog/sync. Un resync borra y reinserta SOLO las filas
+ *   'sync' del plugin afectado, nunca toca las 'manual'.
+ * - 'manual': añadidas a mano desde /admin/roadmap (ver admin/roadmap/actions.ts).
+ * `plugin` es el nombre del módulo (ej. "RPXCore", "xLib"), texto libre y no un enum de
+ * Postgres a propósito: el ecosistema añade módulos nuevos sin avisar a este schema.
+ */
+export const changelogEntries = pgTable('changelog_entries', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  plugin: text('plugin').notNull(),
+  version: text('version').notNull(),
+  section: text('section'), // Added | Fixed | Changed | null
+  content: text('content').notNull(),
+  entryDate: timestamp('entry_date', { withTimezone: true }).notNull().defaultNow(),
+  source: text('source').notNull().default('manual'), // sync | manual
+  authorId: uuid('author_id').references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Fases de desarrollo por plugin del ecosistema RPX/xLib, mostradas en /roadmap junto al
+ * changelog. A diferencia de `changelogEntries`, esto es siempre contenido curado a mano
+ * desde /admin/roadmap — no hay sync automático de fases, solo de changelog.
+ */
+export const roadmapPhases = pgTable('roadmap_phases', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  plugin: text('plugin').notNull(),
+  phaseName: text('phase_name').notNull(),
+  status: text('status').notNull().default('planned'), // planned | in_progress | done
+  description: text('description'),
+  orderIndex: integer('order_index').notNull().default(0),
+  authorId: uuid('author_id').notNull().references(() => users.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
