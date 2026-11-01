@@ -6,7 +6,8 @@ import {
   Home, Book, Zap, ChefHat, Sprout, Shield,
   HeartPulse, Coins, Clock, UserCircle, Library,
   Smartphone, Album, Users, Search, ChevronDown, ChevronRight,
-  Gavel, Hammer, Swords, Building2, Wrench, Car, Briefcase, Map
+  Gavel, Hammer, Swords, Building2, Wrench, Car, Briefcase, Map,
+  Menu, X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -76,11 +77,12 @@ const navigation: NavGroup[] = [
   },
 ];
 
-function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: string; onNavigate: () => void }) {
   const isActive = pathname === item.href;
   return (
     <Link
       href={item.href}
+      onClick={onNavigate}
       className={cn(
         "flex items-center gap-2.5 px-3 py-1.5 text-sm rounded-r-md border-l-2 transition-all duration-150",
         isActive
@@ -97,15 +99,39 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   function toggle(group: string) {
     setCollapsed(prev => ({ ...prev, [group]: !prev[group] }));
   }
 
   return (
-    <aside className="w-64 bg-[#111827] border-r border-[#1f2937] flex flex-col h-full shrink-0 overflow-hidden">
+    <>
+      {/* Botón hamburguesa — solo en móvil, fijo para que exista incluso con el menú cerrado */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden fixed top-3 left-3 z-30 p-2 rounded-lg bg-[#111827] border border-[#1f2937] text-gray-300"
+        aria-label="Abrir menú"
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
+      {/* Fondo oscuro al abrir en móvil, clic para cerrar */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-30 bg-black/60"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <aside
+        className={cn(
+          "fixed md:static inset-y-0 left-0 z-40 w-64 bg-[#111827] border-r border-[#1f2937] flex flex-col h-full shrink-0 overflow-hidden transition-transform duration-200 md:translate-x-0",
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
       {/* Logo */}
-      <div className="px-4 py-5 border-b border-[#1f2937]">
+      <div className="px-4 py-5 border-b border-[#1f2937] flex items-center justify-between gap-2.5">
         <Link href="/" className="flex items-center gap-2.5">
           <span className="text-2xl">📦</span>
           <div>
@@ -113,6 +139,13 @@ export default function Sidebar() {
             <p className="text-[10px] font-mono text-yellow-400/80 uppercase tracking-widest">v2.0 Docs</p>
           </div>
         </Link>
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="md:hidden p-1 text-gray-400 hover:text-gray-100"
+          aria-label="Cerrar menú"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Search */}
@@ -149,7 +182,7 @@ export default function Sidebar() {
               {(!group.collapsible || !isCollapsed) && (
                 <div className="space-y-0.5">
                   {group.items.map(item => (
-                    <NavLink key={item.href} item={item} pathname={pathname} />
+                    <NavLink key={item.href} item={item} pathname={pathname} onNavigate={() => setMobileOpen(false)} />
                   ))}
                 </div>
               )}
@@ -164,6 +197,7 @@ export default function Sidebar() {
           © aifusp.dev — <span className="text-yellow-400/50">xLib v2.0</span>
         </p>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
