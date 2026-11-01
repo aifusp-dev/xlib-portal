@@ -12,6 +12,7 @@ export async function GET() {
       status: roadmapPhases.status,
       description: roadmapPhases.description,
       orderIndex: roadmapPhases.orderIndex,
+      progressPercent: roadmapPhases.progressPercent,
       updatedAt: roadmapPhases.updatedAt,
     })
     .from(roadmapPhases)
