@@ -334,6 +334,10 @@ export default function StudioWorkspace() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iaFileInputRef = useRef<HTMLInputElement>(null);
+  // Recuerda qué ?token= ya se intentó importar en esta pestaña, para que el efecto de abajo no
+  // reimporte en bucle si isAutoImporting vuelve a false antes de que el replaceState (100ms
+  // después de importar) termine de limpiar el token de la URL.
+  const importedTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -442,7 +446,14 @@ export default function StudioWorkspace() {
     if (!mounted) return;
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
-    if (token && !projectState && !isAutoImporting) {
+    // Un ?token= nuevo siempre sustituye el proyecto ya cargado en la pestaña (por ejemplo, tras
+    // un segundo /xlib upload en la misma sesión del navegador) — antes solo importaba si
+    // projectState estaba vacío, así que reabrir el link con una pestaña del Studio ya abierta se
+    // quedaba mirando en silencio el proyecto viejo sin ningún aviso de error. El guard por
+    // importedTokenRef (en vez de projectState) evita reimportar el mismo token dos veces si
+    // isAutoImporting vuelve a false antes de que el replaceState de más abajo limpie la URL.
+    if (token && !isAutoImporting && importedTokenRef.current !== token) {
+        importedTokenRef.current = token;
         setIsAutoImporting(true);
         handleImportFromBridge(token)
             .then((state) => {
