@@ -1,17 +1,18 @@
-import { ArrowRight, Book, Smartphone, Album, Users, ChefHat, Shield } from "lucide-react";
+import { ArrowRight, Book, Smartphone, Album, Users, ChefHat, Shield, Sprout } from "lucide-react";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 const categories = [
   {
     label: "Librería Core",
-    color: "yellow",
+    dot: "var(--color-sec-foods)",
     items: [
       { title: "xLib Shared", desc: "Base de dependencias compartidas para todos los plugins.", href: "/docs/xlib", icon: Book },
     ],
   },
   {
     label: "Plugins Standalone",
-    color: "blue",
+    dot: "var(--color-info)",
     items: [
       { title: "xPhone", desc: "Smartphone roleplay con apps, SIM, mensajes y red social.", href: "/docs/xphone", icon: Smartphone },
       { title: "xAlbum", desc: "Sistema de álbum de colección con categorías y desbloqueos.", href: "/docs/xalbum", icon: Album },
@@ -20,14 +21,15 @@ const categories = [
   },
   {
     label: "xFoods Ecosystem",
-    color: "green",
+    dot: "var(--color-sec-crops)",
     items: [
       { title: "xFoods Core", desc: "Nutrición avanzada, bites múltiples y maquinaria de cocina.", href: "/docs/xfoods", icon: ChefHat },
+      { title: "xCrops Addon", desc: "Cultivos avanzados que extienden xFoods con parcelas premium.", href: "/docs/xcrops", icon: Sprout },
     ],
   },
   {
     label: "RPX Suite",
-    color: "purple",
+    dot: "var(--color-sec-ia)",
     items: [
       { title: "RPX Core",       desc: "Núcleo del roleplay: ciudadanos, empleos y API centralizada.",      href: "/docs/rpx-core",       icon: Shield },
       { title: "RPX Economy",    desc: "Banca multicuenta, efectivo físico, datáfonos y suscripciones.",   href: "/docs/rpx-economy",    icon: Shield },
@@ -46,70 +48,79 @@ const categories = [
   },
 ];
 
-const colorMap: Record<string, { border: string; text: string; bg: string }> = {
-  yellow: { border: "border-yellow-400/30", text: "text-yellow-400", bg: "bg-yellow-400/8" },
-  blue:   { border: "border-blue-400/30",   text: "text-blue-400",   bg: "bg-blue-400/8"   },
-  green:  { border: "border-green-400/30",  text: "text-green-400",  bg: "bg-green-400/8"  },
-  purple: { border: "border-purple-400/30", text: "text-purple-400", bg: "bg-purple-400/8" },
-};
-
 export default function Home() {
   return (
-    <div className="max-w-4xl mx-auto w-full px-8 py-14 animate-wiki">
-      {/* Hero */}
-      <div className="mb-14">
-        <h1 className="text-4xl font-extrabold text-white tracking-tight mb-4 leading-tight">
-          Wiki oficial de <span className="text-yellow-400">xLib</span>
-        </h1>
-        <p className="text-gray-400 text-lg leading-relaxed max-w-2xl mb-8">
-          Documentación técnica de todos los plugins del ecosistema aifusp.dev — comandos, permisos, configuración y API para desarrolladores.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/docs/xlib"
-            className="inline-flex items-center gap-2 bg-yellow-400 text-black px-5 py-2.5 rounded-lg text-sm font-bold hover:bg-yellow-300 transition-colors"
-          >
-            Empezar con xLib <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
-            href="/docs/xphone"
-            className="inline-flex items-center gap-2 bg-surface-1 text-gray-200 border border-line-strong px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-surface-2 transition-colors"
-          >
-            Ver todos los plugins
-          </Link>
+    <div className="wiki-shell wiki-grid-bg min-h-full">
+      <div className="max-w-4xl mx-auto w-full px-8 py-14 animate-wiki">
+        {/* Hero */}
+        <div className="mb-14">
+          <h1 className="text-4xl font-extrabold text-ink tracking-tight mb-4 leading-tight">
+            Wiki oficial de <span className="text-accent">xLib</span>
+          </h1>
+          <p className="text-ink-2 text-lg leading-relaxed max-w-2xl mb-8">
+            Documentación técnica de todos los plugins del ecosistema aifusp.dev — comandos, permisos, configuración y API para desarrolladores.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/docs/xlib"
+              className="inline-flex items-center gap-2 bg-accent text-accent-ink px-5 py-2.5 rounded-md text-sm font-bold hover:brightness-110 transition-all"
+            >
+              Empezar con xLib <ArrowRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/docs/xphone"
+              className="inline-flex items-center gap-2 bg-surface-1 text-ink border border-line-strong px-5 py-2.5 rounded-md text-sm font-semibold hover:bg-surface-2 transition-colors"
+            >
+              Ver todos los plugins
+            </Link>
+          </div>
         </div>
-      </div>
 
-      {/* Divider */}
-      <hr className="border-line mb-12" />
+        {/* Divider */}
+        <hr className="border-line mb-12" />
 
-      {/* Category grid */}
-      <div className="space-y-10">
-        {categories.map((cat) => {
-          const c = colorMap[cat.color];
-          return (
-            <div key={cat.label}>
-              <h2 className={`text-xs font-bold uppercase tracking-widest mb-4 ${c.text}`}>
-                {cat.label}
-              </h2>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {cat.items.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`group flex items-start gap-3 p-4 rounded-xl border ${c.border} ${c.bg} hover:brightness-110 transition-all`}
-                  >
-                    <item.icon className={`w-4 h-4 mt-0.5 shrink-0 ${c.text}`} />
-                    <div>
-                      <p className={`text-sm font-semibold ${c.text} group-hover:underline`}>{item.title}</p>
-                      <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">{item.desc}</p>
-                    </div>
-                  </Link>
-                ))}
+        {/* Category list — xLib es el origen; cada grupo cuelga de la misma
+            traza vertical, como las ramas de un esquema de cableado. */}
+        <div className="relative">
+          <div className="absolute left-[7px] top-2 bottom-2 w-px bg-line-strong" aria-hidden />
+          <div className="space-y-10">
+            {categories.map((cat, i) => (
+              <div key={cat.label} className="relative pl-7">
+                <span className="absolute left-0 top-[11px] w-[15px] h-px bg-line-strong" aria-hidden />
+                <span
+                  className="absolute left-[3px] top-[7px] w-[9px] h-[9px] border-2 border-surface-0"
+                  style={{ background: i === 0 ? "var(--color-accent)" : cat.dot }}
+                  aria-hidden
+                />
+                <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-4 text-ink-2">
+                  <span className="w-1.5 h-1.5 shrink-0" style={{ background: cat.dot }} aria-hidden />
+                  {cat.label}
+                  {i === 0 && (
+                    <span className="font-mono normal-case tracking-normal text-[10px] text-ink-3">— base compartida</span>
+                  )}
+                </h2>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {cat.items.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "group flex items-start gap-3 p-4 rounded-md border border-line bg-surface-1",
+                        "hover:border-line-strong hover:bg-surface-2 transition-colors"
+                      )}
+                    >
+                      <item.icon className="w-4 h-4 mt-0.5 shrink-0 text-ink-2 group-hover:text-accent transition-colors" />
+                      <div>
+                        <p className="text-sm font-semibold text-ink group-hover:text-accent transition-colors">{item.title}</p>
+                        <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">{item.desc}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

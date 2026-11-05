@@ -42,11 +42,11 @@ function Callout({ type, text }: Callout) {
   }[type];
   const Icon = styles.icon;
   return (
-    <div className={cn("flex gap-3 p-4 rounded-xl border my-5", styles.bg, styles.border)}>
+    <div className={cn("flex gap-3 p-4 rounded-md border my-5", styles.bg, styles.border)}>
       <Icon className={cn("w-4 h-4 mt-0.5 shrink-0", styles.lc)} />
       <div>
         <p className={cn("text-xs font-bold uppercase tracking-wider mb-1", styles.lc)}>{styles.label}</p>
-        <p className="text-sm text-gray-300 leading-relaxed">{text}</p>
+        <p className="text-sm text-ink leading-relaxed">{text}</p>
       </div>
     </div>
   );
@@ -60,22 +60,22 @@ function CodeBlock({ lang, code }: CodeBlock) {
     setTimeout(() => setCopied(false), 1500);
   }
   return (
-    <div className="rounded-xl border border-line-strong overflow-hidden my-5 bg-[#0d1117]">
+    <div className="rounded-md border border-line-strong overflow-hidden my-5 bg-[#0d1117]">
       <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-line-strong">
         <span className="text-[11px] font-bold uppercase tracking-widest text-ink-2">{lang}</span>
-        <button onClick={copy} className="flex items-center gap-1.5 text-[11px] text-ink-2 hover:text-gray-200 transition-colors">
+        <button onClick={copy} className="flex items-center gap-1.5 text-[11px] text-ink-2 hover:text-ink transition-colors py-2 -my-2">
           {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
           {copied ? "Copiado" : "Copiar"}
         </button>
       </div>
-      <pre className="p-4 text-[13px] font-mono leading-relaxed text-gray-300 overflow-x-auto"><code>{code}</code></pre>
+      <pre className="p-4 text-[13px] font-mono leading-relaxed text-ink overflow-x-auto"><code>{code}</code></pre>
     </div>
   );
 }
 
 function CommandsTable({ list }: { list: Command[] }) {
   return (
-    <div className="rounded-xl border border-line-strong overflow-hidden my-5">
+    <div className="rounded-md border border-line-strong overflow-hidden my-5">
       <table className="w-full text-sm">
         <thead className="bg-[#161b22] border-b border-line-strong">
           <tr>
@@ -86,10 +86,10 @@ function CommandsTable({ list }: { list: Command[] }) {
         </thead>
         <tbody className="divide-y divide-line">
           {list.map((c, i) => (
-            <tr key={i} className="hover:bg-white/2 transition-colors">
-              <td className="px-4 py-3 font-mono text-[13px] text-yellow-400 font-semibold whitespace-nowrap">{c.cmd}</td>
+            <tr key={i} className="hover:bg-surface-1 transition-colors">
+              <td className="px-4 py-3 font-mono text-[13px] text-accent font-semibold whitespace-nowrap">{c.cmd}</td>
               <td className="px-4 py-3"><span className="text-[11px] font-mono bg-blue-950/60 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded">{c.perm}</span></td>
-              <td className="px-4 py-3 text-gray-400 text-sm">{c.desc}</td>
+              <td className="px-4 py-3 text-ink-2 text-sm">{c.desc}</td>
             </tr>
           ))}
         </tbody>
@@ -100,16 +100,16 @@ function CommandsTable({ list }: { list: Command[] }) {
 
 function renderBlock(block: Block, i: number) {
   switch (block.kind) {
-    case "p":        return <p key={i} className="text-gray-400 leading-7 text-[15px] mb-4">{block.text}</p>;
-    case "h3":       return <h3 key={i} id={block.id} className="text-base font-bold text-gray-100 mt-6 mb-3 scroll-mt-20">{block.text}</h3>;
+    case "p":        return <p key={i} className="text-ink-2 leading-7 text-[15px] mb-4">{block.text}</p>;
+    case "h3":       return <h3 key={i} id={block.id} className="text-base font-bold text-ink mt-6 mb-3 scroll-mt-20">{block.text}</h3>;
     case "callout":  return <Callout key={i} {...block.callout} />;
     case "code":     return <CodeBlock key={i} {...block.block} />;
     case "commands": return <CommandsTable key={i} list={block.list} />;
     case "ul":       return (
       <ul key={i} className="space-y-1.5 my-4 ml-1">
         {block.items.map((it, j) => (
-          <li key={j} className="flex items-start gap-2.5 text-sm text-gray-400">
-            <span className="mt-2 w-1 h-1 rounded-full bg-yellow-400/60 shrink-0" />
+          <li key={j} className="flex items-start gap-2.5 text-sm text-ink-2">
+            <span className="mt-2 w-1 h-1 bg-accent/60 shrink-0" />
             {it}
           </li>
         ))}
@@ -1992,87 +1992,89 @@ export default function DocPage({ params }: { params: Promise<{ plugin: string }
   const badgeCls = badgeColors[doc.badge ?? "default"] ?? badgeColors.default;
 
   return (
-    <div className="flex animate-wiki max-w-5xl mx-auto w-full">
-      {/* ── Article ── */}
-      <article className="flex-1 min-w-0 px-8 py-10 max-w-3xl">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-xs text-ink-2 mb-8">
-          <Link href="/" className="hover:text-gray-300 transition-colors">Docs</Link>
-          <ChevronRight className="w-3 h-3" />
-          <span className="text-gray-400">{doc.category}</span>
-          <ChevronRight className="w-3 h-3" />
-          <span className="text-gray-200 font-medium">{doc.title}</span>
-        </nav>
+    <div className="wiki-shell wiki-grid-bg min-h-full">
+      <div className="flex animate-wiki max-w-5xl mx-auto w-full">
+        {/* ── Article ── */}
+        <article className="flex-1 min-w-0 px-8 py-10 max-w-3xl">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1.5 text-xs text-ink-2 mb-8">
+            <Link href="/" className="hover:text-ink transition-colors py-2 -my-2 inline-block">Docs</Link>
+            <ChevronRight className="w-3 h-3" />
+            <span className="text-ink-2">{doc.category}</span>
+            <ChevronRight className="w-3 h-3" />
+            <span className="text-ink font-medium">{doc.title}</span>
+          </nav>
 
-        {/* Title */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            {doc.badge && (
-              <span className={cn("text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border", badgeCls)}>
-                {doc.badge}
-              </span>
-            )}
-            <span className="text-[10px] font-mono text-ink-2 border border-line-strong px-2 py-0.5 rounded">
-              v{doc.version}
-            </span>
-          </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight mb-3">{doc.title}</h1>
-          <p className="text-gray-400 text-[15px] leading-relaxed border-l-2 border-yellow-400/40 pl-4">{doc.desc}</p>
-        </div>
-
-        <hr className="border-line mb-8" />
-
-        {/* Sections */}
-        {doc.sections.map((section) => (
-          <section key={section.id} id={section.id} className="mb-10 scroll-mt-20">
-            <h2 className="text-xl font-bold text-gray-100 mb-5 pb-2.5 border-b border-line">
-              {section.title}
-            </h2>
-            {section.blocks.map((block, i) => renderBlock(block, i))}
-          </section>
-        ))}
-
-        {/* Prev / Next */}
-        {(doc.prev || doc.next) && (
-          <>
-            <hr className="border-line mt-10 mb-6" />
-            <div className="flex justify-between gap-4">
-              {doc.prev ? (
-                <Link href={doc.prev.href} className="group flex items-center gap-2 text-sm text-gray-400 hover:text-yellow-400 transition-colors">
-                  <ChevronRight className="w-4 h-4 rotate-180" />
-                  <span><span className="block text-[11px] text-ink-2 uppercase tracking-wider">Anterior</span>{doc.prev.label}</span>
-                </Link>
-              ) : <span />}
-              {doc.next && (
-                <Link href={doc.next.href} className="group flex items-center gap-2 text-sm text-gray-400 hover:text-yellow-400 transition-colors text-right">
-                  <span><span className="block text-[11px] text-ink-2 uppercase tracking-wider">Siguiente</span>{doc.next.label}</span>
-                  <ChevronRight className="w-4 h-4" />
-                </Link>
+          {/* Title */}
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-3">
+              {doc.badge && (
+                <span className={cn("text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border", badgeCls)}>
+                  {doc.badge}
+                </span>
               )}
+              <span className="text-[10px] font-mono text-ink-2 border border-line-strong px-2 py-0.5 rounded">
+                v{doc.version}
+              </span>
             </div>
-          </>
-        )}
-      </article>
-
-      {/* ── TOC ── */}
-      {doc.toc.length > 0 && (
-        <aside className="hidden xl:block w-52 shrink-0 py-10 pr-6">
-          <div className="sticky top-10">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-ink-2 mb-3">En esta página</p>
-            <nav className="space-y-0.5">
-              {doc.toc.map(entry => (
-                <a
-                  key={entry.id}
-                  href={`#${entry.id}`}
-                  className="block text-sm text-ink-2 hover:text-gray-200 pl-3 py-1 border-l-2 border-transparent hover:border-gray-600 transition-all"
-                >
-                  {entry.label}
-                </a>
-              ))}
-            </nav>
+            <h1 className="text-3xl font-extrabold text-ink tracking-tight mb-3">{doc.title}</h1>
+            <p className="text-ink-2 text-[15px] leading-relaxed max-w-2xl">{doc.desc}</p>
           </div>
-        </aside>
-      )}
+
+          <hr className="border-line mb-8" />
+
+          {/* Sections */}
+          {doc.sections.map((section) => (
+            <section key={section.id} id={section.id} className="mb-10 scroll-mt-20">
+              <h2 className="text-xl font-bold text-ink mb-5 pb-2.5 border-b border-line">
+                {section.title}
+              </h2>
+              {section.blocks.map((block, i) => renderBlock(block, i))}
+            </section>
+          ))}
+
+          {/* Prev / Next */}
+          {(doc.prev || doc.next) && (
+            <>
+              <hr className="border-line mt-10 mb-6" />
+              <div className="flex justify-between gap-4">
+                {doc.prev ? (
+                  <Link href={doc.prev.href} className="group flex items-center gap-2 text-sm text-ink-2 hover:text-accent transition-colors">
+                    <ChevronRight className="w-4 h-4 rotate-180" />
+                    <span><span className="block text-[11px] text-ink-2 uppercase tracking-wider">Anterior</span>{doc.prev.label}</span>
+                  </Link>
+                ) : <span />}
+                {doc.next && (
+                  <Link href={doc.next.href} className="group flex items-center gap-2 text-sm text-ink-2 hover:text-accent transition-colors text-right">
+                    <span><span className="block text-[11px] text-ink-2 uppercase tracking-wider">Siguiente</span>{doc.next.label}</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </Link>
+                )}
+              </div>
+            </>
+          )}
+        </article>
+
+        {/* ── TOC ── */}
+        {doc.toc.length > 0 && (
+          <aside className="hidden xl:block w-52 shrink-0 py-10 pr-6">
+            <div className="sticky top-10">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-ink-2 mb-3">En esta página</p>
+              <nav className="space-y-0.5">
+                {doc.toc.map(entry => (
+                  <a
+                    key={entry.id}
+                    href={`#${entry.id}`}
+                    className="block text-sm text-ink-2 hover:text-ink pl-3 py-1 border-l-2 border-transparent hover:border-line-strong transition-all"
+                  >
+                    {entry.label}
+                  </a>
+                ))}
+              </nav>
+            </div>
+          </aside>
+        )}
+      </div>
     </div>
   );
 }

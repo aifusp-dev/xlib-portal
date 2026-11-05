@@ -60,6 +60,55 @@
   --color-muted: #9aa4b8;
 }
 
+/* ---------------------------------------------------------------------------
+   Wiki pública — dirección "Esquema de cableado"
+   ---------------------------------------------------------------------------
+   Reemplaza los tokens compartidos solo dentro de .wiki-shell (home, sidebar,
+   páginas de doc). El Studio sigue leyendo los tokens de arriba sin cambios:
+   esto es un mundo visual propio de la wiki, no un retema global.
+
+   El sitio se lee como el plano técnico del ecosistema: fondo azul-plano
+   profundo, trazos finos cian en vez de sombras, un único acento cian que
+   hace de "traza" de dependencia entre xLib y el resto de plugins.
+   --------------------------------------------------------------------------- */
+.wiki-shell {
+  --color-surface-0: #0a1f33;
+  --color-surface-1: #0d2742;
+  --color-surface-2: #11304f;
+  --color-surface-3: #163a5e;
+
+  --color-line:        #1e4166;
+  --color-line-strong: #2b5681;
+
+  --color-ink:   #eaf2fb;
+  --color-ink-2: #a9c2d9;
+  --color-ink-3: #7d96ae;
+
+  --color-accent:     #5ec8ff;
+  --color-accent-ink: #061626;
+
+  --wiki-grid-ink: color-mix(in srgb, var(--color-accent) 7%, transparent);
+}
+
+.wiki-grid-bg {
+  background-color: var(--color-surface-0);
+  background-image:
+    linear-gradient(to right, var(--wiki-grid-ink) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--wiki-grid-ink) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* La traza de dependencia: línea ortogonal, nunca curva — así se dibuja un
+   cable en un plano. */
+.wiki-trace {
+  position: relative;
+}
+.wiki-trace::before {
+  content: "";
+  position: absolute;
+  background: var(--color-line-strong);
+}
+
 body {
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
@@ -67,8 +116,8 @@ body {
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #262d3a; border-radius: 8px; }
-::-webkit-scrollbar-thumb:hover { background: #343d4d; }
+::-webkit-scrollbar-thumb { background: var(--color-line); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-line-strong); }
 
 ::selection {
   background: color-mix(in srgb, var(--color-accent) 35%, transparent);
