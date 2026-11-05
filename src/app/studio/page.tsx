@@ -355,6 +355,47 @@ const collectIaRawFilePaths = (resource: Record<string, any> | undefined, defaul
     return paths;
 };
 
+/**
+ * Tras renombrar un ítem de xFoods/xCrops/Estaciones, mueve su entrada de ItemsAdder vinculada
+ * (ver isIAEnabled) de la clave vieja a la nueva. El YAML de IA de estos ítems vive en su propio
+ * fichero nombrado por el leaf id (fullKey = "<XFOODS_NAMESPACE>/<leaf>"); sin este movimiento,
+ * tras renombrar quedaba archivado bajo el leaf viejo y la integración se veía "apagada" (el
+ * lookup de isIAEnabled es por leaf id del ítem actual).
+ */
+const moveLinkedIaEntry = (state: EcosystemState, oldLeaf: string, newLeaf: string) => {
+    (['iaItems', 'iaFurnitures'] as const).forEach(mapKey => {
+        const oldFullKey = `${XFOODS_NAMESPACE}/${oldLeaf}`;
+        const fileConfig = state[mapKey][oldFullKey] as any;
+        const itemsMap = fileConfig?.items;
+        if (!itemsMap?.[oldLeaf]) return;
+
+        itemsMap[newLeaf] = itemsMap[oldLeaf];
+        delete itemsMap[oldLeaf];
+        state[mapKey][`${XFOODS_NAMESPACE}/${newLeaf}`] = fileConfig;
+        delete state[mapKey][oldFullKey];
+    });
+};
+
+/**
+ * Igual que moveLinkedIaEntry pero duplicando la entrada en vez de moverla, para Duplicar: sin
+ * esto, clonar un ítem con integración IA activada producía una copia con un leaf nuevo que no
+ * apuntaba a ninguna entrada de ItemsAdder existente, así que la copia perdía por completo el
+ * modelo/textura (isIAEnabled se calcula por leaf, y el leaf del clon nunca coincide con nada).
+ */
+const cloneLinkedIaEntry = (state: EcosystemState, oldLeaf: string, newLeaf: string) => {
+    (['iaItems', 'iaFurnitures'] as const).forEach(mapKey => {
+        const oldFullKey = `${XFOODS_NAMESPACE}/${oldLeaf}`;
+        const fileConfig = state[mapKey][oldFullKey] as any;
+        const itemsMap = fileConfig?.items;
+        if (!itemsMap?.[oldLeaf]) return;
+
+        state[mapKey][`${XFOODS_NAMESPACE}/${newLeaf}`] = {
+            ...fileConfig,
+            items: { [newLeaf]: JSON.parse(JSON.stringify(itemsMap[oldLeaf])) },
+        };
+    });
+};
+
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
@@ -920,6 +961,31 @@ export default function StudioWorkspace() {
   const handleRenameItem = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!projectState) return;
+
+    // El botón de detalle (no el de la lista) también se muestra editando ItemsAdder
+    // directamente: ahí la estructura es fullKey+items, no el mapa genérico de mapFor.
+    if (activeEditor === 'ia') {
+        if (!selectedData) return;
+        const raw = prompt("Nuevo id:", id);
+        if (!raw) return;
+        const newId = sanitizePath(raw);
+        if (!newId || newId === id) return;
+
+        const newState = { ...projectState };
+        const { fullKey } = selectedData as { fullKey: string };
+        const targetMap = activeCategory === 'items' ? newState.iaItems : (activeCategory === 'blocks' ? newState.iaBlocks : newState.iaFurnitures);
+        const fileConfig = targetMap[fullKey] as any;
+        const itemsMap = fileConfig?.[currentIAKeyName];
+        if (!itemsMap?.[id]) return;
+        if (itemsMap[newId]) { alert("Ya existe un elemento con ese id."); return; }
+
+        itemsMap[newId] = itemsMap[id];
+        delete itemsMap[id];
+        setProjectState(newState);
+        if (selectedItem === id) setSelectedItem(newId);
+        return;
+    }
+
     const raw = prompt("Nuevo id:", leafId(id));
     if (!raw) return;
     const newLeaf = sanitizePath(raw);
@@ -933,6 +999,9 @@ export default function StudioWorkspace() {
     if (newId === id) return;
     if (currentMap[newId]) { alert("Ya existe un elemento con ese id."); return; }
 
+    const oldLeaf = leafId(id);
+    if (oldLeaf !== newLeaf) moveLinkedIaEntry(newState, oldLeaf, newLeaf);
+
     delete currentMap[id];
     currentMap[newId] = entry;
     setProjectState(newState);
@@ -943,6 +1012,23 @@ export default function StudioWorkspace() {
     e.stopPropagation();
     if (!projectState) return;
     const newState = { ...projectState };
+
+    if (activeEditor === 'ia') {
+        if (!selectedData) return;
+        const { fullKey } = selectedData as { fullKey: string };
+        const targetMap = activeCategory === 'items' ? newState.iaItems : (activeCategory === 'blocks' ? newState.iaBlocks : newState.iaFurnitures);
+        const fileConfig = targetMap[fullKey] as any;
+        const itemsMap = fileConfig?.[currentIAKeyName];
+        if (!itemsMap?.[id]) return;
+        let finalId = sanitizePath(`${id}_copy`);
+        let counter = 1;
+        while (itemsMap[finalId]) { finalId = sanitizePath(`${id}_copy_${counter++}`); }
+        itemsMap[finalId] = JSON.parse(JSON.stringify(itemsMap[id]));
+        setProjectState(newState);
+        setSelectedItem(finalId);
+        return;
+    }
+
     const currentMap = mapFor(newState, activeEditor as PluginEditor);
     const originalEntry = currentMap[id];
     if (!originalEntry) return;
@@ -951,6 +1037,9 @@ export default function StudioWorkspace() {
     while (currentMap[finalId]) { finalId = sanitizePath(`${id}_copy_${counter++}`); }
     const copy = JSON.parse(JSON.stringify(originalEntry));
     currentMap[finalId] = copy;
+
+    cloneLinkedIaEntry(newState, leafId(id), leafId(finalId));
+
     setProjectState(newState);
     setSelectedItem(finalId);
   };
