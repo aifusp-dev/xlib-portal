@@ -315,6 +315,46 @@ function syncDirectionalBlockResource(newState: EcosystemState, fullKey: string,
     if (existingIdx !== -1) newState.rawFiles.splice(existingIdx, 1);
 }
 
+/** Resuelve una referencia "ns:ruta" (o solo "ruta", con el namespace por defecto) a su inferredPath real de disco. */
+const resolveIaResourceRef = (ref: string, defaultNs: string, kind: 'models' | 'textures', ext: string) => {
+    const [ns, relPath] = ref.includes(':') ? ref.split(':') : [defaultNs, ref];
+    return `plugins/ItemsAdder/contents/${ns}/resourcepack/${ns}/${kind}/${relPath}.${ext}`;
+};
+
+/**
+ * Recoge los inferredPath de rawFiles (modelo .json + sus texturas, o la textura plana si el
+ * ítem no tiene modelo 3D) que quedan huérfanos al borrar un ítem/bloque/mueble de ItemsAdder.
+ * Mismo criterio de resolución de rutas que VisualPreview (model_path con prioridad sobre
+ * textures[0]). No comprueba si otro ítem reutiliza la misma textura/modelo — un borrado puede
+ * dejar sin assets a un ítem hermano que apuntara al mismo fichero a propósito.
+ */
+const collectIaRawFilePaths = (resource: Record<string, any> | undefined, defaultNs: string, rawFiles: StudioFile[]): string[] => {
+    if (!resource) return [];
+    const paths: string[] = [];
+
+    if (resource.model_path) {
+        const modelPath = resolveIaResourceRef(resource.model_path, defaultNs, 'models', 'json');
+        paths.push(modelPath);
+        const modelFile = rawFiles.find(f => f.inferredPath === modelPath);
+        if (modelFile) {
+            try {
+                const model = JSON.parse(new TextDecoder().decode(modelFile.content as ArrayBuffer));
+                Object.values(model.textures || {}).forEach((texRef: any) => {
+                    if (typeof texRef === 'string') paths.push(resolveIaResourceRef(texRef, defaultNs, 'textures', 'png'));
+                });
+            } catch (e) {
+                console.error("No se pudo leer el modelo para borrar sus texturas asociadas", e);
+            }
+        }
+    } else if (Array.isArray(resource.textures)) {
+        resource.textures.forEach((texRef: unknown) => {
+            if (typeof texRef === 'string') paths.push(resolveIaResourceRef(texRef, defaultNs, 'textures', 'png'));
+        });
+    }
+
+    return paths;
+};
+
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
@@ -915,6 +955,66 @@ export default function StudioWorkspace() {
     setSelectedItem(finalId);
   };
 
+  /**
+   * Borra el elemento seleccionado. A diferencia de Clonar/Renombrar (que solo tocan el mapa
+   * genérico vía mapFor), esto también cubre `activeEditor === 'ia'` -- editado directamente
+   * desde la pestaña ItemsAdder, con su propia estructura fullKey+items -- y, para los ítems de
+   * xFoods/xCrops/Estaciones con la integración IA activada, borra en cascada tanto la entrada
+   * IA vinculada como el modelo .json/textura .png que esa entrada referenciaba (ver
+   * collectIaRawFilePaths). Sin esto esos ficheros quedaban huérfanos en rawFiles para siempre.
+   */
+  const handleDeleteItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!projectState) return;
+    if (!confirm(`¿Borrar "${leafId(id)}"? Si tiene modelo/textura de ItemsAdder asociados, también se borran. No se puede deshacer.`)) return;
+
+    const newState = { ...projectState };
+    const pathsToRemove = new Set<string>();
+
+    if (activeEditor === 'ia') {
+        if (!selectedData) return;
+        const { fullKey, data } = selectedData as { fullKey: string, data: any };
+        const targetMap = activeCategory === 'items' ? newState.iaItems : (activeCategory === 'blocks' ? newState.iaBlocks : newState.iaFurnitures);
+        const fileConfig = targetMap[fullKey] as any;
+        const itemsMap = fileConfig?.[currentIAKeyName];
+        if (!itemsMap?.[id]) return;
+
+        collectIaRawFilePaths(data.resource, selectedNamespace || projectState.projectName, newState.rawFiles)
+            .forEach(p => pathsToRemove.add(p));
+
+        delete itemsMap[id];
+        if (Object.keys(itemsMap).length === 0) delete targetMap[fullKey];
+    } else {
+        const currentMap = mapFor(newState, activeEditor as PluginEditor);
+        const entry = currentMap[id];
+        if (!entry) return;
+
+        if (isIAEnabled && linkedIaEntry) {
+            const linkedFullKey = `${XFOODS_NAMESPACE}/${leafId(id)}`;
+            const linkedMap = iaKind === 'furniture' ? newState.iaFurnitures : newState.iaItems;
+            const fileConfig = linkedMap[linkedFullKey] as any;
+            const itemsMap = fileConfig?.[currentIAKeyName];
+
+            collectIaRawFilePaths(linkedIaEntry.resource, XFOODS_NAMESPACE, newState.rawFiles)
+                .forEach(p => pathsToRemove.add(p));
+
+            if (itemsMap?.[leafId(id)]) {
+                delete itemsMap[leafId(id)];
+                if (Object.keys(itemsMap).length === 0) delete linkedMap[linkedFullKey];
+            }
+        }
+
+        delete currentMap[id];
+    }
+
+    if (pathsToRemove.size > 0) {
+        newState.rawFiles = newState.rawFiles.filter(f => !pathsToRemove.has(f.inferredPath));
+    }
+
+    setProjectState(newState);
+    if (selectedItem === id) setSelectedItem(null);
+  };
+
   const filteredItems = useMemo(() => {
     if (!projectState || activeEditor === 'xdrops' || activeEditor === 'xholograms' || activeEditor === 'xboombox') return [];
     if (activeEditor === 'ia') {
@@ -1465,7 +1565,7 @@ export default function StudioWorkspace() {
                             <button onClick={() => setIsPublishModalOpen(true)} className="btn btn-ghost text-yellow-400"><Rocket className="w-3 h-3"/> Publicar en Descubrir</button>
                         )}
                         <button onClick={(e) => handleCloneItem(selectedItem, e)} className="btn btn-ghost"><Copy className="w-3 h-3"/> Clonar</button>
-                        <button className="btn btn-danger"><Trash2 className="w-3 h-3"/> Borrar</button>
+                        <button onClick={(e) => handleDeleteItem(selectedItem, e)} className="btn btn-danger"><Trash2 className="w-3 h-3"/> Borrar</button>
                    </div>
                 </div>
 
