@@ -76,7 +76,7 @@ export default function Home() {
           </Link>
           <Link
             href="/docs/xphone"
-            className="inline-flex items-center gap-2 bg-[#1f2937] text-gray-200 border border-[#374151] px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-[#374151] transition-colors"
+            className="inline-flex items-center gap-2 bg-surface-1 text-gray-200 border border-line-strong px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-surface-2 transition-colors"
           >
             Ver todos los plugins
           </Link>
@@ -84,7 +84,7 @@ export default function Home() {
       </div>
 
       {/* Divider */}
-      <hr className="border-[#1f2937] mb-12" />
+      <hr className="border-line mb-12" />
 
       {/* Category grid */}
       <div className="space-y-10">
@@ -105,7 +105,7 @@ export default function Home() {
                     <item.icon className={`w-4 h-4 mt-0.5 shrink-0 ${c.text}`} />
                     <div>
                       <p className={`text-sm font-semibold ${c.text} group-hover:underline`}>{item.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{item.desc}</p>
+                      <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">{item.desc}</p>
                     </div>
                   </Link>
                 ))}

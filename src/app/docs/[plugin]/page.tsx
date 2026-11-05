@@ -60,10 +60,10 @@ function CodeBlock({ lang, code }: CodeBlock) {
     setTimeout(() => setCopied(false), 1500);
   }
   return (
-    <div className="rounded-xl border border-[#374151] overflow-hidden my-5 bg-[#0d1117]">
-      <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-[#374151]">
-        <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">{lang}</span>
-        <button onClick={copy} className="flex items-center gap-1.5 text-[11px] text-gray-500 hover:text-gray-200 transition-colors">
+    <div className="rounded-xl border border-line-strong overflow-hidden my-5 bg-[#0d1117]">
+      <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-line-strong">
+        <span className="text-[11px] font-bold uppercase tracking-widest text-ink-2">{lang}</span>
+        <button onClick={copy} className="flex items-center gap-1.5 text-[11px] text-ink-2 hover:text-gray-200 transition-colors">
           {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
           {copied ? "Copiado" : "Copiar"}
         </button>
@@ -75,16 +75,16 @@ function CodeBlock({ lang, code }: CodeBlock) {
 
 function CommandsTable({ list }: { list: Command[] }) {
   return (
-    <div className="rounded-xl border border-[#374151] overflow-hidden my-5">
+    <div className="rounded-xl border border-line-strong overflow-hidden my-5">
       <table className="w-full text-sm">
-        <thead className="bg-[#161b22] border-b border-[#374151]">
+        <thead className="bg-[#161b22] border-b border-line-strong">
           <tr>
             {["Comando", "Permiso", "Descripción"].map(h => (
-              <th key={h} className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-widest text-gray-500">{h}</th>
+              <th key={h} className="px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-widest text-ink-2">{h}</th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-[#1f2937]">
+        <tbody className="divide-y divide-line">
           {list.map((c, i) => (
             <tr key={i} className="hover:bg-white/2 transition-colors">
               <td className="px-4 py-3 font-mono text-[13px] text-yellow-400 font-semibold whitespace-nowrap">{c.cmd}</td>
@@ -1996,7 +1996,7 @@ export default function DocPage({ params }: { params: Promise<{ plugin: string }
       {/* ── Article ── */}
       <article className="flex-1 min-w-0 px-8 py-10 max-w-3xl">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-xs text-gray-500 mb-8">
+        <nav className="flex items-center gap-1.5 text-xs text-ink-2 mb-8">
           <Link href="/" className="hover:text-gray-300 transition-colors">Docs</Link>
           <ChevronRight className="w-3 h-3" />
           <span className="text-gray-400">{doc.category}</span>
@@ -2012,7 +2012,7 @@ export default function DocPage({ params }: { params: Promise<{ plugin: string }
                 {doc.badge}
               </span>
             )}
-            <span className="text-[10px] font-mono text-gray-600 border border-[#374151] px-2 py-0.5 rounded">
+            <span className="text-[10px] font-mono text-ink-2 border border-line-strong px-2 py-0.5 rounded">
               v{doc.version}
             </span>
           </div>
@@ -2020,12 +2020,12 @@ export default function DocPage({ params }: { params: Promise<{ plugin: string }
           <p className="text-gray-400 text-[15px] leading-relaxed border-l-2 border-yellow-400/40 pl-4">{doc.desc}</p>
         </div>
 
-        <hr className="border-[#1f2937] mb-8" />
+        <hr className="border-line mb-8" />
 
         {/* Sections */}
         {doc.sections.map((section) => (
           <section key={section.id} id={section.id} className="mb-10 scroll-mt-20">
-            <h2 className="text-xl font-bold text-gray-100 mb-5 pb-2.5 border-b border-[#1f2937]">
+            <h2 className="text-xl font-bold text-gray-100 mb-5 pb-2.5 border-b border-line">
               {section.title}
             </h2>
             {section.blocks.map((block, i) => renderBlock(block, i))}
@@ -2035,17 +2035,17 @@ export default function DocPage({ params }: { params: Promise<{ plugin: string }
         {/* Prev / Next */}
         {(doc.prev || doc.next) && (
           <>
-            <hr className="border-[#1f2937] mt-10 mb-6" />
+            <hr className="border-line mt-10 mb-6" />
             <div className="flex justify-between gap-4">
               {doc.prev ? (
                 <Link href={doc.prev.href} className="group flex items-center gap-2 text-sm text-gray-400 hover:text-yellow-400 transition-colors">
                   <ChevronRight className="w-4 h-4 rotate-180" />
-                  <span><span className="block text-[11px] text-gray-600 uppercase tracking-wider">Anterior</span>{doc.prev.label}</span>
+                  <span><span className="block text-[11px] text-ink-2 uppercase tracking-wider">Anterior</span>{doc.prev.label}</span>
                 </Link>
               ) : <span />}
               {doc.next && (
                 <Link href={doc.next.href} className="group flex items-center gap-2 text-sm text-gray-400 hover:text-yellow-400 transition-colors text-right">
-                  <span><span className="block text-[11px] text-gray-600 uppercase tracking-wider">Siguiente</span>{doc.next.label}</span>
+                  <span><span className="block text-[11px] text-ink-2 uppercase tracking-wider">Siguiente</span>{doc.next.label}</span>
                   <ChevronRight className="w-4 h-4" />
                 </Link>
               )}
@@ -2058,13 +2058,13 @@ export default function DocPage({ params }: { params: Promise<{ plugin: string }
       {doc.toc.length > 0 && (
         <aside className="hidden xl:block w-52 shrink-0 py-10 pr-6">
           <div className="sticky top-10">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-3">En esta página</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-ink-2 mb-3">En esta página</p>
             <nav className="space-y-0.5">
               {doc.toc.map(entry => (
                 <a
                   key={entry.id}
                   href={`#${entry.id}`}
-                  className="block text-sm text-gray-500 hover:text-gray-200 pl-3 py-1 border-l-2 border-transparent hover:border-gray-600 transition-all"
+                  className="block text-sm text-ink-2 hover:text-gray-200 pl-3 py-1 border-l-2 border-transparent hover:border-gray-600 transition-all"
                 >
                   {entry.label}
                 </a>

@@ -110,7 +110,7 @@ export default function Sidebar() {
       {/* Botón hamburguesa — solo en móvil, fijo para que exista incluso con el menú cerrado */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="md:hidden fixed top-3 left-3 z-30 p-2 rounded-lg bg-[#111827] border border-[#1f2937] text-gray-300"
+        className="md:hidden fixed top-3 left-3 z-30 p-2 rounded-lg bg-surface-1 border border-line text-gray-300"
         aria-label="Abrir menú"
       >
         <Menu className="w-5 h-5" />
@@ -126,12 +126,12 @@ export default function Sidebar() {
 
       <aside
         className={cn(
-          "fixed md:static inset-y-0 left-0 z-40 w-64 bg-[#111827] border-r border-[#1f2937] flex flex-col h-full shrink-0 overflow-hidden transition-transform duration-200 md:translate-x-0",
+          "fixed md:static inset-y-0 left-0 z-40 w-64 bg-surface-1 border-r border-line flex flex-col h-full shrink-0 overflow-hidden transition-transform duration-200 md:translate-x-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
       {/* Logo */}
-      <div className="px-4 py-5 border-b border-[#1f2937] flex items-center justify-between gap-2.5">
+      <header className="px-4 py-5 border-b border-line flex items-center justify-between gap-2.5">
         <Link href="/" className="flex items-center gap-2.5">
           <span className="text-2xl">📦</span>
           <div>
@@ -146,14 +146,14 @@ export default function Sidebar() {
         >
           <X className="w-4 h-4" />
         </button>
-      </div>
+      </header>
 
       {/* Search */}
-      <div className="px-3 py-3 border-b border-[#1f2937]">
-        <div className="flex items-center gap-2 bg-[#0b0f19] border border-[#374151] rounded-lg px-3 py-2">
-          <Search className="w-3.5 h-3.5 text-gray-500 shrink-0" />
-          <span className="text-sm text-gray-500">Buscar...</span>
-          <span className="ml-auto text-[10px] bg-[#1f2937] text-gray-500 px-1.5 py-0.5 rounded font-mono">⌘K</span>
+      <div className="px-3 py-3 border-b border-line">
+        <div className="flex items-center gap-2 bg-surface-0 border border-line-strong rounded-lg px-3 py-2">
+          <Search className="w-3.5 h-3.5 text-ink-2 shrink-0" />
+          <span className="text-sm text-ink-2">Buscar...</span>
+          <span className="ml-auto text-[10px] bg-surface-1 text-ink-2 px-1.5 py-0.5 rounded font-mono">⌘K</span>
         </div>
       </div>
 
@@ -166,7 +166,7 @@ export default function Sidebar() {
               {group.collapsible ? (
                 <button
                   onClick={() => toggle(group.group)}
-                  className="w-full flex items-center justify-between px-3 mb-1 text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:text-gray-300 transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-1.5 mb-1 text-[11px] font-bold uppercase tracking-widest text-ink-2 hover:text-gray-300 transition-colors"
                 >
                   {group.group}
                   {isCollapsed
@@ -175,7 +175,7 @@ export default function Sidebar() {
                   }
                 </button>
               ) : (
-                <p className="px-3 mb-1 text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                <p className="px-3 mb-1 text-[11px] font-bold uppercase tracking-widest text-ink-2">
                   {group.group}
                 </p>
               )}
@@ -192,11 +192,11 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-[#1f2937]">
-        <p className="text-[11px] text-gray-600 text-center">
-          © aifusp.dev — <span className="text-yellow-400/50">xLib v2.0</span>
+      <footer className="px-4 py-3 border-t border-line">
+        <p className="text-[11px] text-ink-2 text-center">
+          © aifusp.dev — <span className="text-yellow-400/60">xLib v2.0</span>
         </p>
-      </div>
+      </footer>
       </aside>
     </>
   );
