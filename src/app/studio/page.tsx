@@ -30,7 +30,8 @@ import {
   Flower2,
   Cpu,
   Hammer,
-  Pencil
+  Pencil,
+  AlertTriangle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { generateZIP, parseUploadedFiles, emptyState, EcosystemState, ConfigEntry, stringifyYaml, sanitizePath, isInternalNamespace, XFOODS_NAMESPACE, leafId, StudioFile, PluginEditor, mapFor } from "@/lib/studio";
@@ -39,6 +40,7 @@ import { extractPresetBundle, mergePresetIntoState, PresetItemRef } from "@/lib/
 import { saveSnapshot, loadSnapshot, clearSnapshot } from "@/lib/studio-snapshot";
 import { exportEcosystem } from "@/lib/export";
 import SyncModal from "@/components/SyncModal";
+import OrphanFilesModal from "@/components/OrphanFilesModal";
 import { Model3DViewer } from "@/components/Model3DViewer";
 import AutocompleteInput from "@/components/AutocompleteInput";
 import { MATERIALS, SOUNDS, PARTICLES } from "@/lib/minecraft";
@@ -409,6 +411,7 @@ export default function StudioWorkspace() {
   const [activePreview, setActivePreview] = useState<'plugin' | 'ia'>('plugin');
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [isOrphanModalOpen, setIsOrphanModalOpen] = useState(false);
   const [isAutoImporting, setIsAutoImporting] = useState(false);
   const [isInstallingPreset, setIsInstallingPreset] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -1104,6 +1107,53 @@ export default function StudioWorkspace() {
     if (selectedItem === id) setSelectedItem(null);
   };
 
+  /**
+   * rawFiles que ningún ítem/bloque/mueble/sonido/canción referencia ya. Mismo criterio de
+   * resolución que collectIaRawFilePaths (model_path+sus texturas, o textures[0] si no hay
+   * modelo propio), recorrido sobre TODAS las entradas de iaItems/iaBlocks/iaFurnitures, más los
+   * .ogg de sonidos custom (iaSounds) y canciones de xBoomBox (songs), que no cuelgan de ningún
+   * resource.* sino que se derivan 1:1 de su propia clave.
+   */
+  const referencedRawFilePaths = useMemo(() => {
+    const refs = new Set<string>();
+    if (!projectState) return refs;
+
+    (['iaItems', 'iaBlocks', 'iaFurnitures'] as const).forEach(mapKey => {
+        Object.entries(projectState[mapKey]).forEach(([fullKey, fileConfig]) => {
+            const ns = fullKey.split('/')[0];
+            const itemsMap = (fileConfig as any)?.[currentIAKeyName] || {};
+            Object.values(itemsMap).forEach((entry: any) => {
+                collectIaRawFilePaths(entry?.resource, ns, projectState.rawFiles).forEach(p => refs.add(p));
+            });
+        });
+    });
+
+    Object.keys(projectState.iaSounds).forEach(fullId => {
+        const slashIdx = fullId.indexOf('/');
+        if (slashIdx === -1) return;
+        const ns = fullId.slice(0, slashIdx);
+        const soundId = fullId.slice(slashIdx + 1);
+        refs.add(`plugins/ItemsAdder/contents/${ns}/resourcepack/${ns}/sounds/${soundId}.ogg`);
+    });
+
+    // xBoomBox siempre vive en su propio namespace fijo (ver BoomboxSongsEditor.NAMESPACE).
+    Object.keys(projectState.songs).forEach(songId => {
+        refs.add(`plugins/ItemsAdder/contents/xboombox/resourcepack/xboombox/sounds/${songId}.ogg`);
+    });
+
+    return refs;
+  }, [projectState]);
+
+  const orphanRawFiles = useMemo(() => {
+    if (!projectState) return [];
+    return projectState.rawFiles.filter(f => !referencedRawFilePaths.has(f.inferredPath));
+  }, [projectState, referencedRawFilePaths]);
+
+  const handleDeleteOrphanFiles = (paths: string[]) => {
+    const pathSet = new Set(paths);
+    setProjectState(prev => prev ? { ...prev, rawFiles: prev.rawFiles.filter(f => !pathSet.has(f.inferredPath)) } : prev);
+  };
+
   const filteredItems = useMemo(() => {
     if (!projectState || activeEditor === 'xdrops' || activeEditor === 'xholograms' || activeEditor === 'xboombox') return [];
     if (activeEditor === 'ia') {
@@ -1507,6 +1557,11 @@ export default function StudioWorkspace() {
         <div className="flex gap-3">
           <a href="/discover" className="flex items-center gap-2 bg-yellow-400/10 text-yellow-400 px-6 py-2.5 rounded-xl font-bold hover:bg-yellow-400/20 transition-all border border-yellow-400/20"><Rocket className="w-4 h-4" /> Descubrir</a>
           <button onClick={() => setIsSyncModalOpen(true)} className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-2.5 rounded-xl font-bold hover:bg-blue-500/20 transition-all border border-blue-500/20"><Cloud className="w-4 h-4" /> Bridge</button>
+          {orphanRawFiles.length > 0 && (
+            <button onClick={() => setIsOrphanModalOpen(true)} className="flex items-center gap-2 bg-orange-500/10 text-orange-400 px-6 py-2.5 rounded-xl font-bold hover:bg-orange-500/20 transition-all border border-orange-500/20">
+                <AlertTriangle className="w-4 h-4" /> Recursos Sueltos <span className="bg-orange-400/20 text-[10px] px-1.5 py-0.5 rounded-full">{orphanRawFiles.length}</span>
+            </button>
+          )}
           <button onClick={() => { setProjectState(null); setSelectedItem(null); clearSnapshot(); }} className="btn btn-ghost">Cerrar</button>
           <button onClick={() => exportEcosystem(projectState)} className="flex items-center gap-2 bg-accent text-white px-8 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"><Download className="w-4 h-4" /> ZIP</button>
         </div>
@@ -2391,6 +2446,7 @@ export default function StudioWorkspace() {
       )}
 
       <SyncModal isOpen={isSyncModalOpen} onClose={() => setIsSyncModalOpen(false)} onSync={handleSyncToBridge} onImport={handleImportFromBridge} />
+      <OrphanFilesModal isOpen={isOrphanModalOpen} onClose={() => setIsOrphanModalOpen(false)} orphanFiles={orphanRawFiles} onDeleteSelected={handleDeleteOrphanFiles} />
       {selectedItem && activeEditor !== 'ia' && (
         <PublishModal
           isOpen={isPublishModalOpen}
