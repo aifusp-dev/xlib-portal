@@ -263,20 +263,16 @@ export const mapFor = (state: EcosystemState, editor: PluginEditor): Record<stri
   state[EDITOR_MAPS[editor]] as Record<string, ConfigEntry>;
 
 /**
- * El Studio guarda internamente cada raw file (textura/modelo/sonido de ItemsAdder) bajo la
- * convención genérica de resourcepack de Minecraft, "resource_pack/assets/<ns>/...", tanto al
- * importar un proyecto (ver el normalizedPath de parseUploadedFiles) como al subir un archivo
- * nuevo desde el panel de Recursos (handleIAFileUpload). Esa NO es la carpeta que ItemsAdder
- * escanea de verdad: su convención real es "resourcepack/<ns>/..." (sin guion bajo y sin el nivel
- * "assets/") — la misma que ya usan namespaces existentes como rpx/textures/gui en el server real.
- * Sin este remapeo, el asset viaja en el ZIP a una carpeta que ItemsAdder ignora, así que la
- * furniture/bloque queda con la entrada de config apuntando a un modelo "not found in any pack".
- * Se remapea aquí, en el único punto de escritura a disco, para no tener que tocar todos los
- * sitios que ya buscan/comparan rutas usando la convención interna (VisualPreview, el matching de
- * texturas que falta, etc.).
+ * El Studio guarda internamente cada raw file (textura/modelo/sonido de ItemsAdder) bajo
+ * "resourcepack/<ns>/..." — la misma convención (sin guion bajo, sin nivel "assets/") que
+ * ItemsAdder escanea de verdad en el server real. Antes el Studio inventaba su propia carpeta
+ * "resource_pack/assets/<ns>/..." y la remapeaba a esta en el único punto de escritura a disco
+ * (ver git history de toItemsAdderDiskPath) — eso dejaba huérfanos permanentes en
+ * ItemsAdder/contents/<ns>/resource_pack/ en cada server real (nunca se limpiaban solos, y
+ * encima el Studio comparaba rutas contra esa carpeta inventada, así que el preview siempre
+ * mostraba la versión vieja aunque se resubiera la real). Ahora no hace falta ningún remapeo:
+ * inferredPath ya es la ruta real de disco.
  */
-const toItemsAdderDiskPath = (inferredPath: string): string =>
-  inferredPath.replace(/^(plugins\/ItemsAdder\/contents\/[^/]+\/)resource_pack\/assets\//, '$1resourcepack/');
 
 export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
   const zip = new JSZip();
@@ -451,17 +447,13 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
     (soundsByNamespace[ns] ??= {})[soundId] = def;
   });
   Object.entries(soundsByNamespace).forEach(([ns, sounds]) => {
-    // Mismo remapeo que las texturas/modelos (ver toItemsAdderDiskPath): "resource_pack/assets/"
-    // es la convención de origen, pero ItemsAdder escanea de verdad "resourcepack/<ns>/" sin el
-    // nivel "assets/". Sin este paso, sounds.json viajaría a una carpeta que IA ignora.
-    const diskPath = toItemsAdderDiskPath(`plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/sounds.json`)
-      .replace(/^plugins\//, '');
+    const diskPath = `ItemsAdder/contents/${ns}/resourcepack/${ns}/sounds.json`;
     zip.file(diskPath, JSON.stringify(sounds, null, 2));
   });
 
   // 5. Pack original raw files (textures/models) with final JSON remapping
   state.rawFiles.forEach(file => {
-    const cleanPath = toItemsAdderDiskPath(file.inferredPath).replace(/^plugins\//, '');
+    const cleanPath = file.inferredPath.replace(/^plugins\//, '');
     let finalContent: string | ArrayBuffer | Blob = file.content;
 
     // IF JSON model, perform final texture remapping
@@ -484,14 +476,15 @@ export const generateZIP = async (state: EcosystemState): Promise<Blob> => {
 
             if (actualTexFile) {
                 // Extract subfolder and namespace from actual file path
+                // (plugins/ItemsAdder/contents/<ns>/resourcepack/<ns>/textures/<subfolder>/<file>)
                 const parts = actualTexFile.inferredPath.split('/');
-                const assetsIdx = parts.indexOf('assets');
-                if (assetsIdx !== -1 && parts.length > assetsIdx + 3) {
-                    const ns = parts[assetsIdx + 1];
-                    const texturesIdx = parts.indexOf('textures', assetsIdx);
+                const contentsIdx = parts.indexOf('contents');
+                if (contentsIdx !== -1 && parts.length > contentsIdx + 4) {
+                    const ns = parts[contentsIdx + 1];
+                    const texturesIdx = parts.indexOf('textures', contentsIdx);
                     if (texturesIdx !== -1) {
                         // Extract everything AFTER "textures" up to the filename
-                        const actualSubfolder = parts.slice(texturesIdx + 1, -1).join('/'); 
+                        const actualSubfolder = parts.slice(texturesIdx + 1, -1).join('/');
                         model.textures[key] = `${ns}:${actualSubfolder}/${fileName}`;
                     }
                 }
@@ -663,7 +656,11 @@ export const parseUploadedFiles = async (files: FileList | File[] | any[]): Prom
         if (isInternalNamespace(ns)) continue;
 
         const relativeToNamespace = sanitizePath(iaParts.slice(1).join('/'));
-        const normalizedPath = relativeToNamespace.replace(/^resourcepack\//, 'resource_pack/');
+        // Compat con restos de la vieja convención inventada por el Studio
+        // ("resource_pack/assets/<ns>/...", ya retirada — ver el comentario de generateZIP más
+        // arriba): si un ZIP viejo todavía trae esa carpeta, se normaliza a la real de disco
+        // ("resourcepack/<ns>/...", sin tocar si ya viene así).
+        const normalizedPath = relativeToNamespace.replace(/^resource_pack\/assets\//, 'resourcepack/');
 
         state.rawFiles.push({
           name: sanitizePath(file.name),

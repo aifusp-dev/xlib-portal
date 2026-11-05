@@ -17,7 +17,7 @@ interface BoomboxSongsEditorProps {
 }
 
 const soundOggPath = (soundId: string) =>
-  `plugins/ItemsAdder/contents/${NAMESPACE}/resource_pack/assets/${NAMESPACE}/sounds/${soundId}.ogg`;
+  `plugins/ItemsAdder/contents/${NAMESPACE}/resourcepack/${NAMESPACE}/sounds/${soundId}.ogg`;
 
 const inputCls = "w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-yellow-400/50";
 const labelCls = "text-[10px] text-gray-500 uppercase font-black tracking-widest";

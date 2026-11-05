@@ -88,7 +88,7 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
 
         const [ns, path] = mcPath.includes(':') ? mcPath.split(':') : [namespace, mcPath];
 
-        const targetModel = `resource_pack/assets/${ns}/models/${path}.json`;
+        const targetModel = `resourcepack/${ns}/models/${path}.json`;
         const modelFile = rawFiles.find(f => f.inferredPath.endsWith(targetModel));
 
         if (modelFile) {
@@ -102,7 +102,7 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
                     if (model.textures) {
                         Object.entries(model.textures).forEach(([key, texPath]: [string, any]) => {
                             const [tNs, tP] = texPath.includes(':') ? texPath.split(':') : [ns, texPath];
-                            const texFile = rawFiles.find(f => f.inferredPath.endsWith(`resource_pack/assets/${tNs}/textures/${tP}.png`));
+                            const texFile = rawFiles.find(f => f.inferredPath.endsWith(`resourcepack/${tNs}/textures/${tP}.png`));
                             if (texFile) {
                                 const u = URL.createObjectURL(new Blob([texFile.content]));
                                 currentTextures[key] = u;
@@ -117,7 +117,7 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
         }
 
         if (!isCurrent3D) {
-            const targetTex = `resource_pack/assets/${ns}/textures/${path}.png`;
+            const targetTex = `resourcepack/${ns}/textures/${path}.png`;
             const file = rawFiles.find(f => f.inferredPath.endsWith(targetTex));
             if (file) {
                 currentUrl = URL.createObjectURL(new Blob([file.content]));
@@ -262,7 +262,7 @@ const DIRECTIONAL_FACE_ROLES: Record<string, { key: string; label: string; faces
 
 /** Ruta en disco de la textura subida para un rol de cara de un bloque direccional. */
 const directionalFaceTexturePath = (ns: string, sid: string, roleKey: string) =>
-    `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/block/${sid}_${roleKey}.png`;
+    `plugins/ItemsAdder/contents/${ns}/resourcepack/${ns}/textures/block/${sid}_${roleKey}.png`;
 
 /**
  * Orden de caras que ItemsAdder espera en resource.textures para un bloque direccional
@@ -310,7 +310,7 @@ function syncDirectionalBlockResource(newState: EcosystemState, fullKey: string,
     delete resource.model_path;
 
     // Limpia el model.json huérfano si el bloque venía de la versión anterior de este fix.
-    const modelInferredPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/models/block/${sid}.json`;
+    const modelInferredPath = `plugins/ItemsAdder/contents/${ns}/resourcepack/${ns}/models/block/${sid}.json`;
     const existingIdx = newState.rawFiles.findIndex(f => f.inferredPath === modelInferredPath);
     if (existingIdx !== -1) newState.rawFiles.splice(existingIdx, 1);
 }
@@ -1067,7 +1067,7 @@ export default function StudioWorkspace() {
             }
         } catch (err) { console.error("Error processing JSON model", err); }
 
-        const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/models/${modelFolder}/${sanitizedFileName}`;
+        const targetPath = `plugins/ItemsAdder/contents/${ns}/resourcepack/${ns}/models/${modelFolder}/${sanitizedFileName}`;
         upsertRawFile(sanitizedFileName, buffer, targetPath);
 
         resource.model_path = `${ns}:${modelFolder}/${modelName}`;
@@ -1086,7 +1086,7 @@ export default function StudioWorkspace() {
             || (texturasEsperadas.size <= 1 ? modelName : originalName);
         texturasRecibidas.add(newName);
         const finalFileName = `${newName}.png`;
-        const targetPath = `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/textures/${modelFolder}/${finalFileName}`;
+        const targetPath = `plugins/ItemsAdder/contents/${ns}/resourcepack/${ns}/textures/${modelFolder}/${finalFileName}`;
         upsertRawFile(finalFileName, buffer, targetPath);
         texturasSubidas.push(`${ns}:${modelFolder}/${newName}`);
       }

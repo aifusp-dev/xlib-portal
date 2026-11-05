@@ -14,7 +14,7 @@ interface IASoundsEditorProps {
 }
 
 const soundOggPath = (ns: string, soundId: string) =>
-  `plugins/ItemsAdder/contents/${ns}/resource_pack/assets/${ns}/sounds/${soundId}.ogg`;
+  `plugins/ItemsAdder/contents/${ns}/resourcepack/${ns}/sounds/${soundId}.ogg`;
 
 /**
  * Sección "Sonidos" del Studio (ItemsAdder): sube .ogg custom y mantiene sounds.json del
