@@ -84,13 +84,13 @@ function NavLink({ item, pathname, onNavigate }: { item: NavItem; pathname: stri
       href={item.href}
       onClick={onNavigate}
       className={cn(
-        "flex items-center gap-2.5 px-3 py-1.5 text-sm rounded-r-md border-l-2 transition-all duration-150",
+        "flex items-center gap-2.5 px-3 py-1.5 text-sm rounded-md border-l-2 transition-all duration-150",
         isActive
-          ? "border-yellow-400 bg-yellow-400/8 text-yellow-400 font-semibold"
-          : "border-transparent text-gray-400 hover:text-gray-100 hover:bg-white/4"
+          ? "border-accent bg-surface-2 text-ink font-semibold"
+          : "border-transparent text-ink-2 hover:text-ink hover:bg-surface-1"
       )}
     >
-      <item.icon className="w-3.5 h-3.5 shrink-0" />
+      <item.icon className={cn("w-3.5 h-3.5 shrink-0", isActive && "text-accent")} />
       {item.label}
     </Link>
   );
@@ -106,11 +106,11 @@ export default function Sidebar() {
   }
 
   return (
-    <>
+    <div className="wiki-shell contents">
       {/* Botón hamburguesa — solo en móvil, fijo para que exista incluso con el menú cerrado */}
       <button
         onClick={() => setMobileOpen(true)}
-        className="md:hidden fixed top-3 left-3 z-30 p-2 rounded-lg bg-surface-1 border border-line text-gray-300"
+        className="md:hidden fixed top-3 left-3 z-30 p-2 rounded-md bg-surface-1 border border-line text-ink-2"
         aria-label="Abrir menú"
       >
         <Menu className="w-5 h-5" />
@@ -133,15 +133,15 @@ export default function Sidebar() {
       {/* Logo */}
       <header className="px-4 py-5 border-b border-line flex items-center justify-between gap-2.5">
         <Link href="/" className="flex items-center gap-2.5">
-          <Package className="w-5 h-5 text-yellow-400 shrink-0" strokeWidth={2} />
+          <Package className="w-5 h-5 text-accent shrink-0" strokeWidth={1.75} />
           <div>
-            <p className="text-[15px] font-bold text-white leading-tight tracking-tight">xLib Portal</p>
-            <p className="text-[10px] font-mono text-yellow-400/80 uppercase tracking-widest">v2.0 Docs</p>
+            <p className="text-[15px] font-bold text-ink leading-tight tracking-tight">xLib Portal</p>
+            <p className="text-[10px] font-mono text-accent/80 uppercase tracking-widest">v2.0 Docs</p>
           </div>
         </Link>
         <button
           onClick={() => setMobileOpen(false)}
-          className="md:hidden p-1 text-gray-400 hover:text-gray-100"
+          className="md:hidden p-1 text-ink-2 hover:text-ink"
           aria-label="Cerrar menú"
         >
           <X className="w-4 h-4" />
@@ -150,7 +150,7 @@ export default function Sidebar() {
 
       {/* Search */}
       <div className="px-3 py-3 border-b border-line">
-        <div className="flex items-center gap-2 bg-surface-0 border border-line-strong rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2 bg-surface-0 border border-line-strong rounded-md px-3 py-2">
           <Search className="w-3.5 h-3.5 text-ink-2 shrink-0" />
           <span className="text-sm text-ink-2">Buscar...</span>
           <span className="ml-auto text-[10px] bg-surface-1 text-ink-2 px-1.5 py-0.5 rounded font-mono">⌘K</span>
@@ -166,7 +166,7 @@ export default function Sidebar() {
               {group.collapsible ? (
                 <button
                   onClick={() => toggle(group.group)}
-                  className="w-full flex items-center justify-between px-3 py-1.5 mb-1 text-[11px] font-bold uppercase tracking-widest text-ink-2 hover:text-gray-300 transition-colors"
+                  className="w-full flex items-center justify-between px-3 py-1.5 mb-1 text-[11px] font-bold uppercase tracking-widest text-ink-2 hover:text-ink transition-colors"
                 >
                   {group.group}
                   {isCollapsed
@@ -194,10 +194,10 @@ export default function Sidebar() {
       {/* Footer */}
       <footer className="px-4 py-3 border-t border-line">
         <p className="text-[11px] text-ink-2 text-center">
-          © aifusp.dev — <span className="text-yellow-400/60">xLib v2.0</span>
+          © aifusp.dev — <span className="text-accent/70">xLib v2.0</span>
         </p>
       </footer>
       </aside>
-    </>
+    </div>
   );
 }
