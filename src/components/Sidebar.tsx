@@ -7,7 +7,7 @@ import {
   HeartPulse, Coins, Clock, UserCircle, Library,
   Smartphone, Album, Users, Search, ChevronDown, ChevronRight,
   Gavel, Hammer, Swords, Building2, Wrench, Car, Briefcase, Map,
-  Menu, X
+  Menu, X, Package
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -133,7 +133,7 @@ export default function Sidebar() {
       {/* Logo */}
       <header className="px-4 py-5 border-b border-line flex items-center justify-between gap-2.5">
         <Link href="/" className="flex items-center gap-2.5">
-          <span className="text-2xl">📦</span>
+          <Package className="w-5 h-5 text-yellow-400 shrink-0" strokeWidth={2} />
           <div>
             <p className="text-[15px] font-bold text-white leading-tight tracking-tight">xLib Portal</p>
             <p className="text-[10px] font-mono text-yellow-400/80 uppercase tracking-widest">v2.0 Docs</p>

@@ -1,4 +1,4 @@
-import { ArrowRight, Book, Smartphone, Album, Users, ChefHat, Shield, Zap } from "lucide-react";
+import { ArrowRight, Book, Smartphone, Album, Users, ChefHat, Shield } from "lucide-react";
 import Link from "next/link";
 
 const categories = [
@@ -58,9 +58,6 @@ export default function Home() {
     <div className="max-w-4xl mx-auto w-full px-8 py-14 animate-wiki">
       {/* Hero */}
       <div className="mb-14">
-        <div className="inline-flex items-center gap-2 text-xs font-mono text-yellow-400/70 bg-yellow-400/8 border border-yellow-400/20 px-3 py-1 rounded-full mb-5">
-          <Zap className="w-3 h-3" /> v2.0 · aifusp.dev
-        </div>
         <h1 className="text-4xl font-extrabold text-white tracking-tight mb-4 leading-tight">
           Wiki oficial de <span className="text-yellow-400">xLib</span>
         </h1>
