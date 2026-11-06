@@ -398,6 +398,12 @@ const cloneLinkedIaEntry = (state: EcosystemState, oldLeaf: string, newLeaf: str
     });
 };
 
+// ItemsAdder no tiene sección de nivel superior "blocks"/"furnitures": todo vive bajo "items"
+// (confirmado decompilando ItemsAdder_4.0.17.jar, ver comentario en updateField más abajo).
+// Las tres categorías de la UI (Ítems/Bloques/Muebles) son solo mapas internos del Studio para
+// organizar la edición; el YAML que se exporta siempre usa "items".
+const currentIAKeyName = "items";
+
 // --- MAIN PAGE ---
 export default function StudioWorkspace() {
   const [projectState, setProjectState] = useState<EcosystemState | null>(null);
@@ -1486,12 +1492,6 @@ export default function StudioWorkspace() {
       </div>
     );
   }
-
-  // ItemsAdder no tiene sección de nivel superior "blocks"/"furnitures": todo vive bajo "items"
-  // (confirmado decompilando ItemsAdder_4.0.17.jar, ver comentario en updateField más arriba).
-  // Las tres categorías de la UI (Ítems/Bloques/Muebles) son solo mapas internos del Studio para
-  // organizar la edición; el YAML que se exporta siempre usa "items".
-  const currentIAKeyName = "items";
 
   const countFor = (id: string): number => {
     if (id === 'ia') return Object.keys(projectState.iaItems).length + Object.keys(projectState.iaBlocks).length + Object.keys(projectState.iaFurnitures).length;
