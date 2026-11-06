@@ -30,7 +30,7 @@ interface PotionEffectsEditorProps {
   mutate: (fn: (potion: PotionConfig) => void) => void;
 }
 
-const inputCls = "w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-yellow-400/50";
+const inputCls = "w-full bg-black/20 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none focus:border-accent/50";
 
 function EffectList({ title, hint, entries, onAdd, onRemove, onSetField, accent }: {
   title: string;
@@ -47,10 +47,10 @@ function EffectList({ title, hint, entries, onAdd, onRemove, onSetField, accent 
         <span className={`text-[10px] font-black uppercase tracking-widest ${accent}`}>{title}</span>
         <button onClick={onAdd} className="text-[9px] font-black text-blue-400 uppercase hover:text-blue-300 transition-colors">+ Efecto</button>
       </div>
-      {hint && <p className="text-[10px] text-gray-600 italic">{hint}</p>}
+      {hint && <p className="text-[10px] text-ink-3 italic">{hint}</p>}
       <div className="space-y-2">
         {entries.map((effect, idx) => (
-          <div key={idx} className="flex gap-2 items-end bg-black/20 border border-white/5 rounded-xl p-3">
+          <div key={idx} className="flex gap-2 items-end bg-black/20 border border-line rounded-md p-3">
             <div className="flex-1"><Field label="Efecto">
               <select value={effect.type || 'SPEED'} onChange={(e) => onSetField(idx, 'type', e.target.value)} className={inputCls}>
                 {POTION_EFFECT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -62,11 +62,11 @@ function EffectList({ title, hint, entries, onAdd, onRemove, onSetField, accent 
             <div className="w-28"><Field label="Duración (seg)">
               <input type="number" min={1} value={effect.duration ?? 30} onChange={(e) => onSetField(idx, 'duration', parseInt(e.target.value) || 1)} className={inputCls} />
             </Field></div>
-            <button onClick={() => onRemove(idx)} className="text-gray-600 hover:text-red-500 transition-colors shrink-0 pb-2.5"><Trash2 className="w-4 h-4" /></button>
+            <button onClick={() => onRemove(idx)} className="text-ink-3 hover:text-red-500 transition-colors shrink-0 pb-2.5"><Trash2 className="w-4 h-4" /></button>
           </div>
         ))}
         {entries.length === 0 && (
-          <p className="text-[10px] text-gray-600 italic">Sin efectos configurados.</p>
+          <p className="text-[10px] text-ink-3 italic">Sin efectos configurados.</p>
         )}
       </div>
     </div>
@@ -98,7 +98,7 @@ export default function PotionEffectsEditor({ potion, mutate }: PotionEffectsEdi
 
   return (
     <div className="space-y-6">
-      <p className="text-[11px] text-gray-500 leading-relaxed">
+      <p className="text-[11px] text-ink-2 leading-relaxed">
         Configura aquí si esta comida da un &quot;subidón&quot; de efectos al comerla y, opcionalmente, un &quot;bajón&quot; después.
         No hace falta escribir ningún comando: esto ya usa la API de Bukkit directamente.
       </p>

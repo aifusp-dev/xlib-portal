@@ -10,7 +10,7 @@ interface InitialStateEditorProps {
   mutate: (fn: (state: InitialStateConfig) => void) => void;
 }
 
-const inputCls = "w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-yellow-400/50";
+const inputCls = "w-full bg-black/20 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none focus:border-accent/50";
 
 export default function InitialStateEditor({ state, mutate }: InitialStateEditorProps) {
   const entries = Object.entries(state || {});
@@ -41,7 +41,7 @@ export default function InitialStateEditor({ state, mutate }: InitialStateEditor
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{entries.length} clave(s)</span>
+        <span className="text-[10px] text-ink-2 uppercase font-black tracking-widest">{entries.length} clave(s)</span>
         <button
           onClick={addEntry}
           className="flex items-center gap-1 text-[10px] font-black uppercase bg-pink-500/10 text-pink-400 px-3 py-1.5 rounded-lg border border-pink-500/20 hover:bg-pink-500/20 transition-colors"
@@ -64,12 +64,12 @@ export default function InitialStateEditor({ state, mutate }: InitialStateEditor
               />
               <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
                 <input type="checkbox" checked={isBool} onChange={(e) => setValue(key, e.target.checked ? false : 0)} />
-                <span className="text-[9px] text-gray-500 uppercase font-bold">Bool</span>
+                <span className="text-[9px] text-ink-2 uppercase font-bold">Bool</span>
               </label>
               {isBool ? (
                 <select value={String(value)} onChange={(e) => setValue(key, e.target.value === "true")} className={inputCls}>
-                  <option value="true" className="bg-surface-1 text-white">true</option>
-                  <option value="false" className="bg-surface-1 text-white">false</option>
+                  <option value="true" className="bg-surface-1 text-ink">true</option>
+                  <option value="false" className="bg-surface-1 text-ink">false</option>
                 </select>
               ) : (
                 <input
@@ -79,14 +79,14 @@ export default function InitialStateEditor({ state, mutate }: InitialStateEditor
                   className={inputCls}
                 />
               )}
-              <button onClick={() => removeEntry(key)} className="text-gray-600 hover:text-red-500 transition-colors">
+              <button onClick={() => removeEntry(key)} className="text-ink-3 hover:text-red-500 transition-colors">
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
           );
         })}
         {entries.length === 0 && (
-          <p className="text-[10px] text-gray-600 italic">
+          <p className="text-[10px] text-ink-3 italic">
             Sin estado inicial: el ítem nace sin contadores ni interruptores puestos (las acciones que los lean usarán su propio default).
           </p>
         )}

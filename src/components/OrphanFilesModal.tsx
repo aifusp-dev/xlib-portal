@@ -14,9 +14,9 @@ interface OrphanFilesModalProps {
 
 const iconFor = (name: string) => {
     if (name.endsWith('.png')) return <FileImage className="w-4 h-4 text-blue-400 shrink-0" />;
-    if (name.endsWith('.json')) return <FileJson className="w-4 h-4 text-yellow-400 shrink-0" />;
+    if (name.endsWith('.json')) return <FileJson className="w-4 h-4 text-accent shrink-0" />;
     if (name.endsWith('.ogg')) return <Music4 className="w-4 h-4 text-purple-400 shrink-0" />;
-    return <FileImage className="w-4 h-4 text-gray-500 shrink-0" />;
+    return <FileImage className="w-4 h-4 text-ink-2 shrink-0" />;
 };
 
 const formatSize = (content: StudioFile['content']): string => {
@@ -72,19 +72,19 @@ export default function OrphanFilesModal({ isOpen, onClose, orphanFiles, onDelet
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
 
-            <div className="relative bg-[#111827] border border-[#374151] w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
-                <div className="p-6 border-b border-[#374151] flex justify-between items-center shrink-0">
+            <div className="relative bg-surface-1 border border-line-strong w-full max-w-2xl rounded-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+                <div className="p-6 border-b border-line-strong flex justify-between items-center shrink-0">
                     <div className="flex items-center gap-3 text-orange-400">
                         <AlertTriangle className="w-6 h-6" />
-                        <h2 className="text-xl font-bold text-white tracking-tight">Recursos Sueltos</h2>
+                        <h2 className="text-xl font-bold text-ink tracking-tight">Recursos Sueltos</h2>
                     </div>
-                    <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+                    <button onClick={onClose} className="text-ink-2 hover:text-ink transition-colors">
                         <X className="w-6 h-6" />
                     </button>
                 </div>
 
-                <div className="px-6 py-4 bg-black/20 border-b border-[#374151] shrink-0">
-                    <p className="text-xs text-gray-400 leading-relaxed">
+                <div className="px-6 py-4 bg-black/20 border-b border-line-strong shrink-0">
+                    <p className="text-xs text-ink-2 leading-relaxed">
                         Modelos, texturas y sonidos de ItemsAdder que ya no referencia ningún ítem, bloque, mueble,
                         sonido ni canción de este proyecto. Suelen quedar así tras borrar/editar un ítem desde fuera
                         del Studio, o de versiones antiguas de la convención de carpetas. Revisa la lista antes de
@@ -94,7 +94,7 @@ export default function OrphanFilesModal({ isOpen, onClose, orphanFiles, onDelet
 
                 <div className="flex-1 overflow-y-auto">
                     {sorted.length === 0 ? (
-                        <div className="py-16 text-center text-gray-500 text-sm">
+                        <div className="py-16 text-center text-ink-2 text-sm">
                             No hay ningún recurso suelto. Todo lo que hay en el proyecto está en uso.
                         </div>
                     ) : (
@@ -108,17 +108,17 @@ export default function OrphanFilesModal({ isOpen, onClose, orphanFiles, onDelet
                                         className="w-4 h-4 accent-orange-400 shrink-0"
                                     />
                                     {iconFor(file.name)}
-                                    <span className="flex-1 truncate text-sm text-gray-300 font-mono">{displayPath(file.inferredPath)}</span>
-                                    <span className="text-[10px] text-gray-600 font-bold uppercase shrink-0">{formatSize(file.content)}</span>
+                                    <span className="flex-1 truncate text-sm text-ink font-mono">{displayPath(file.inferredPath)}</span>
+                                    <span className="text-[10px] text-ink-3 font-bold uppercase shrink-0">{formatSize(file.content)}</span>
                                 </label>
                             ))}
                         </div>
                     )}
                 </div>
 
-                <div className="p-4 bg-black/40 border-t border-[#374151] flex items-center justify-between shrink-0">
+                <div className="p-4 bg-black/40 border-t border-line-strong flex items-center justify-between shrink-0">
                     {sorted.length > 0 ? (
-                        <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+                        <label className="flex items-center gap-2 text-xs text-ink-2 cursor-pointer">
                             <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-4 h-4 accent-orange-400" />
                             Seleccionar todos ({sorted.length})
                         </label>
@@ -126,9 +126,9 @@ export default function OrphanFilesModal({ isOpen, onClose, orphanFiles, onDelet
                     <button
                         onClick={handleDelete}
                         disabled={selected.size === 0}
-                        className={cn("flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all",
+                        className={cn("flex items-center gap-2 px-6 py-2.5 rounded-md font-bold text-sm transition-all",
                             selected.size === 0
-                                ? "bg-white/5 text-gray-600 cursor-not-allowed"
+                                ? "bg-white/5 text-ink-3 cursor-not-allowed"
                                 : "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20")}
                     >
                         <Trash2 className="w-4 h-4" /> Borrar seleccionados ({selected.size})

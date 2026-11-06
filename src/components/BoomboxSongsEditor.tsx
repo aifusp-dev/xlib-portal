@@ -19,8 +19,8 @@ interface BoomboxSongsEditorProps {
 const soundOggPath = (soundId: string) =>
   `plugins/ItemsAdder/contents/${NAMESPACE}/resourcepack/${NAMESPACE}/sounds/${soundId}.ogg`;
 
-const inputCls = "w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-yellow-400/50";
-const labelCls = "text-[10px] text-gray-500 uppercase font-black tracking-widest";
+const inputCls = "w-full bg-black/20 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none focus:border-accent/50";
+const labelCls = "text-[10px] text-ink-2 uppercase font-black tracking-widest";
 
 /**
  * Sección "Boombox" del Studio: un formulario único (id + nombre + artista + duración + .ogg)
@@ -99,10 +99,10 @@ export default function BoomboxSongsEditor({ songs, mutateSongs, mutateSounds, r
         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); addSong(e.dataTransfer.files); }}
-        className={`bg-surface-0 p-8 rounded-3xl border-2 border-dashed transition-colors space-y-4 ${dragOver ? "border-yellow-400/50 bg-yellow-400/5" : "border-white/5 hover:border-yellow-400/30"}`}
+        className={`bg-surface-0 p-8 rounded-lg border-2 border-dashed transition-colors space-y-4 ${dragOver ? "border-accent/50 bg-accent/5" : "border-line hover:border-accent/30"}`}
       >
         <h4 className="eyebrow">
-          Nueva canción <span className="text-gray-600 normal-case font-medium">(rellena los datos y arrastra el .ogg, o dale a Subir)</span>
+          Nueva canción <span className="text-ink-3 normal-case font-medium">(rellena los datos y arrastra el .ogg, o dale a Subir)</span>
         </h4>
 
         <div className="grid grid-cols-4 gap-3">
@@ -131,8 +131,8 @@ export default function BoomboxSongsEditor({ songs, mutateSongs, mutateSounds, r
           <input type="file" ref={fileInputRef} onChange={(e) => e.target.files && addSong(e.target.files)} className="hidden" accept=".ogg" />
         </div>
         <p className="hint">
-          El id se usa como nombre de fichero (<code className="text-yellow-400">xBoomBox/songs/&lt;id&gt;.yml</code>) y
-          como clave del sonido (<code className="text-yellow-400">xboombox:&lt;id&gt;</code>). Si lo dejas vacío se usa
+          El id se usa como nombre de fichero (<code className="text-accent">xBoomBox/songs/&lt;id&gt;.yml</code>) y
+          como clave del sonido (<code className="text-accent">xboombox:&lt;id&gt;</code>). Si lo dejas vacío se usa
           el nombre del propio .ogg.
         </p>
       </div>
@@ -166,8 +166,8 @@ function SongRow({ id, song, rawFiles, onChange, onDelete }: {
   }, [rawFile]);
 
   return (
-    <div className="flex items-center gap-4 bg-surface-0 border border-white/5 rounded-2xl px-4 py-3">
-      <Disc3 className="w-4 h-4 text-yellow-400 flex-none" />
+    <div className="flex items-center gap-4 bg-surface-0 border border-line rounded-md px-4 py-3">
+      <Disc3 className="w-4 h-4 text-accent flex-none" />
       <div className="grid grid-cols-3 gap-3 flex-1 min-w-0">
         <input type="text" value={song.displayName} onChange={(e) => onChange({ displayName: e.target.value })} className={inputCls} />
         <input type="text" value={song.artist} onChange={(e) => onChange({ artist: e.target.value })} className={inputCls} />
@@ -178,7 +178,7 @@ function SongRow({ id, song, rawFiles, onChange, onDelete }: {
       ) : (
         <span className="text-[10px] text-orange-400 font-semibold uppercase flex-none">Falta el .ogg</span>
       )}
-      <button onClick={onDelete} title="Borrar" className="p-2 hover:bg-white/10 rounded-lg transition-all flex-none text-gray-500 hover:text-red-400">
+      <button onClick={onDelete} title="Borrar" className="p-2 hover:bg-white/10 rounded-lg transition-all flex-none text-ink-2 hover:text-red-400">
         <Trash2 className="w-3.5 h-3.5" />
       </button>
     </div>

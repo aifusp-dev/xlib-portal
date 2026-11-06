@@ -136,16 +136,16 @@ const VisualPreview = ({ mcPath, rawFiles, namespace }: { mcPath: string | null,
 
     if (is3D && modelData) {
         return (
-            <div className="w-32 h-32 bg-black/40 rounded-2xl flex items-center justify-center border border-white/10 shrink-0 overflow-hidden shadow-inner cursor-grab active:cursor-grabbing">
+            <div className="w-32 h-32 bg-black/40 rounded-md flex items-center justify-center border border-line-strong shrink-0 overflow-hidden shadow-inner cursor-grab active:cursor-grabbing">
                 <Model3DViewer model={modelData} textureUrls={textureUrls} />
             </div>
         );
     }
 
-    if (!url) return <div className="w-32 h-32 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 shrink-0"><Package className="w-8 h-8 text-gray-700" /></div>;
+    if (!url) return <div className="w-32 h-32 bg-white/5 rounded-md flex items-center justify-center border border-line shrink-0"><Package className="w-8 h-8 text-ink-3" /></div>;
     
     return (
-        <div className="w-32 h-32 bg-black/40 rounded-2xl flex items-center justify-center border border-white/10 shrink-0 overflow-hidden group/preview relative shadow-inner">
+        <div className="w-32 h-32 bg-black/40 rounded-md flex items-center justify-center border border-line-strong shrink-0 overflow-hidden group/preview relative shadow-inner">
             <img src={url} alt="Preview" className="max-w-[80%] max-h-[80%] object-contain image-pixelated transition-transform group-hover/preview:scale-110 duration-500" />
         </div>
     );
@@ -1463,7 +1463,7 @@ export default function StudioWorkspace() {
   if (isAutoImporting || isInstallingPreset) {
     return (
         <div className="h-screen flex flex-col items-center justify-center space-y-6 bg-surface-0">
-            <div className="relative"><div className="w-24 h-24 border-4 border-yellow-400/20 border-t-yellow-400 rounded-full animate-spin" /><Cloud className="absolute inset-0 m-auto w-8 h-8 text-yellow-400 animate-pulse" /></div>
+            <div className="relative"><div className="w-24 h-24 border-4 border-accent/20 border-t-accent rounded-full animate-spin" /><Cloud className="absolute inset-0 m-auto w-8 h-8 text-accent animate-pulse" /></div>
             <h2 className="text-lg font-medium text-ink">{isInstallingPreset ? 'Instalando config de Descubrir...' : 'Sincronizando...'}</h2>
         </div>
     );
@@ -1473,18 +1473,18 @@ export default function StudioWorkspace() {
     return (
       <div className="max-w-4xl mx-auto py-20 text-center space-y-12 animate-in fade-in zoom-in-95 duration-700">
         <div className="space-y-4">
-          <div className="bg-yellow-400/10 p-6 rounded-full w-fit mx-auto border border-yellow-400/20"><Settings2 className="w-16 h-16 text-yellow-400" /></div>
+          <div className="bg-accent/10 p-6 rounded-full w-fit mx-auto border border-accent/20"><Settings2 className="w-16 h-16 text-accent" /></div>
           <h1 className="text-3xl font-semibold text-ink tracking-tight">Studio Workspace</h1>
           <p className="text-ink-2 text-sm max-w-md mx-auto">IA • XFOODS • XCROPS</p>
         </div>
         <div className="grid grid-cols-2 gap-8">
-            <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-line rounded-3xl p-16 hover:border-yellow-400/10 hover:bg-yellow-400/5 transition-all cursor-pointer group">
+            <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-line rounded-lg p-16 hover:border-accent/10 hover:bg-accent/5 transition-all cursor-pointer group">
                 <input type="file" ref={fileInputRef} onChange={handleFolderUpload} className="hidden" {...({ webkitdirectory: "", directory: "" } as any)} />
-                <Upload className="w-12 h-12 text-gray-500 mx-auto mb-6 group-hover:text-yellow-400 transition-colors" />
+                <Upload className="w-12 h-12 text-ink-2 mx-auto mb-6 group-hover:text-accent transition-colors" />
                 <p className="text-ink font-medium text-base">Subir Carpeta</p>
             </div>
-            <div onClick={() => setIsSyncModalOpen(true)} className="border-2 border-dashed border-blue-500/20 rounded-3xl p-16 hover:border-blue-500/10 hover:bg-blue-500/5 transition-all cursor-pointer group">
-                <Cloud className="w-12 h-12 text-gray-500 mx-auto mb-6 group-hover:text-blue-400 transition-colors" />
+            <div onClick={() => setIsSyncModalOpen(true)} className="border-2 border-dashed border-blue-500/20 rounded-lg p-16 hover:border-blue-500/10 hover:bg-blue-500/5 transition-all cursor-pointer group">
+                <Cloud className="w-12 h-12 text-ink-2 mx-auto mb-6 group-hover:text-blue-400 transition-colors" />
                 <p className="text-ink font-medium text-base">xLib Bridge</p>
             </div>
         </div>
@@ -1549,21 +1549,21 @@ export default function StudioWorkspace() {
                 <div className="flex flex-col border-l border-line pl-8">
                     <label className="eyebrow mb-1">Pack</label>
                     <select value={selectedNamespace} onChange={(e) => { setSelectedNamespace(e.target.value); setSelectedItem(null); }} className="bg-transparent text-[13px] font-semibold text-accent outline-none cursor-pointer">
-                        {availableNamespaces.map(ns => <option key={ns} value={ns} className="bg-surface-1 text-white">{ns}</option>)}
+                        {availableNamespaces.map(ns => <option key={ns} value={ns} className="bg-surface-1 text-ink">{ns}</option>)}
                     </select>
                 </div>
             )}
         </div>
         <div className="flex gap-3">
-          <a href="/discover" className="flex items-center gap-2 bg-yellow-400/10 text-yellow-400 px-6 py-2.5 rounded-xl font-bold hover:bg-yellow-400/20 transition-all border border-yellow-400/20"><Rocket className="w-4 h-4" /> Descubrir</a>
-          <button onClick={() => setIsSyncModalOpen(true)} className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-2.5 rounded-xl font-bold hover:bg-blue-500/20 transition-all border border-blue-500/20"><Cloud className="w-4 h-4" /> Bridge</button>
+          <a href="/discover" className="flex items-center gap-2 bg-accent/10 text-accent px-6 py-2.5 rounded-md font-bold hover:bg-accent/20 transition-all border border-accent/20"><Rocket className="w-4 h-4" /> Descubrir</a>
+          <button onClick={() => setIsSyncModalOpen(true)} className="flex items-center gap-2 bg-blue-500/10 text-blue-400 px-6 py-2.5 rounded-md font-bold hover:bg-blue-500/20 transition-all border border-blue-500/20"><Cloud className="w-4 h-4" /> Bridge</button>
           {orphanRawFiles.length > 0 && (
-            <button onClick={() => setIsOrphanModalOpen(true)} className="flex items-center gap-2 bg-orange-500/10 text-orange-400 px-6 py-2.5 rounded-xl font-bold hover:bg-orange-500/20 transition-all border border-orange-500/20">
+            <button onClick={() => setIsOrphanModalOpen(true)} className="flex items-center gap-2 bg-orange-500/10 text-orange-400 px-6 py-2.5 rounded-md font-bold hover:bg-orange-500/20 transition-all border border-orange-500/20">
                 <AlertTriangle className="w-4 h-4" /> Recursos Sueltos <span className="bg-orange-400/20 text-[10px] px-1.5 py-0.5 rounded-full">{orphanRawFiles.length}</span>
             </button>
           )}
           <button onClick={() => { setProjectState(null); setSelectedItem(null); clearSnapshot(); }} className="btn btn-ghost">Cerrar</button>
-          <button onClick={() => exportEcosystem(projectState)} className="flex items-center gap-2 bg-accent text-white px-8 py-2.5 rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"><Download className="w-4 h-4" /> ZIP</button>
+          <button onClick={() => exportEcosystem(projectState)} className="flex items-center gap-2 bg-accent text-accent-ink px-8 py-2.5 rounded-md font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"><Download className="w-4 h-4" /> ZIP</button>
         </div>
       </header>
 
@@ -1602,10 +1602,10 @@ export default function StudioWorkspace() {
       ) : (activeEditor === 'ia' && activeCategory === 'sounds') ? (
       <div className="flex-1 panel overflow-hidden p-6 overflow-y-auto space-y-6">
         <div className="p-1 flex gap-2 overflow-x-auto scrollbar-hide bg-surface-0 rounded-[8px] border border-line w-fit">
-          <button onClick={() => { setActiveCategory('items'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 text-gray-500 hover:text-gray-300">Ítems</button>
-          <button onClick={() => { setActiveCategory('blocks'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 text-gray-500 hover:text-gray-300">Bloques</button>
-          <button onClick={() => { setActiveCategory('furnitures'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 text-gray-500 hover:text-gray-300">Muebles</button>
-          <button onClick={() => { setActiveCategory('sounds'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 bg-white/10 text-white">Sonidos</button>
+          <button onClick={() => { setActiveCategory('items'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 text-ink-2 hover:text-ink">Ítems</button>
+          <button onClick={() => { setActiveCategory('blocks'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 text-ink-2 hover:text-ink">Bloques</button>
+          <button onClick={() => { setActiveCategory('furnitures'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 text-ink-2 hover:text-ink">Muebles</button>
+          <button onClick={() => { setActiveCategory('sounds'); setSelectedItem(null); }} className="px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0 bg-white/10 text-ink">Sonidos</button>
         </div>
         {selectedNamespace ? (
           <IASoundsEditor
@@ -1624,10 +1624,10 @@ export default function StudioWorkspace() {
         <aside className="col-span-3 panel flex flex-col overflow-hidden">
            {activeEditor === 'ia' && (
                <div className="p-4 border-b border-line flex gap-2 overflow-x-auto scrollbar-hide">
-                  <button onClick={() => { setActiveCategory('items'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'items' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Ítems</button>
-                  <button onClick={() => { setActiveCategory('blocks'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'blocks' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Bloques</button>
-                  <button onClick={() => { setActiveCategory('furnitures'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'furnitures' ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Muebles</button>
-                  <button onClick={() => { setActiveCategory('sounds'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", "text-gray-500 hover:text-gray-300")}>Sonidos</button>
+                  <button onClick={() => { setActiveCategory('items'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'items' ? "bg-white/10 text-ink" : "text-ink-2 hover:text-ink")}>Ítems</button>
+                  <button onClick={() => { setActiveCategory('blocks'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'blocks' ? "bg-white/10 text-ink" : "text-ink-2 hover:text-ink")}>Bloques</button>
+                  <button onClick={() => { setActiveCategory('furnitures'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", activeCategory === 'furnitures' ? "bg-white/10 text-ink" : "text-ink-2 hover:text-ink")}>Muebles</button>
+                  <button onClick={() => { setActiveCategory('sounds'); setSelectedItem(null); }} className={cn("px-4 py-2 text-[10px] font-semibold uppercase rounded-lg transition-all flex-shrink-0", "text-ink-2 hover:text-ink")}>Sonidos</button>
                </div>
            )}
            <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -1650,10 +1650,10 @@ export default function StudioWorkspace() {
                     Object.entries(groupedX).map(([folder, items]) => (
                         <div key={folder} className="space-y-1">
                             <button onClick={() => setOpenFolders(prev => ({ ...prev, [folder]: !prev[folder] }))} className="w-full flex items-center justify-between px-2 py-1 hover:bg-white/5 rounded-lg transition-colors group">
-                                <div className="flex items-center gap-2">{openFolders[folder] ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronRight className="w-3 h-3 text-gray-500" />}<span className="eyebrow group-hover:text-ink-2">{folder}</span></div>
+                                <div className="flex items-center gap-2">{openFolders[folder] ? <ChevronDown className="w-3 h-3 text-ink-2" /> : <ChevronRight className="w-3 h-3 text-ink-2" />}<span className="eyebrow group-hover:text-ink-2">{folder}</span></div>
                             </button>
                             {(openFolders[folder] || folder === "Raíz") && (
-                                <div className="space-y-0.5 ml-2 border-l border-white/5 pl-2">
+                                <div className="space-y-0.5 ml-2 border-l border-line pl-2">
                                     {items.map(id => {
                                         const cfg: any = mapFor(projectState, activeEditor as PluginEditor)[id]?.config ?? {};
                                         const esComida = activeEditor === 'xfoods';
@@ -1706,7 +1706,7 @@ export default function StudioWorkspace() {
                    </div>
                    <div className="flex flex-col gap-2">
                         {activeEditor !== 'ia' && (
-                            <button onClick={() => setIsPublishModalOpen(true)} className="btn btn-ghost text-yellow-400"><Rocket className="w-3 h-3"/> Publicar en Descubrir</button>
+                            <button onClick={() => setIsPublishModalOpen(true)} className="btn btn-ghost text-accent"><Rocket className="w-3 h-3"/> Publicar en Descubrir</button>
                         )}
                         <button onClick={(e) => handleCloneItem(selectedItem, e)} className="btn btn-ghost"><Copy className="w-3 h-3"/> Clonar</button>
                         <button onClick={(e) => handleDeleteItem(selectedItem, e)} className="btn btn-danger"><Trash2 className="w-3 h-3"/> Borrar</button>
@@ -1715,7 +1715,7 @@ export default function StudioWorkspace() {
 
                 <div className="space-y-8">
                     <div className="space-y-6">
-                        <div className="section-head is-first text-yellow-400"><Info /><h4 className="section-title">Ajustes Base</h4></div>
+                        <div className="section-head is-first text-accent"><Info /><h4 className="section-title">Ajustes Base</h4></div>
                         <div className={cn("grid gap-6", activeEditor === 'ia' ? "grid-cols-2" : "grid-cols-3")}>
                             <div className="space-y-2">
                                 <label className="label">Nombre Display</label>
@@ -1728,7 +1728,7 @@ export default function StudioWorkspace() {
                                     onChange={(val) => updateField(activeEditor === 'ia' ? `${currentIAKeyName}.${selectedItem}.resource.material` : (activeEditor === 'xcrops' ? 'config.seed.material' : ((activeEditor === 'xitems' || activeEditor === 'xfooditems' || activeEditor === 'xitemsplugin') ? 'config.material' : 'config.item.material')), val, activeEditor === 'ia' ? selectedData.fullKey : undefined)}
                                     options={MATERIALS} strict placeholder="BREAD" className="input" />
                                 {isIAEnabled && activeEditor !== 'ia' && (
-                                    <p className="text-[10px] text-gray-500">Se aplica también al ítem de ItemsAdder, que es el que manda mientras la integración esté activa.</p>
+                                    <p className="text-[10px] text-ink-2">Se aplica también al ítem de ItemsAdder, que es el que manda mientras la integración esté activa.</p>
                                 )}
                             </div>
                             {(activeEditor === 'xfoods' || activeEditor === 'xcrops' || activeEditor === 'xmachines' || activeEditor === 'xitems' || activeEditor === 'xfooditems' || activeEditor === 'xitemsplugin') && (
@@ -1754,10 +1754,10 @@ export default function StudioWorkspace() {
                                 <button
                                     type="button"
                                     onClick={() => updateField('config.stats.consumable', !(selectedData.config.stats?.consumable ?? true))}
-                                    className={cn("w-full rounded-xl px-4 py-3 text-left text-sm font-bold border transition-colors",
+                                    className={cn("w-full rounded-md px-4 py-3 text-left text-sm font-bold border transition-colors",
                                         (selectedData.config.stats?.consumable ?? true)
                                             ? "bg-green-500/10 border-green-500/40 text-green-300"
-                                            : "bg-surface-0 border-line text-gray-400")}>
+                                            : "bg-surface-0 border-line text-ink-2")}>
                                     {(selectedData.config.stats?.consumable ?? true) ? "Sí — es una comida" : "No — es un ingrediente"}
                                 </button>
                                 <p className="hint">Los ingredientes (carne cruda, queso, lechuga…) deben ir en «No»: si no, el jugador se los come directamente en vez de usarlos en una máquina.</p>
@@ -1868,7 +1868,7 @@ export default function StudioWorkspace() {
                              </div>
 
                              <div className="space-y-6">
-                                <div className="section-head text-yellow-400"><Sprout /><h4 className="section-title">Cosecha</h4></div>
+                                <div className="section-head text-accent"><Sprout /><h4 className="section-title">Cosecha</h4></div>
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="space-y-2 col-span-2"><label className="label">Ítem xFoods al Cosechar</label><AutocompleteInput value={selectedData.config.harvest?.['xfoods-id'] || ''} onChange={(val) => updateField('config.harvest.xfoods-id', val)} options={foodIdOptions} className="input" /></div>
                                     <div className="space-y-2"><label className="label">Cantidad</label><input type="number" min={1} value={selectedData.config.harvest?.amount ?? 1} onChange={(e) => updateField('config.harvest.amount', parseInt(e.target.value))} className="input" /></div>
@@ -2008,16 +2008,16 @@ export default function StudioWorkspace() {
                             <div
                                 onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                 onDrop={handleIAFileUpload}
-                                className="bg-surface-0 p-8 rounded-3xl border-2 border-dashed border-white/5 space-y-6 transition-colors hover:border-yellow-400/30"
+                                className="bg-surface-0 p-8 rounded-lg border-2 border-dashed border-line space-y-6 transition-colors hover:border-accent/30"
                             >
-                                <div className="flex justify-between items-center"><h4 className="eyebrow">Recursos <span className="text-gray-600 normal-case font-medium">(arrastra .png / .json aquí)</span></h4><button onClick={() => iaFileInputRef.current?.click()} className="badge badge-ia">Inyectar</button><input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple /></div>
+                                <div className="flex justify-between items-center"><h4 className="eyebrow">Recursos <span className="text-ink-3 normal-case font-medium">(arrastra .png / .json aquí)</span></h4><button onClick={() => iaFileInputRef.current?.click()} className="badge badge-ia">Inyectar</button><input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple /></div>
                                 <div className="space-y-4">
                                     <div className="space-y-2"><label className="label">Ruta Modelo</label><input type="text" value={selectedData.data.resource?.model_path || ''} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.model_path`, e.target.value, selectedData.fullKey)} className="input" /></div>
-                                    <label className="flex items-center gap-3 cursor-pointer"><div className="relative"><input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.generate`, e.target.checked, selectedData.fullKey)} className="sr-only" /><div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-gray-700")}></div><div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div></div><span className="eyebrow">Auto-Gen 2D</span></label>
+                                    <label className="flex items-center gap-3 cursor-pointer"><div className="relative"><input type="checkbox" checked={selectedData.data.resource?.generate || false} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.resource.generate`, e.target.checked, selectedData.fullKey)} className="sr-only" /><div className={cn("w-8 h-4 rounded-full transition-colors", selectedData.data.resource?.generate ? "bg-green-500" : "bg-surface-2")}></div><div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", selectedData.data.resource?.generate ? "translate-x-4" : "")}></div></div><span className="eyebrow">Auto-Gen 2D</span></label>
                                 </div>
                             </div>
 
-                            <div className="bg-surface-0 p-8 rounded-3xl border border-white/5 space-y-6">
+                            <div className="bg-surface-0 p-8 rounded-lg border border-line space-y-6">
                                 <div className="section-head text-green-400"><CheckCircle2 /><h4 className="section-title">Estado y Permisos</h4></div>
                                 <div className="grid grid-cols-2 gap-6">
                                     <div className="space-y-2">
@@ -2028,7 +2028,7 @@ export default function StudioWorkspace() {
                                         <label className="flex items-center gap-3 cursor-pointer group/enabled">
                                             <div className="relative">
                                                 <input type="checkbox" checked={selectedData.data.enabled ?? true} onChange={(e) => updateField(`${currentIAKeyName}.${selectedItem}.enabled`, e.target.checked, selectedData.fullKey)} className="sr-only" />
-                                                <div className={cn("w-8 h-4 rounded-full transition-colors", (selectedData.data.enabled ?? true) ? "bg-green-500" : "bg-gray-700")}></div>
+                                                <div className={cn("w-8 h-4 rounded-full transition-colors", (selectedData.data.enabled ?? true) ? "bg-green-500" : "bg-surface-2")}></div>
                                                 <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", (selectedData.data.enabled ?? true) ? "translate-x-4" : "")}></div>
                                             </div>
                                             <span className="eyebrow">Habilitado</span>
@@ -2040,7 +2040,7 @@ export default function StudioWorkspace() {
                             {activeCategory === 'furnitures' && (
                                 <>
                                 <div className="grid grid-cols-2 gap-6">
-                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                    <div className="bg-surface-0 p-6 rounded-md border border-line space-y-4">
                                         <h4 className="section-title">Tipo de Mueble</h4>
                                         {/* "entity" es una propiedad PLANA de behaviours.furniture, en minúsculas
                                             (armor_stand/item_frame/item_display/glow_item_frame). No existe una
@@ -2073,11 +2073,11 @@ export default function StudioWorkspace() {
                                             <option value="item_display">item_display (Libre, escalable/rotable)</option>
                                         </select>
                                     </div>
-                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                    <div className="bg-surface-0 p-6 rounded-md border border-line space-y-4">
                                         <h4 className="section-title">Hitbox (Colisión)</h4>
                                         <div className="grid grid-cols-3 gap-3">
                                             {['length', 'width', 'height'].map(dim => (
-                                                <div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5">
+                                                <div key={dim} className="bg-black/20 p-2 rounded-lg border border-line">
                                                     <label className="label">{dim}</label>
                                                     <input type="number" step="0.1" value={selectedData.data.behaviours?.furniture?.hitbox?.[dim] || 1} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.hitbox.${dim}`, parseFloat(e.target.value), selectedData.fullKey)} className="input" />
                                                 </div>
@@ -2087,7 +2087,7 @@ export default function StudioWorkspace() {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-6">
-                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                    <div className="bg-surface-0 p-6 rounded-md border border-line space-y-4">
                                         <h4 className="section-title">Interacción</h4>
                                         <div className="space-y-4">
                                             <div className="space-y-1">
@@ -2095,13 +2095,13 @@ export default function StudioWorkspace() {
                                                 <input type="number" min="0" max="15" value={selectedData.data.behaviours?.furniture?.light_level || 0} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.light_level`, parseInt(e.target.value), selectedData.fullKey)} className="input" />
                                             </div>
                                             <label className="flex items-center gap-3 cursor-pointer">
-                                                <input type="checkbox" checked={selectedData.data.behaviours?.furniture?.solid || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.solid`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                                <input type="checkbox" checked={selectedData.data.behaviours?.furniture?.solid || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.solid`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-line-strong text-purple-400" />
                                                 <span className="eyebrow">Sólido (hitbox de barreras)</span>
                                             </label>
                                         </div>
                                     </div>
                                     {selectedData.data.behaviours?.furniture?.entity === 'item_frame' && (
-                                        <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                        <div className="bg-surface-0 p-6 rounded-md border border-line space-y-4">
                                             <h4 className="section-title">Colocable en</h4>
                                             <div className="grid grid-cols-3 gap-3">
                                                 {['walls', 'ceiling', 'floor'].map(side => (
@@ -2110,7 +2110,7 @@ export default function StudioWorkspace() {
                                                             type="checkbox"
                                                             checked={selectedData.data.behaviours?.furniture?.placeable_on?.[side] ?? (side === 'walls')}
                                                             onChange={(e) => updateField(`items.${selectedItem}.behaviours.furniture.placeable_on.${side}`, e.target.checked, selectedData.fullKey)}
-                                                            className="rounded bg-black border-white/10 text-purple-400"
+                                                            className="rounded bg-black border-line-strong text-purple-400"
                                                         />
                                                         <span className="label mb-0 group-hover/opt:text-ink transition-colors">{side}</span>
                                                     </label>
@@ -2125,7 +2125,7 @@ export default function StudioWorkspace() {
                             {activeCategory === 'blocks' && (
                                 <>
                                 <div className="grid grid-cols-2 gap-6">
-                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                    <div className="bg-surface-0 p-6 rounded-md border border-line space-y-4">
                                         <h4 className="section-title">Tipo de Generación</h4>
                                         {/* behaviours.block.placed_model.type: cada tipo usa un bloque vanilla
                                             distinto por debajo, con su propio límite de bloques custom en total
@@ -2145,7 +2145,7 @@ export default function StudioWorkspace() {
                                         </select>
                                         <p className="hint">Todos los tipos son bloques 100% reales, sin lag ni entidades (salvo TILE, que retextura un spawner).</p>
                                     </div>
-                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                    <div className="bg-surface-0 p-6 rounded-md border border-line space-y-4">
                                         <h4 className="section-title">Rotación Direccional</h4>
                                         <p className="hint -mt-2">Ocupa 4-6 ids de bloque custom por cada bloque (uno por cara). Requiere IA 4.0.10+.</p>
                                         <select
@@ -2187,7 +2187,7 @@ export default function StudioWorkspace() {
                                             const ns = selectedData.fullKey.split('/')[0];
                                             const sid = selectedItem as string;
                                             return (
-                                                <div className="space-y-2 pt-2 border-t border-white/5">
+                                                <div className="space-y-2 pt-2 border-t border-line">
                                                     <p className="hint">Sube una textura por rol. El que dejes sin subir usa de momento la textura base del bloque, para que el modelo generado nunca se quede corto de caras.</p>
                                                     {roles.map(role => {
                                                         const uploaded = projectState.rawFiles.some(f => f.inferredPath === directionalFaceTexturePath(ns, sid, role.key));
@@ -2222,7 +2222,7 @@ export default function StudioWorkspace() {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-6">
-                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                    <div className="bg-surface-0 p-6 rounded-md border border-line space-y-4">
                                         <h4 className="section-title">Resistencia</h4>
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="space-y-1">
@@ -2235,51 +2235,51 @@ export default function StudioWorkspace() {
                                             </div>
                                         </div>
                                         <label className="flex items-center gap-3 cursor-pointer">
-                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.no_explosion || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.no_explosion`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.no_explosion || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.no_explosion`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-line-strong text-purple-400" />
                                             <span className="eyebrow">Inmune a explosiones</span>
                                         </label>
                                     </div>
-                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                    <div className="bg-surface-0 p-6 rounded-md border border-line space-y-4">
                                         <h4 className="section-title">Drops</h4>
                                         <label className="flex items-center gap-3 cursor-pointer">
-                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.drop_when_mined ?? true} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.drop_when_mined`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.drop_when_mined ?? true} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.drop_when_mined`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-line-strong text-purple-400" />
                                             <span className="eyebrow">Suelta el ítem al minar</span>
                                         </label>
                                         <p className="hint -mt-2">Desactívalo si le pones un loot custom en loots.yml, para evitar duplicar.</p>
                                         <label className="flex items-center gap-3 cursor-pointer">
-                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.drop_on_shears || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.drop_on_shears`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.drop_on_shears || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.drop_on_shears`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-line-strong text-purple-400" />
                                             <span className="eyebrow">Suelta con tijeras</span>
                                         </label>
                                         <label className="flex items-center gap-3 cursor-pointer">
-                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.drop_on_silk_touch ?? true} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.drop_on_silk_touch`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.drop_on_silk_touch ?? true} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.drop_on_silk_touch`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-line-strong text-purple-400" />
                                             <span className="eyebrow">Suelta con Toque de Seda</span>
                                         </label>
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-6">
-                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                    <div className="bg-surface-0 p-6 rounded-md border border-line space-y-4">
                                         <h4 className="section-title">Colocación</h4>
                                         <label className="flex items-center gap-3 cursor-pointer">
-                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.placeable_on_water || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.placeable_on_water`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.placeable_on_water || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.placeable_on_water`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-line-strong text-purple-400" />
                                             <span className="eyebrow">Colocable en agua</span>
                                         </label>
                                         <label className="flex items-center gap-3 cursor-pointer">
-                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.placeable_on_lava || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.placeable_on_lava`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.placeable_on_lava || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.placeable_on_lava`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-line-strong text-purple-400" />
                                             <span className="eyebrow">Colocable en lava</span>
                                         </label>
                                         <label className="flex items-center gap-3 cursor-pointer">
-                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.shift_up || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.shift_up`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                            <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.shift_up || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.shift_up`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-line-strong text-purple-400" />
                                             <span className="eyebrow">Colocado 1 bloque arriba (plantas altas)</span>
                                         </label>
                                         {selectedData.data.behaviours?.block?.placed_model?.type === 'REAL_WIRE' && (
                                             <label className="flex items-center gap-3 cursor-pointer">
-                                                <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.placeable_on_other_real_wire || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.placeable_on_other_real_wire`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-white/10 text-purple-400" />
+                                                <input type="checkbox" checked={selectedData.data.behaviours?.block?.placed_model?.placeable_on_other_real_wire || false} onChange={(e) => updateField(`items.${selectedItem}.behaviours.block.placed_model.placeable_on_other_real_wire`, e.target.checked, selectedData.fullKey)} className="rounded bg-black border-line-strong text-purple-400" />
                                                 <span className="eyebrow">Colocable sobre otro REAL_WIRE</span>
                                             </label>
                                         )}
                                     </div>
-                                    <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                    <div className="bg-surface-0 p-6 rounded-md border border-line space-y-4">
                                         <h4 className="section-title">Sonido y Luz</h4>
                                         <div className="space-y-1">
                                             <label className="label">Nivel de Luz (0-15)</label>
@@ -2298,7 +2298,7 @@ export default function StudioWorkspace() {
                                     </div>
                                 </div>
 
-                                <div className="bg-surface-0 p-6 rounded-2xl border border-white/5 space-y-4">
+                                <div className="bg-surface-0 p-6 rounded-md border border-line space-y-4">
                                     <h4 className="section-title">Herramientas (una por línea)</h4>
                                     <p className="hint -mt-2">Coincide por nombre parcial: «PICKAXE» vale para cualquier picueta, «ruby_» para cualquier herramienta custom que empiece así.</p>
                                     <div className="grid grid-cols-2 gap-6">
@@ -2329,21 +2329,21 @@ export default function StudioWorkspace() {
                 </div>
 
                 {(activeEditor === 'xfoods' || activeEditor === 'xcrops' || activeEditor === 'xmachines') && (
-                <div className={cn("p-8 rounded-3xl border transition-all space-y-6", isIAEnabled ? "bg-yellow-400/5 border-yellow-400/20" : "bg-white/2 border-white/5")}>
+                <div className={cn("p-8 rounded-lg border transition-all space-y-6", isIAEnabled ? "bg-accent/5 border-accent/20" : "bg-white/2 border-line")}>
                     <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3"><Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-yellow-400" : "text-gray-600")} /><div><h4 className="text-[13px] font-semibold text-ink">ItemsAdder</h4><p className="eyebrow">Modelos 3D y texturas</p></div></div>
+                        <div className="flex items-center gap-3"><Settings2 className={cn("w-6 h-6", isIAEnabled ? "text-accent" : "text-ink-3")} /><div><h4 className="text-[13px] font-semibold text-ink">ItemsAdder</h4><p className="eyebrow">Modelos 3D y texturas</p></div></div>
                         {activeEditor === 'xmachines' ? (
-                            <div className="flex gap-1 bg-black/20 p-1 rounded-lg border border-white/5">
-                                <button type="button" onClick={() => updateField('ia-toggle', false)} className={cn("px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-colors", !isIAEnabled ? "bg-white/10 text-white" : "text-gray-500 hover:text-gray-300")}>Ninguno</button>
-                                <button type="button" onClick={() => updateField('ia-toggle', true)} className={cn("px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-colors", iaKind === 'item' ? "bg-yellow-400/20 text-yellow-400" : "text-gray-500 hover:text-gray-300")}>Ítem</button>
-                                <button type="button" onClick={() => updateField('ia-toggle', 'furniture')} className={cn("px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-colors", iaKind === 'furniture' ? "bg-yellow-400/20 text-yellow-400" : "text-gray-500 hover:text-gray-300")}>Mueble</button>
+                            <div className="flex gap-1 bg-black/20 p-1 rounded-lg border border-line">
+                                <button type="button" onClick={() => updateField('ia-toggle', false)} className={cn("px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-colors", !isIAEnabled ? "bg-white/10 text-ink" : "text-ink-2 hover:text-ink")}>Ninguno</button>
+                                <button type="button" onClick={() => updateField('ia-toggle', true)} className={cn("px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-colors", iaKind === 'item' ? "bg-accent/20 text-accent" : "text-ink-2 hover:text-ink")}>Ítem</button>
+                                <button type="button" onClick={() => updateField('ia-toggle', 'furniture')} className={cn("px-3 py-1.5 text-[10px] font-bold uppercase rounded-md transition-colors", iaKind === 'furniture' ? "bg-accent/20 text-accent" : "text-ink-2 hover:text-ink")}>Mueble</button>
                             </div>
                         ) : (
                             <label className="switch"><input type="checkbox" checked={isIAEnabled} onChange={(e) => updateField('ia-toggle', e.target.checked)} /><span className="slider"></span></label>
                         )}
                     </div>
                     {activeEditor === 'xmachines' && isIAEnabled && (
-                        <p className="text-[10px] text-gray-500 -mt-2">
+                        <p className="text-[10px] text-ink-2 -mt-2">
                             {iaKind === 'furniture'
                                 ? "Mueble: el modelo 3D también se ve colocado en el mundo. Se coloca y se rompe como un mueble de ItemsAdder, no como un bloque."
                                 : "Ítem: el modelo 3D solo se ve sostenido/en el inventario. Colocada se ve como el Material de arriba — usa uno colocable si quieres poder plantarla en el mundo."}
@@ -2370,11 +2370,11 @@ export default function StudioWorkspace() {
                                     type="checkbox"
                                     checked={linkedIaFurnitureEntry?.behaviours?.furniture?.solid || false}
                                     onChange={(e) => updateLinkedFurnitureField('solid', e.target.checked)}
-                                    className="rounded bg-black border-white/10 text-purple-400"
+                                    className="rounded bg-black border-line-strong text-purple-400"
                                 />
                                 <div>
                                     <span className="eyebrow">Sólido (genera BARRIER)</span>
-                                    <p className="text-[10px] text-gray-500">Bloquea el hueco con el hitbox de abajo, para que el jugador no lo atraviese y pueda interactuar con toda la altura del modelo, no solo con la entidad.</p>
+                                    <p className="text-[10px] text-ink-2">Bloquea el hueco con el hitbox de abajo, para que el jugador no lo atraviese y pueda interactuar con toda la altura del modelo, no solo con la entidad.</p>
                                 </div>
                             </label>
 
@@ -2382,7 +2382,7 @@ export default function StudioWorkspace() {
                                 <label className="label">Hitbox (bloques)</label>
                                 <div className="grid grid-cols-3 gap-3">
                                     {(['length', 'width', 'height'] as const).map((dim) => (
-                                        <div key={dim} className="bg-black/20 p-2 rounded-lg border border-white/5">
+                                        <div key={dim} className="bg-black/20 p-2 rounded-lg border border-line">
                                             <label className="label">{dim}</label>
                                             <input
                                                 type="number" min="1" step="1"
@@ -2395,7 +2395,7 @@ export default function StudioWorkspace() {
                                 </div>
                                 {linkedIaFurnitureEntry?.behaviours?.furniture?.entity === 'item_frame' &&
                                  linkedIaFurnitureEntry?.behaviours?.furniture?.hitbox?.length !== linkedIaFurnitureEntry?.behaviours?.furniture?.hitbox?.width && (
-                                    <p className="text-[10px] text-yellow-400">item_frame solo admite length = width en ItemsAdder. Usa armor_stand o item_display si necesitas un hitbox rectangular.</p>
+                                    <p className="text-[10px] text-accent">item_frame solo admite length = width en ItemsAdder. Usa armor_stand o item_display si necesitas un hitbox rectangular.</p>
                                 )}
                             </div>
                         </div>
@@ -2405,14 +2405,14 @@ export default function StudioWorkspace() {
                             onClick={() => iaFileInputRef.current?.click()}
                             onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                             onDrop={handleIAFileUpload}
-                            className="border-2 border-dashed border-yellow-400/20 rounded-2xl p-10 text-center hover:border-yellow-400/40 hover:bg-yellow-400/5 transition-all group cursor-pointer relative"
+                            className="border-2 border-dashed border-accent/20 rounded-md p-10 text-center hover:border-accent/40 hover:bg-accent/5 transition-all group cursor-pointer relative"
                         >
                             <input type="file" ref={iaFileInputRef} onChange={handleIAFileUpload} className="hidden" accept=".png,.json" multiple />
-                            <div className="bg-yellow-400/10 p-4 rounded-full w-fit mx-auto mb-4 group-hover:scale-110 transition-transform"><Upload className="w-8 h-8 text-yellow-400" /></div>
-                            <h4 className="text-white font-bold text-sm">Cargar Modelo / Textura / JSON</h4>
+                            <div className="bg-accent/10 p-4 rounded-full w-fit mx-auto mb-4 group-hover:scale-110 transition-transform"><Upload className="w-8 h-8 text-accent" /></div>
+                            <h4 className="text-ink font-bold text-sm">Cargar Modelo / Textura / JSON</h4>
                             <p className="hint mt-2">
                                 Arrastra o haz clic para subir .png / .json <br/>
-                                <span className="text-yellow-400/50">se auto-configura para "{selectedItem}"</span>
+                                <span className="text-accent/50">se auto-configura para "{selectedItem}"</span>
                             </p>
                             {linkedIaEntry?.resource?.model_path && (
                                 <p className="mt-4 text-[10px] font-mono text-green-400 truncate">{linkedIaEntry.resource.model_path}</p>
@@ -2423,12 +2423,12 @@ export default function StudioWorkspace() {
                 )}
              </div>
            ) : (
-             <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-30 grayscale scale-95 transition-all py-20"><div className="bg-white/5 p-10 rounded-full border border-white/5 animate-pulse"><Package className="w-20 h-20 text-gray-700" /></div><div className="space-y-2"><h3 className="text-lg font-medium text-ink-2">Selecciona un elemento</h3><p className="text-[13px] text-ink-3">Explora las categorías para iniciar la edición profesional.</p></div></div>
+             <div className="h-full flex flex-col items-center justify-center text-center space-y-6 opacity-30 grayscale scale-95 transition-all py-20"><div className="bg-white/5 p-10 rounded-full border border-line animate-pulse"><Package className="w-20 h-20 text-ink-3" /></div><div className="space-y-2"><h3 className="text-lg font-medium text-ink-2">Selecciona un elemento</h3><p className="text-[13px] text-ink-3">Explora las categorías para iniciar la edición profesional.</p></div></div>
            )}
         </main>
 
         <section className="col-span-3 panel overflow-hidden flex flex-col lg:sticky lg:top-0 h-fit max-h-[90vh]">
-           <div className="bg-surface-1 px-4 py-3 border-b border-line flex items-center justify-between"><div className="flex items-center gap-2"><Binary className="w-4 h-4 text-accent" /><span className="hint">Live Code</span></div><div className="flex gap-2"><button onClick={() => setActivePreview('plugin')} className={cn("text-[9px] font-semibold px-2 py-0.5 rounded border transition-all", activePreview === 'plugin' ? "text-yellow-400 bg-yellow-400/10 border-yellow-400/20" : "text-gray-600 border-transparent")}>PLUGIN</button><button disabled={!isIAEnabled && activeEditor !== 'ia'} onClick={() => setActivePreview('ia')} className={cn("text-[9px] font-semibold px-2 py-0.5 rounded border transition-all disabled:opacity-0", activePreview === 'ia' ? "text-blue-400 bg-blue-400/10 border-blue-400/20" : "text-gray-600 border-transparent")}>IA</button></div></div>
+           <div className="bg-surface-1 px-4 py-3 border-b border-line flex items-center justify-between"><div className="flex items-center gap-2"><Binary className="w-4 h-4 text-accent" /><span className="hint">Live Code</span></div><div className="flex gap-2"><button onClick={() => setActivePreview('plugin')} className={cn("text-[9px] font-semibold px-2 py-0.5 rounded border transition-all", activePreview === 'plugin' ? "text-accent bg-accent/10 border-accent/20" : "text-ink-3 border-transparent")}>PLUGIN</button><button disabled={!isIAEnabled && activeEditor !== 'ia'} onClick={() => setActivePreview('ia')} className={cn("text-[9px] font-semibold px-2 py-0.5 rounded border transition-all disabled:opacity-0", activePreview === 'ia' ? "text-blue-400 bg-blue-400/10 border-blue-400/20" : "text-ink-3 border-transparent")}>IA</button></div></div>
            <div className="flex-1 p-6 overflow-auto font-mono text-[12px] text-blue-200 leading-relaxed scrollbar-hide">
                <pre className="whitespace-pre-wrap break-words">
                    {selectedItem && selectedData ? (

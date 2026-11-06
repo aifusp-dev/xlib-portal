@@ -61,27 +61,27 @@ export default function SyncModal({ isOpen, onClose, onSync, onImport }: SyncMod
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
             
-            <div className="relative bg-[#111827] border border-[#374151] w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-                <div className="p-6 border-b border-[#374151] flex justify-between items-center">
-                    <div className="flex items-center gap-3 text-yellow-400">
+            <div className="relative bg-surface-1 border border-line-strong w-full max-w-lg rounded-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+                <div className="p-6 border-b border-line-strong flex justify-between items-center">
+                    <div className="flex items-center gap-3 text-accent">
                         <Cloud className="w-6 h-6" />
-                        <h2 className="text-xl font-bold text-white tracking-tight">xLib Bridge</h2>
+                        <h2 className="text-xl font-bold text-ink tracking-tight">xLib Bridge</h2>
                     </div>
-                    <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+                    <button onClick={onClose} className="text-ink-2 hover:text-ink transition-colors">
                         <X className="w-6 h-6" />
                     </button>
                 </div>
 
-                <div className="p-2 bg-black/20 flex gap-1 mx-6 mt-6 rounded-xl border border-white/5">
+                <div className="p-2 bg-black/20 flex gap-1 mx-6 mt-6 rounded-md border border-line">
                     <button 
                         onClick={() => { setActiveMode('export'); setToken(null); setError(null); }}
-                        className={cn("flex-1 flex items-center justify-center gap-2 py-2 text-xs font-black uppercase rounded-lg transition-all", mode === 'export' ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300")}
+                        className={cn("flex-1 flex items-center justify-center gap-2 py-2 text-xs font-black uppercase rounded-lg transition-all", mode === 'export' ? "bg-accent text-accent-ink" : "text-ink-2 hover:text-ink")}
                     >
                         <CloudUpload className="w-4 h-4" /> Web a Servidor
                     </button>
                     <button 
                         onClick={() => { setActiveMode('import'); setToken(null); setError(null); }}
-                        className={cn("flex-1 flex items-center justify-center gap-2 py-2 text-xs font-black uppercase rounded-lg transition-all", mode === 'import' ? "bg-accent text-white" : "text-gray-500 hover:text-gray-300")}
+                        className={cn("flex-1 flex items-center justify-center gap-2 py-2 text-xs font-black uppercase rounded-lg transition-all", mode === 'import' ? "bg-accent text-accent-ink" : "text-ink-2 hover:text-ink")}
                     >
                         <CloudDownload className="w-4 h-4" /> Servidor a Web
                     </button>
@@ -92,35 +92,35 @@ export default function SyncModal({ isOpen, onClose, onSync, onImport }: SyncMod
                         <div className="space-y-6">
                             {!token ? (
                                 <div className="text-center space-y-6 py-4">
-                                    <p className="text-gray-400 text-sm leading-relaxed">
+                                    <p className="text-ink-2 text-sm leading-relaxed">
                                         Publica tu configuración actual para descargarla directamente en tu servidor de Minecraft sin archivos manuales.
                                     </p>
                                     <button 
                                         onClick={handleSync}
                                         disabled={loading}
-                                        className="w-full bg-accent hover:bg-accent/90 text-white py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-accent/20 flex items-center justify-center gap-3"
+                                        className="w-full bg-accent hover:bg-accent/90 text-accent-ink py-4 rounded-md font-black uppercase tracking-widest transition-all shadow-xl shadow-accent/20 flex items-center justify-center gap-3"
                                     >
-                                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5 text-yellow-400 fill-yellow-400" />}
+                                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5 text-accent-ink fill-accent-ink" />}
                                         Generar Token de Sincronización
                                     </button>
                                     {error && <p className="text-red-400 text-xs font-bold uppercase">{error}</p>}
                                 </div>
                             ) : (
                                 <div className="space-y-6 animate-in fade-in slide-in-from-top-4">
-                                    <div className="bg-black/40 rounded-2xl p-6 border border-yellow-400/20 text-center space-y-4">
-                                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Tu Token de Sincronización</p>
+                                    <div className="bg-black/40 rounded-md p-6 border border-accent/20 text-center space-y-4">
+                                        <p className="text-[10px] font-black text-ink-2 uppercase tracking-widest">Tu Token de Sincronización</p>
                                         <div className="flex items-center justify-center gap-4">
-                                            <span className="text-4xl font-black text-yellow-400 tracking-tighter mono">{token}</span>
+                                            <span className="text-4xl font-black text-accent tracking-tighter mono">{token}</span>
                                             <button onClick={copyToken} className="p-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
-                                                {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5 text-gray-400" />}
+                                                {copied ? <Check className="w-5 h-5 text-green-400" /> : <Copy className="w-5 h-5 text-ink-2" />}
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-4 flex gap-4">
+                                    <div className="bg-blue-500/5 border border-blue-500/10 rounded-md p-4 flex gap-4">
                                         <Info className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                                         <div className="space-y-1">
-                                            <p className="text-xs font-bold text-white uppercase">Instrucciones</p>
-                                            <p className="text-[11px] text-gray-400 leading-relaxed">
+                                            <p className="text-xs font-bold text-ink uppercase">Instrucciones</p>
+                                            <p className="text-[11px] text-ink-2 leading-relaxed">
                                                 Escribe <code className="bg-black/40 px-1.5 py-0.5 rounded text-blue-400">/xlib sync {token}</code> en tu servidor para actualizar los archivos.
                                             </p>
                                         </div>
@@ -130,7 +130,7 @@ export default function SyncModal({ isOpen, onClose, onSync, onImport }: SyncMod
                         </div>
                     ) : (
                         <div className="space-y-6 text-center">
-                            <p className="text-gray-400 text-sm leading-relaxed">
+                            <p className="text-ink-2 text-sm leading-relaxed">
                                 Introduce el token generado desde tu servidor para cargar tu configuración actual aquí en la web.
                             </p>
                             <div className="space-y-4">
@@ -139,12 +139,12 @@ export default function SyncModal({ isOpen, onClose, onSync, onImport }: SyncMod
                                     value={inputToken}
                                     onChange={(e) => setInputToken(e.target.value.toUpperCase())}
                                     placeholder="SYNC-XXXXXX"
-                                    className="w-full bg-black/40 border border-[#374151] rounded-2xl px-6 py-4 text-center text-xl font-black text-yellow-400 placeholder:text-gray-700 outline-none focus:border-yellow-400/30 transition-all uppercase"
+                                    className="w-full bg-black/40 border border-line-strong rounded-md px-6 py-4 text-center text-xl font-black text-accent placeholder:text-ink-3 outline-none focus:border-accent/30 transition-all uppercase"
                                 />
                                 <button 
                                     onClick={handleImport}
                                     disabled={loading || !inputToken}
-                                    className="w-full bg-accent hover:bg-accent/90 text-white py-4 rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-accent/20 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="w-full bg-accent hover:bg-accent/90 text-accent-ink py-4 rounded-md font-black uppercase tracking-widest transition-all shadow-xl shadow-accent/20 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudDownload className="w-5 h-5" />}
                                     Cargar desde Servidor
@@ -155,8 +155,8 @@ export default function SyncModal({ isOpen, onClose, onSync, onImport }: SyncMod
                     )}
                 </div>
 
-                <div className="p-4 bg-black/40 border-t border-[#374151] text-center">
-                    <p className="text-[10px] text-gray-600 font-bold uppercase tracking-tighter">
+                <div className="p-4 bg-black/40 border-t border-line-strong text-center">
+                    <p className="text-[10px] text-ink-3 font-bold uppercase tracking-tighter">
                         Los tokens expiran tras 15 minutos o un solo uso.
                     </p>
                 </div>

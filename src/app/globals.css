@@ -1,33 +1,35 @@
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------------
-   Sistema de diseño
+   Sistema de diseño — "Esquema de cableado"
    ---------------------------------------------------------------------------
-   El Studio es un instrumento de precisión: se escanea y se opera, no se lee de
-   arriba abajo. Antes casi cada elemento iba en font-black + uppercase + italic,
-   con etiquetas a 9px, seis colores de pestaña compitiendo entre sí y radios
-   mezclados (lg/xl/2xl/3xl). Todo pesaba lo mismo, así que nada destacaba.
+   Toda la app (wiki pública + Studio) se lee como el plano técnico del
+   ecosistema aifusp.dev: fondo azul-plano profundo, trazos finos cian en vez
+   de sombras, un único acento cian que hace de "traza" de dependencia entre
+   xLib y el resto de plugins. Radios casi rectos (precisión de mesa de
+   dibujo), nunca el redondeo suave de una app de consumo.
 
-   Ahora: un solo acento (ámbar, el de la marca), neutros con sesgo azul-pizarra,
-   una escala tipográfica corta y color semántico reservado para estado.
+   Studio sigue siendo un instrumento de precisión: se escanea y se opera, no
+   se lee de arriba abajo. Color semántico reservado para estado; color de
+   sección en un punto de 6px, nunca en botones enteros.
    --------------------------------------------------------------------------- */
 
 @theme {
   /* Superficies, de la más honda a la más elevada */
-  --color-surface-0: #0b0e14;   /* fondo de la app */
-  --color-surface-1: #12161f;   /* paneles */
-  --color-surface-2: #181d28;   /* campos y filas */
-  --color-surface-3: #1f2531;   /* hover */
+  --color-surface-0: #0a1f33;   /* fondo de la app */
+  --color-surface-1: #0d2742;   /* paneles */
+  --color-surface-2: #11304f;   /* campos y filas */
+  --color-surface-3: #163a5e;   /* hover */
 
-  --color-line:        #262d3a;
-  --color-line-strong: #343d4d;
+  --color-line:        #1e4166;
+  --color-line-strong: #2b5681;
 
-  --color-ink:   #e6e9ef;       /* texto principal */
-  --color-ink-2: #9aa4b8;       /* secundario */
-  --color-ink-3: #6b7689;       /* terciario, eyebrows */
+  --color-ink:   #eaf2fb;       /* texto principal */
+  --color-ink-2: #a9c2d9;       /* secundario */
+  --color-ink-3: #7d96ae;       /* terciario, eyebrows */
 
-  --color-accent:     #f5b93b;
-  --color-accent-ink: #0b0e14;
+  --color-accent:     #5ec8ff;
+  --color-accent-ink: #061626;
 
   /* Semánticos: solo para estado, nunca como decoración */
   --color-ok:     #4ade80;
@@ -46,49 +48,25 @@
   --color-sec-items:      #f472b6;
 
   --radius-field: 6px;
-  --radius-panel: 10px;
+  --radius-panel: 8px;
+
+  --wiki-grid-ink: color-mix(in srgb, var(--color-accent) 7%, transparent);
 }
 
 /* Compatibilidad con los nombres antiguos usados por la wiki */
 @theme {
-  --color-background: #0b0e14;
-  --color-foreground: #e6e9ef;
-  --color-primary: #f5b93b;
-  --color-primary-foreground: #0b0e14;
-  --color-card: #12161f;
-  --color-border: #262d3a;
-  --color-muted: #9aa4b8;
+  --color-background: #0a1f33;
+  --color-foreground: #eaf2fb;
+  --color-primary: #5ec8ff;
+  --color-primary-foreground: #061626;
+  --color-card: #0d2742;
+  --color-border: #1e4166;
+  --color-muted: #a9c2d9;
 }
 
-/* ---------------------------------------------------------------------------
-   Wiki pública — dirección "Esquema de cableado"
-   ---------------------------------------------------------------------------
-   Reemplaza los tokens compartidos solo dentro de .wiki-shell (home, sidebar,
-   páginas de doc). El Studio sigue leyendo los tokens de arriba sin cambios:
-   esto es un mundo visual propio de la wiki, no un retema global.
-
-   El sitio se lee como el plano técnico del ecosistema: fondo azul-plano
-   profundo, trazos finos cian en vez de sombras, un único acento cian que
-   hace de "traza" de dependencia entre xLib y el resto de plugins.
-   --------------------------------------------------------------------------- */
-.wiki-shell {
-  --color-surface-0: #0a1f33;
-  --color-surface-1: #0d2742;
-  --color-surface-2: #11304f;
-  --color-surface-3: #163a5e;
-
-  --color-line:        #1e4166;
-  --color-line-strong: #2b5681;
-
-  --color-ink:   #eaf2fb;
-  --color-ink-2: #a9c2d9;
-  --color-ink-3: #7d96ae;
-
-  --color-accent:     #5ec8ff;
-  --color-accent-ink: #061626;
-
-  --wiki-grid-ink: color-mix(in srgb, var(--color-accent) 7%, transparent);
-}
+/* El bloque .wiki-shell ya no sobreescribe color — los tokens raíz de arriba
+   SON ya la paleta del plano técnico, compartida por wiki y Studio. Se deja
+   la clase como gancho de las utilidades de abajo (grid de fondo, traza). */
 
 .wiki-grid-bg {
   background-color: var(--color-surface-0);

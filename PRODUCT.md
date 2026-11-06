@@ -23,7 +23,7 @@ No es una wiki genérica de plugin de Minecraft: documenta un ecosistema propio 
 ## Operating Context
 
 - Wiki pública: navegación por sidebar con categorías (Librería Core, Plugins Standalone, xFoods Ecosystem, RPX Suite), páginas de doc individuales por plugin con bloques de comando, tablas y bloques de código.
-- Studio (fuera de alcance de este rediseño): panel autenticado con editores especializados (crafting, hologramas, drops, sonidos IA, recetas de máquinas...) que escriben directamente en el servidor en producción vía bridge. El propio usuario describe su UI actual como "muy mejorable" — candidato a una fase de rediseño propia y separada.
+- Studio: panel autenticado con editores especializados (crafting, hologramas, drops, sonidos IA, recetas de máquinas...) que escriben directamente en el servidor en producción vía bridge. Incorporado al mismo mundo visual "Esquema de cableado" el 2026-11-06, como pasada de tokens/paleta — sin tocar la lógica de los 19 archivos de editores (riesgo operativo alto: edita producción en vivo).
 
 ## Capabilities and Constraints
 
@@ -40,7 +40,7 @@ Ninguna restricción vinculante declarada por el usuario ("carta blanca"): palet
 1. Entender y encontrar lo que se busca rápido es la prioridad número uno — es documentación técnica de uso frecuente, no una landing de marketing.
 2. Mantener personalidad/estética propia sin sacrificar velocidad de escaneo: no es sitio genérico de docs.
 3. El diseño debe aguantar crecer de "un dev, consulta propia" a "portal multi-dev con publicaciones y moderación" sin romperse conceptualmente (jerarquía de categorías, roles, estados de publicación).
-4. El Studio/bridge es la pieza más valiosa del producto hoy, pero queda fuera de esta pasada de rediseño por su criticidad operativa (edita producción en vivo).
+4. El Studio/bridge es la pieza más valiosa del producto hoy — ya comparte el mismo sistema visual que la wiki (2026-11-06), pero cualquier cambio ahí exige verificación con datos reales antes de desplegar, por su criticidad operativa.
 
 ## Accessibility & Inclusion
 
