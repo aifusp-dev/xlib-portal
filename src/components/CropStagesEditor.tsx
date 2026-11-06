@@ -29,7 +29,7 @@ interface CropStagesEditorProps {
   mutate: (fn: (stages: Record<string, GrowthStage>) => void) => void;
 }
 
-const inputCls = "w-full bg-black/20 border border-white/5 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-yellow-400/50";
+const inputCls = "w-full bg-black/20 border border-line rounded-lg px-2 py-1.5 text-xs text-ink outline-none focus:border-accent/50";
 
 export default function CropStagesEditor({ stages, mutate }: CropStagesEditorProps) {
   const addStage = () => {
@@ -100,7 +100,7 @@ export default function CropStagesEditor({ stages, mutate }: CropStagesEditorPro
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{stageEntries.length} etapa(s)</span>
+        <span className="text-[10px] text-ink-2 uppercase font-black tracking-widest">{stageEntries.length} etapa(s)</span>
         <button onClick={addStage} className="flex items-center gap-1 text-[10px] font-black uppercase bg-green-500/10 text-green-500 px-3 py-1.5 rounded-lg border border-green-500/20 hover:bg-green-500/20 transition-colors">
           <Plus className="w-3 h-3" /> Nueva Etapa
         </button>
@@ -108,10 +108,10 @@ export default function CropStagesEditor({ stages, mutate }: CropStagesEditorPro
 
       <div className="space-y-4">
         {stageEntries.map(([sid, stage]) => (
-          <div key={sid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden">
-            <div className="bg-white/5 px-6 py-3 flex justify-between items-center border-b border-white/5">
-              <span className="text-[10px] font-black text-yellow-400 uppercase tracking-widest">{sid}</span>
-              <button onClick={() => removeStage(sid)} className="text-gray-600 hover:text-red-500 transition-colors">
+          <div key={sid} className="bg-surface-0 rounded-md border border-line-strong overflow-hidden">
+            <div className="bg-white/5 px-6 py-3 flex justify-between items-center border-b border-line">
+              <span className="text-[10px] font-black text-accent uppercase tracking-widest">{sid}</span>
+              <button onClick={() => removeStage(sid)} className="text-ink-3 hover:text-red-500 transition-colors">
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
@@ -136,17 +136,17 @@ export default function CropStagesEditor({ stages, mutate }: CropStagesEditorPro
                 </Field>
               </div>
 
-              <div className="pt-3 border-t border-white/5 space-y-3">
+              <div className="pt-3 border-t border-line space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Requisitos de esta etapa</span>
+                  <span className="text-[9px] font-black text-ink-2 uppercase tracking-widest">Requisitos de esta etapa</span>
                   <button onClick={() => addRequirement(sid)} className="text-[9px] font-black text-blue-400 uppercase hover:text-blue-300 transition-colors">+ Requisito</button>
                 </div>
 
                 {Object.entries(stage.requirements || {}).map(([rid, req]) => (
-                  <div key={rid} className="bg-black/20 rounded-xl border border-white/5 p-4 space-y-3">
+                  <div key={rid} className="bg-black/20 rounded-md border border-line p-4 space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-[9px] font-bold text-gray-400 uppercase">{rid}</span>
-                      <button onClick={() => removeRequirement(sid, rid)} className="text-gray-600 hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3" /></button>
+                      <span className="text-[9px] font-bold text-ink-2 uppercase">{rid}</span>
+                      <button onClick={() => removeRequirement(sid, rid)} className="text-ink-3 hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3" /></button>
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <Field label="Tipo">
@@ -185,7 +185,7 @@ export default function CropStagesEditor({ stages, mutate }: CropStagesEditorPro
                 ))}
 
                 {Object.keys(stage.requirements || {}).length === 0 && (
-                  <p className="text-[10px] text-gray-600 italic">Sin requisitos: la planta avanza sola con el tiempo en esta etapa.</p>
+                  <p className="text-[10px] text-ink-3 italic">Sin requisitos: la planta avanza sola con el tiempo en esta etapa.</p>
                 )}
               </div>
             </div>
@@ -193,7 +193,7 @@ export default function CropStagesEditor({ stages, mutate }: CropStagesEditorPro
         ))}
 
         {stageEntries.length === 0 && (
-          <p className="text-[10px] text-gray-600 italic">Sin etapas: la planta nunca crecerá. Añade al menos una.</p>
+          <p className="text-[10px] text-ink-3 italic">Sin etapas: la planta nunca crecerá. Añade al menos una.</p>
         )}
       </div>
     </div>

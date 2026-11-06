@@ -12,8 +12,8 @@ interface HologramTextEditorProps {
   placeholder?: string;
 }
 
-const toolBtnCls = "flex items-center justify-center w-7 h-7 rounded-md text-gray-300 hover:bg-white/10 hover:text-white transition-colors";
-const swatchCls = "w-6 h-6 rounded cursor-pointer bg-transparent border border-white/20 p-0";
+const toolBtnCls = "flex items-center justify-center w-7 h-7 rounded-md text-ink hover:bg-white/10 hover:text-ink transition-colors";
+const swatchCls = "w-6 h-6 rounded cursor-pointer bg-transparent border border-line-strong p-0";
 
 /**
  * Editor de texto de hologramas: en vez de tener que memorizar códigos "&" o tags de
@@ -71,7 +71,7 @@ export default function HologramTextEditor({ value, onChange, rows = 4, placehol
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2 bg-black/30 border border-white/10 rounded-lg p-2">
+      <div className="flex flex-wrap items-center gap-2 bg-black/30 border border-line-strong rounded-lg p-2">
         <div className="flex items-center gap-1">
           <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className={swatchCls} title="Elegir color" />
           <button onClick={() => wrapSelection(`<color:${color}>`, "</color>")} className={cn(toolBtnCls, "w-auto px-2 text-[10px] font-black uppercase")} title="Aplicar color a la selección">
@@ -114,7 +114,7 @@ export default function HologramTextEditor({ value, onChange, rows = 4, placehol
         onKeyUp={trackSelection}
         rows={rows}
         placeholder={placeholder}
-        className="w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white font-mono outline-none focus:border-yellow-400/50"
+        className="w-full bg-black/20 border border-line rounded-lg px-3 py-2 text-xs text-ink font-mono outline-none focus:border-accent/50"
       />
 
       <TextPreview text={value} />
@@ -125,8 +125,8 @@ export default function HologramTextEditor({ value, onChange, rows = 4, placehol
 function TextPreview({ text }: { text: string }) {
   const segments = parseFormattedText(text);
   return (
-    <div className="bg-[#1e1e1e] border border-white/5 rounded-lg px-3 py-2 text-sm whitespace-pre-wrap break-words leading-relaxed">
-      {segments.length === 0 && <span className="text-gray-600 italic text-xs">Vista previa</span>}
+    <div className="bg-[#1e1e1e] border border-line rounded-lg px-3 py-2 text-sm whitespace-pre-wrap break-words leading-relaxed">
+      {segments.length === 0 && <span className="text-ink-3 italic text-xs">Vista previa</span>}
       {segments.map((seg, i) => (
         <span
           key={i}

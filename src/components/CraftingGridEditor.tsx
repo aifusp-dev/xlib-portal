@@ -111,38 +111,38 @@ export default function CraftingGridEditor({ recipe, onChange, refOptions, resul
         <label className="flex items-center gap-3 cursor-pointer w-fit">
           <div className="relative">
             <input type="checkbox" checked={craftable} onChange={(e) => toggleCraftable(e.target.checked)} className="sr-only" />
-            <div className={cn("w-8 h-4 rounded-full transition-colors", craftable ? "bg-green-500" : "bg-gray-700")}></div>
+            <div className={cn("w-8 h-4 rounded-full transition-colors", craftable ? "bg-green-500" : "bg-surface-2")}></div>
             <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", craftable ? "translate-x-4" : "")}></div>
           </div>
-          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Se puede craftear</span>
+          <span className="text-[10px] font-black text-ink-2 uppercase tracking-widest">Se puede craftear</span>
         </label>
         {craftable && (
-          <button onClick={() => onChange(null)} className="flex items-center gap-1 text-[10px] font-black uppercase text-gray-500 hover:text-red-400 transition-colors">
+          <button onClick={() => onChange(null)} className="flex items-center gap-1 text-[10px] font-black uppercase text-ink-2 hover:text-red-400 transition-colors">
             <Trash2 className="w-3 h-3" /> Vaciar mesa
           </button>
         )}
       </div>
 
       {!craftable ? (
-        <p className="text-[11px] text-gray-500 italic">
+        <p className="text-[11px] text-ink-2 italic">
           Sin receta: solo se consigue por comando de administrador. Activa el interruptor para dibujar una receta de mesa de crafteo.
         </p>
       ) : (
         <>
           <div className="flex items-start gap-6 flex-wrap">
-            <div className="grid grid-cols-3 gap-1.5 bg-black/30 p-3 rounded-2xl border border-white/5 w-fit shrink-0">
+            <div className="grid grid-cols-3 gap-1.5 bg-black/30 p-3 rounded-md border border-line w-fit shrink-0">
               {grid.map((ingredientRef, i) => (
                 <div
                   key={i}
                   className={cn(
                     "w-16 h-16 rounded-lg border flex items-center justify-center relative group/cell transition-colors",
-                    ingredientRef ? "border-orange-500/40 bg-orange-500/5" : "border-dashed border-white/10 bg-white/[0.02]"
+                    ingredientRef ? "border-orange-500/40 bg-orange-500/5" : "border-dashed border-line-strong bg-white/[0.02]"
                   )}
                 >
                   {ingredientRef && (
                     <button
                       onClick={() => setCell(i, null)}
-                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] leading-none flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity z-10"
+                      className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-ink text-[9px] leading-none flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity z-10"
                     >
                       ×
                     </button>
@@ -156,7 +156,7 @@ export default function CraftingGridEditor({ recipe, onChange, refOptions, resul
                     spellCheck={false}
                     autoComplete="off"
                     title={ingredientRef || 'Casilla vacía'}
-                    className="w-full h-full bg-transparent text-center text-[9px] font-bold text-white outline-none px-1 truncate placeholder:text-gray-700"
+                    className="w-full h-full bg-transparent text-center text-[9px] font-bold text-ink outline-none px-1 truncate placeholder:text-ink-3"
                   />
                 </div>
               ))}
@@ -164,13 +164,13 @@ export default function CraftingGridEditor({ recipe, onChange, refOptions, resul
 
             <div className="flex flex-col items-center gap-1.5 pt-2 min-w-[7rem]">
               <Hammer className="w-5 h-5 text-orange-400" />
-              <span className="text-[9px] text-gray-500 uppercase font-black text-center">produce</span>
-              <span className="text-[11px] text-white font-bold text-center">{resultLabel}</span>
+              <span className="text-[9px] text-ink-2 uppercase font-black text-center">produce</span>
+              <span className="text-[11px] text-ink font-bold text-center">{resultLabel}</span>
             </div>
           </div>
 
           {shapePreview.length > 0 && (
-            <div className="flex gap-1 font-mono text-[10px] text-gray-500 bg-black/20 rounded-lg px-3 py-2 w-fit">
+            <div className="flex gap-1 font-mono text-[10px] text-ink-2 bg-black/20 rounded-lg px-3 py-2 w-fit">
               {shapePreview.map((line, i) => (
                 <span key={i}>{line.replace(/ /g, '·')}{i < shapePreview.length - 1 ? ' / ' : ''}</span>
               ))}

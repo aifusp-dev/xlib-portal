@@ -76,11 +76,11 @@ export default function IASoundsEditor({ namespace, sounds, rawFiles, mutateSoun
         onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
-        className={`bg-surface-0 p-8 rounded-3xl border-2 border-dashed transition-colors space-y-4 ${dragOver ? "border-yellow-400/50 bg-yellow-400/5" : "border-white/5 hover:border-yellow-400/30"}`}
+        className={`bg-surface-0 p-8 rounded-lg border-2 border-dashed transition-colors space-y-4 ${dragOver ? "border-accent/50 bg-accent/5" : "border-line hover:border-accent/30"}`}
       >
         <div className="flex justify-between items-center">
           <h4 className="eyebrow">
-            Sonidos custom <span className="text-gray-600 normal-case font-medium">(arrastra .ogg aquí — namespace {namespace})</span>
+            Sonidos custom <span className="text-ink-3 normal-case font-medium">(arrastra .ogg aquí — namespace {namespace})</span>
           </h4>
           <button onClick={() => fileInputRef.current?.click()} className="badge badge-ia flex items-center gap-1.5">
             <Upload className="w-3 h-3" /> Subir
@@ -89,7 +89,7 @@ export default function IASoundsEditor({ namespace, sounds, rawFiles, mutateSoun
         </div>
         <p className="hint">
           Cada .ogg se registra como un evento de sonido con el mismo id que el fichero — se reproduce
-          desde el plugin con la clave <code className="text-yellow-400">{namespace}:&lt;id&gt;</code>.
+          desde el plugin con la clave <code className="text-accent">{namespace}:&lt;id&gt;</code>.
         </p>
       </div>
 
@@ -119,18 +119,18 @@ function SoundRow({ namespace, soundId, rawFiles, onDelete }: { namespace: strin
   }, [rawFile]);
 
   return (
-    <div className="flex items-center gap-4 bg-surface-0 border border-white/5 rounded-2xl px-4 py-3">
-      <Music4 className="w-4 h-4 text-yellow-400 flex-none" />
+    <div className="flex items-center gap-4 bg-surface-0 border border-line rounded-md px-4 py-3">
+      <Music4 className="w-4 h-4 text-accent flex-none" />
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-semibold text-white truncate">{soundId}</div>
-        <div className="text-[10px] text-gray-600 truncate">{namespace}:{soundId}</div>
+        <div className="text-xs font-semibold text-ink truncate">{soundId}</div>
+        <div className="text-[10px] text-ink-3 truncate">{namespace}:{soundId}</div>
       </div>
       {objectUrl ? (
         <audio controls src={objectUrl} className="h-8 max-w-[240px]" />
       ) : (
         <span className="text-[10px] text-orange-400 font-semibold uppercase">Falta el .ogg</span>
       )}
-      <button onClick={onDelete} title="Borrar" className="p-2 hover:bg-white/10 rounded-lg transition-all flex-none text-gray-500 hover:text-red-400">
+      <button onClick={onDelete} title="Borrar" className="p-2 hover:bg-white/10 rounded-lg transition-all flex-none text-ink-2 hover:text-red-400">
         <Trash2 className="w-3.5 h-3.5" />
       </button>
     </div>

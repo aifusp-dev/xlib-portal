@@ -11,7 +11,7 @@ interface HologramPlacementsEditorProps {
   mutate: (fn: (placements: Record<string, HologramPlacementConfig>) => void) => void;
 }
 
-const inputCls = "w-full bg-black/20 border border-white/5 rounded-lg px-2 py-1.5 text-xs text-white outline-none focus:border-yellow-400/50";
+const inputCls = "w-full bg-black/20 border border-line rounded-lg px-2 py-1.5 text-xs text-ink outline-none focus:border-accent/50";
 
 const AXES = ["x", "y", "z"] as const;
 
@@ -47,13 +47,13 @@ export default function HologramPlacementsEditor({ placements, templates, mutate
   };
 
   if (allIds.length === 0) {
-    return <p className="text-sm text-gray-500 italic">Todavía no hay ninguna colocación — créalas en el juego con /xholograms create &lt;plantilla&gt;.</p>;
+    return <p className="text-sm text-ink-2 italic">Todavía no hay ninguna colocación — créalas en el juego con /xholograms create &lt;plantilla&gt;.</p>;
   }
 
   return (
     <div className="space-y-3">
       <div className="relative w-64">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-ink-2" />
         <input
           type="text" value={search} onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por id, plantilla, mundo o param..."
@@ -62,12 +62,12 @@ export default function HologramPlacementsEditor({ placements, templates, mutate
       </div>
 
       {ids.length === 0 ? (
-        <p className="text-[10px] text-gray-600 italic">Sin resultados para &quot;{search}&quot;.</p>
+        <p className="text-[10px] text-ink-3 italic">Sin resultados para &quot;{search}&quot;.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-left text-[10px] text-gray-500 uppercase font-black tracking-widest border-b border-white/10">
+              <tr className="text-left text-[10px] text-ink-2 uppercase font-black tracking-widest border-b border-line-strong">
                 <th className="py-2 pr-3">Id</th>
                 <th className="py-2 pr-3">Plantilla</th>
                 <th className="py-2 pr-3">Mundo</th>
@@ -82,8 +82,8 @@ export default function HologramPlacementsEditor({ placements, templates, mutate
               {ids.map((id) => {
                 const placement = placements[id];
                 return (
-                  <tr key={id} className="border-b border-white/5">
-                    <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">{id}</td>
+                  <tr key={id} className="border-b border-line">
+                    <td className="py-2 pr-3 text-ink-2 whitespace-nowrap">{id}</td>
                     <td className="py-2 pr-3">
                       <select value={placement.template} onChange={(e) => update(id, { template: e.target.value })} className={inputCls}>
                         {Object.keys(templates).map((t) => (
@@ -110,7 +110,7 @@ export default function HologramPlacementsEditor({ placements, templates, mutate
                       <input type="text" value={placement.param} onChange={(e) => update(id, { param: e.target.value })} className={inputCls} />
                     </td>
                     <td className="py-2">
-                      <button onClick={() => remove(id)} className="text-gray-600 hover:text-red-500">
+                      <button onClick={() => remove(id)} className="text-ink-3 hover:text-red-500">
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </td>

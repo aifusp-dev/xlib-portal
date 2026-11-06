@@ -31,7 +31,7 @@ interface MachineRecipesEditorProps {
   foodOptions: string[];
 }
 
-const inputCls = "w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-yellow-400/50";
+const inputCls = "w-full bg-black/20 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none focus:border-accent/50";
 
 export default function MachineRecipesEditor({ config, mutate, foodOptions }: MachineRecipesEditorProps) {
   const isRefrigerator = !!config['is-refrigerator'];
@@ -92,20 +92,20 @@ export default function MachineRecipesEditor({ config, mutate, foodOptions }: Ma
       <label className="flex items-center gap-3 cursor-pointer w-fit">
         <div className="relative">
           <input type="checkbox" checked={isRefrigerator} onChange={(e) => toggleRefrigerator(e.target.checked)} className="sr-only" />
-          <div className={cn("w-8 h-4 rounded-full transition-colors", isRefrigerator ? "bg-blue-500" : "bg-gray-700")}></div>
+          <div className={cn("w-8 h-4 rounded-full transition-colors", isRefrigerator ? "bg-blue-500" : "bg-surface-2")}></div>
           <div className={cn("absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform", isRefrigerator ? "translate-x-4" : "")}></div>
         </div>
-        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Es una nevera (conserva, no procesa recetas)</span>
+        <span className="text-[10px] font-black text-ink-2 uppercase tracking-widest">Es una nevera (conserva, no procesa recetas)</span>
       </label>
 
       {isRefrigerator ? (
-        <p className="text-[11px] text-gray-500 italic">
+        <p className="text-[11px] text-ink-2 italic">
           Las neveras no procesan recetas: cualquier comida de xFoods guardada dentro pausa su caducidad hasta que se retire.
         </p>
       ) : (
         <>
           <div className="flex justify-between items-center">
-            <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{recipeEntries.length} receta(s)</span>
+            <span className="text-[10px] text-ink-2 uppercase font-black tracking-widest">{recipeEntries.length} receta(s)</span>
             <button onClick={addRecipe} className="flex items-center gap-1 text-[10px] font-black uppercase bg-orange-500/10 text-orange-400 px-3 py-1.5 rounded-lg border border-orange-500/20 hover:bg-orange-500/20 transition-colors">
               <Plus className="w-3 h-3" /> Nueva Receta
             </button>
@@ -113,27 +113,27 @@ export default function MachineRecipesEditor({ config, mutate, foodOptions }: Ma
 
           <div className="space-y-4">
             {recipeEntries.map(([rid, recipe]) => (
-              <div key={rid} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden">
-                <div className="bg-white/5 px-6 py-3 flex justify-between items-center border-b border-white/5">
+              <div key={rid} className="bg-surface-0 rounded-md border border-line-strong overflow-hidden">
+                <div className="bg-white/5 px-6 py-3 flex justify-between items-center border-b border-line">
                   <span className="text-[10px] font-black text-orange-400 uppercase tracking-widest">{rid}</span>
-                  <button onClick={() => removeRecipe(rid)} className="text-gray-600 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => removeRecipe(rid)} className="text-ink-3 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                 </div>
                 <div className="p-6 space-y-5">
                   <div>
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Ingredientes (cantidad exacta requerida)</span>
+                      <span className="text-[9px] font-black text-ink-2 uppercase tracking-widest">Ingredientes (cantidad exacta requerida)</span>
                       <button onClick={() => addIngredient(rid)} className="text-[9px] font-black text-blue-400 uppercase hover:text-blue-300 transition-colors">+ Ingrediente</button>
                     </div>
                     <div className="space-y-2">
                       {Object.entries(recipe.inputs || {}).map(([ikey, ing]) => (
                         <div key={ikey} className="flex gap-2 items-center">
                           <AutocompleteInput value={ing.id || ''} onChange={(v) => setRecipeField(rid, ['inputs', ikey, 'id'], v)} options={foodOptions} placeholder="id (ej: xfoods:harina o WHEAT)" className={inputCls} />
-                          <input type="number" min={1} value={ing.amount ?? 1} onChange={(e) => setRecipeField(rid, ['inputs', ikey, 'amount'], parseInt(e.target.value))} className="w-20 bg-black/20 border border-white/5 rounded-lg px-2 py-2 text-xs text-white outline-none shrink-0" />
-                          <button onClick={() => removeIngredient(rid, ikey)} className="text-gray-600 hover:text-red-500 transition-colors shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+                          <input type="number" min={1} value={ing.amount ?? 1} onChange={(e) => setRecipeField(rid, ['inputs', ikey, 'amount'], parseInt(e.target.value))} className="w-20 bg-black/20 border border-line rounded-lg px-2 py-2 text-xs text-ink outline-none shrink-0" />
+                          <button onClick={() => removeIngredient(rid, ikey)} className="text-ink-3 hover:text-red-500 transition-colors shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       ))}
                       {Object.keys(recipe.inputs || {}).length === 0 && (
-                        <p className="text-[10px] text-gray-600 italic">Sin ingredientes: añade al menos uno para que la receta pueda activarse.</p>
+                        <p className="text-[10px] text-ink-3 italic">Sin ingredientes: añade al menos uno para que la receta pueda activarse.</p>
                       )}
                     </div>
                   </div>
@@ -160,11 +160,11 @@ export default function MachineRecipesEditor({ config, mutate, foodOptions }: Ma
                   </div>
 
                   <label className="flex items-center gap-2 cursor-pointer w-fit">
-                    <input type="checkbox" checked={!!recipe['use-minigame']} onChange={(e) => setRecipeField(rid, ['use-minigame'], e.target.checked)} className="rounded bg-black border-white/10" />
-                    <span className="text-[10px] font-bold text-gray-500 uppercase">Requiere minijuego (BossBar)</span>
+                    <input type="checkbox" checked={!!recipe['use-minigame']} onChange={(e) => setRecipeField(rid, ['use-minigame'], e.target.checked)} className="rounded bg-black border-line-strong" />
+                    <span className="text-[10px] font-bold text-ink-2 uppercase">Requiere minijuego (BossBar)</span>
                   </label>
 
-                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/5">
+                  <div className="grid grid-cols-2 gap-3 pt-3 border-t border-line">
                     <Field label="Sonido al Empezar">
                       <input type="text" value={recipe.sounds?.start || ''} onChange={(e) => setRecipeField(rid, ['sounds', 'start'], e.target.value)} placeholder="BLOCK_GRINDSTONE_USE" className={inputCls} />
                     </Field>
@@ -173,7 +173,7 @@ export default function MachineRecipesEditor({ config, mutate, foodOptions }: Ma
                     </Field>
                   </div>
 
-                  <div className="pt-3 border-t border-white/5">
+                  <div className="pt-3 border-t border-line">
                     <Field label="Permiso requerido (opcional)">
                       <input
                         type="text"
@@ -183,7 +183,7 @@ export default function MachineRecipesEditor({ config, mutate, foodOptions }: Ma
                         className={inputCls}
                       />
                     </Field>
-                    <p className="text-[9px] text-gray-600 italic mt-1.5">
+                    <p className="text-[9px] text-ink-3 italic mt-1.5">
                       Se desbloquea normalmente con un &quot;papel de receta&quot; (ítem con un paso <code>grant-permission</code> en sus acciones).
                     </p>
                   </div>
@@ -192,7 +192,7 @@ export default function MachineRecipesEditor({ config, mutate, foodOptions }: Ma
             ))}
 
             {recipeEntries.length === 0 && (
-              <p className="text-[10px] text-gray-600 italic">Sin recetas: esta estación no hará nada hasta que añadas al menos una.</p>
+              <p className="text-[10px] text-ink-3 italic">Sin recetas: esta estación no hará nada hasta que añadas al menos una.</p>
             )}
           </div>
         </>

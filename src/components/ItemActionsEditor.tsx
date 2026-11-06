@@ -75,8 +75,8 @@ function emptyStep(kind: StepKind): RawActionStep {
   }
 }
 
-const inputCls = "w-full bg-black/20 border border-white/5 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-yellow-400/50";
-const selectCls = "bg-black/30 border border-white/10 rounded-lg px-2 py-1.5 text-[10px] font-bold text-white uppercase outline-none cursor-pointer";
+const inputCls = "w-full bg-black/20 border border-line rounded-lg px-3 py-2 text-xs text-ink outline-none focus:border-accent/50";
+const selectCls = "bg-black/30 border border-line-strong rounded-lg px-2 py-1.5 text-[10px] font-bold text-ink uppercase outline-none cursor-pointer";
 
 interface ItemActionsEditorProps {
   actions: ItemActionsConfig;
@@ -112,16 +112,16 @@ export default function ItemActionsEditor({ actions, mutate, actionRefOptions = 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{activeTriggers.length} trigger(s)</span>
+        <span className="text-[10px] text-ink-2 uppercase font-black tracking-widest">{activeTriggers.length} trigger(s)</span>
         {availableTriggers.length > 0 && (
           <select
             value=""
             onChange={(e) => { if (e.target.value) addTrigger(e.target.value); }}
             className="bg-orange-500/10 text-orange-400 border border-orange-500/20 rounded-lg px-3 py-1.5 text-[10px] font-black uppercase outline-none cursor-pointer"
           >
-            <option value="" className="bg-surface-1 text-white">+ Trigger</option>
+            <option value="" className="bg-surface-1 text-ink">+ Trigger</option>
             {availableTriggers.map((t) => (
-              <option key={t.key} value={t.key} className="bg-surface-1 text-white">{t.label}</option>
+              <option key={t.key} value={t.key} className="bg-surface-1 text-ink">{t.label}</option>
             ))}
           </select>
         )}
@@ -132,10 +132,10 @@ export default function ItemActionsEditor({ actions, mutate, actionRefOptions = 
           const label = TRIGGERS.find((t) => t.key === triggerKey)?.label || triggerKey;
           const steps = actions[triggerKey] || [];
           return (
-            <div key={triggerKey} className="bg-[#0b0f19] rounded-2xl border border-[#374151] overflow-hidden">
-              <div className="bg-white/5 px-6 py-3 flex justify-between items-center border-b border-white/5">
+            <div key={triggerKey} className="bg-surface-0 rounded-md border border-line-strong overflow-hidden">
+              <div className="bg-white/5 px-6 py-3 flex justify-between items-center border-b border-line">
                 <span className="text-[11px] font-black text-orange-400 uppercase tracking-widest">{label}</span>
-                <button onClick={() => removeTrigger(triggerKey)} className="text-gray-600 hover:text-red-500 transition-colors">
+                <button onClick={() => removeTrigger(triggerKey)} className="text-ink-3 hover:text-red-500 transition-colors">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
@@ -166,7 +166,7 @@ export default function ItemActionsEditor({ actions, mutate, actionRefOptions = 
           );
         })}
         {activeTriggers.length === 0 && (
-          <p className="text-[10px] text-gray-600 italic">Sin acciones: este ítem no hace nada al usarlo todavía.</p>
+          <p className="text-[10px] text-ink-3 italic">Sin acciones: este ítem no hace nada al usarlo todavía.</p>
         )}
       </div>
     </div>
@@ -185,12 +185,12 @@ function StepEditor({
   const kind = stepKind(step);
 
   return (
-    <div className="bg-black/20 rounded-xl border border-white/5 p-3 space-y-2">
+    <div className="bg-black/20 rounded-md border border-line p-3 space-y-2">
       <div className="flex justify-between items-center">
         <select value={kind} onChange={(e) => onChangeKind(e.target.value as StepKind)} className={selectCls}>
-          {STEP_KINDS.map((sk) => <option key={sk.kind} value={sk.kind} className="bg-surface-1 text-white">{sk.label}</option>)}
+          {STEP_KINDS.map((sk) => <option key={sk.kind} value={sk.kind} className="bg-surface-1 text-ink">{sk.label}</option>)}
         </select>
-        <button onClick={onRemove} className="text-gray-600 hover:text-red-500 transition-colors shrink-0">
+        <button onClick={onRemove} className="text-ink-3 hover:text-red-500 transition-colors shrink-0">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -271,7 +271,7 @@ function StepEditor({
               checked={step.toggle?.default ?? false}
               onChange={(e) => onChange({ toggle: { ...step.toggle, key: step.toggle?.key || "", default: e.target.checked } })}
             />
-            <span className="text-[9px] text-gray-500 uppercase font-bold">Empieza encendido</span>
+            <span className="text-[9px] text-ink-2 uppercase font-bold">Empieza encendido</span>
           </label>
         </div>
       )}
@@ -329,7 +329,7 @@ function StepEditor({
               checked={step.condition?.equals ?? true}
               onChange={(e) => onChange({ condition: { ...step.condition, key: step.condition?.key || "", equals: e.target.checked } })}
             />
-            <span className="text-[9px] text-gray-500 uppercase font-bold">Debe estar en true</span>
+            <span className="text-[9px] text-ink-2 uppercase font-bold">Debe estar en true</span>
           </label>
           <label className="flex items-center gap-2 pb-2 cursor-pointer whitespace-nowrap">
             <input
@@ -337,12 +337,12 @@ function StepEditor({
               checked={step.condition?.default ?? false}
               onChange={(e) => onChange({ condition: { ...step.condition, key: step.condition?.key || "", default: e.target.checked } })}
             />
-            <span className="text-[9px] text-gray-500 uppercase font-bold">Default si no existe</span>
+            <span className="text-[9px] text-ink-2 uppercase font-bold">Default si no existe</span>
           </label>
         </div>
       )}
 
-      <p className="text-[9px] text-gray-600 italic">
+      <p className="text-[9px] text-ink-3 italic">
         {kind === "condition" && "Si no se cumple, corta el resto de pasos de este trigger (no hace nada más, pero el click sigue quedando \"gestionado\")."}
         {kind === "action" && "Id de una acción ya registrada en Java por algún plugin (ver ItemActions.register)."}
         {kind === "cooldown" && "Corta el resto de pasos si no ha pasado el tiempo indicado desde el último uso válido de esta misma clave. Se guarda en el propio ítem, sobrevive a reinicios."}
@@ -372,7 +372,7 @@ function SetStepFields({ step, onChange }: { step: RawActionStep; onChange: (s: 
           checked={isBool}
           onChange={(e) => onChange({ set: { key: step.set?.key || "", value: e.target.checked ? false : 0 } })}
         />
-        <span className="text-[9px] text-gray-500 uppercase font-bold">Booleano</span>
+        <span className="text-[9px] text-ink-2 uppercase font-bold">Booleano</span>
       </label>
       {isBool ? (
         <select
@@ -380,8 +380,8 @@ function SetStepFields({ step, onChange }: { step: RawActionStep; onChange: (s: 
           onChange={(e) => onChange({ set: { key: step.set?.key || "", value: e.target.value === "true" } })}
           className={inputCls}
         >
-          <option value="true" className="bg-surface-1 text-white">true</option>
-          <option value="false" className="bg-surface-1 text-white">false</option>
+          <option value="true" className="bg-surface-1 text-ink">true</option>
+          <option value="false" className="bg-surface-1 text-ink">false</option>
         </select>
       ) : (
         <input

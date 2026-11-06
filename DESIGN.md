@@ -1,6 +1,6 @@
 ---
-name: xLib Portal — Wiki pública
-description: Esquema de cableado — la wiki del ecosistema aifusp.dev leída como un plano técnico, no como una plantilla de docs genérica
+name: xLib Portal
+description: Esquema de cableado — todo el portal (wiki pública + Studio) del ecosistema aifusp.dev leído como un plano técnico, no como una plantilla de docs genérica ni un panel de SaaS
 colors:
   blueprint-ground: "#0a1f33"
   blueprint-panel: "#0d2742"
@@ -38,15 +38,15 @@ components:
     padding: "10px 20px"
 ---
 
-# Design System: xLib Portal — Wiki pública
+# Design System: xLib Portal
 
 ## Overview
 
 **Creative North Star: "Esquema de cableado"**
 
-La wiki no se lee como un panel de SaaS ni como una plantilla de docs (GitBook, Docusaurus): se lee como el plano técnico del ecosistema de plugins de aifusp.dev. El fondo es un azul-plano profundo, no un gris o un negro genérico; el texto y los bordes son trazos finos cian, nunca sombras blandas; y la relación real entre plugins (todo depende de xLib) se dibuja, no se explica en prosa — una traza ortogonal conecta la "Librería Core" con cada categoría que cuelga de ella en la página de inicio.
+El portal no se lee como un panel de SaaS ni como una plantilla de docs (GitBook, Docusaurus): se lee como el plano técnico del ecosistema de plugins de aifusp.dev. El fondo es un azul-plano profundo, no un gris o un negro genérico; el texto y los bordes son trazos finos cian, nunca sombras blandas; y la relación real entre plugins (todo depende de xLib) se dibuja, no se explica en prosa — una traza ortogonal conecta la "Librería Core" con cada categoría que cuelga de ella en la página de inicio.
 
-Este sistema cubre solo la wiki pública (home, sidebar, páginas de doc de plugin). El Studio (`src/app/studio/*`) tiene su propio sistema de tokens, ya documentado como comentario en `globals.css`, y queda fuera de este documento — es un mundo visual deliberadamente separado, no una inconsistencia.
+Este sistema cubre toda la app: la wiki pública (home, sidebar, páginas de doc de plugin) **y** el Studio (`src/app/studio/*` + sus 18 editores en `src/components/`), incorporado el 2026-11-06. Studio heredó la paleta y el vocabulario de forma (radios, trazos, acento) a través de los tokens raíz compartidos — su estructura, navegación y controles son los suyos propios (el mundo visual nunca dicta layout/comportamiento en un surface Operate), sin ningún cambio de lógica.
 
 **Key Characteristics:**
 - Fondo azul-plano profundo con una retícula de fondo muy sutil (papel cuadriculado de ingeniería)
@@ -63,7 +63,7 @@ Paleta Restrained-hacia-Committed: el fondo satura todo el lienzo (azul-plano, n
 - **Cian señal** (`#5ec8ff`): único acento interactivo — CTA primario, enlaces, icono/indicador de nav activo, la traza de cableado. Texto sobre este color usa **Tinta de plano** (`#061626`), nunca negro puro.
 
 ### Neutral
-- **Plano base** (`#0a1f33`): fondo de la app (equivalente al `--color-surface-0` del Studio, pero reemplazado dentro de `.wiki-shell`).
+- **Plano base** (`#0a1f33`): fondo de la app — `--color-surface-0` en la raíz de `globals.css`, compartido por wiki y Studio.
 - **Panel** (`#0d2742`): sidebar, código, cabeceras de tabla.
 - **Campo** (`#11304f`): filas/hover de nav activo.
 - **Hover elevado** (`#163a5e`): hover de tarjetas de categoría.
@@ -138,5 +138,6 @@ Línea vertical `hairline-strong` de 1px que recorre la lista de categorías de 
 ### Don't:
 - **Don't** añadir `box-shadow` a ningún componente de la wiki.
 - **Don't** usar un borde izquierdo/derecho coloreado de más de 1px como acento decorativo en tarjetas o callouts (es el patrón genérico de docs-SaaS que este sistema existe para rechazar).
-- **Don't** tocar los tokens compartidos de `:root` en `globals.css` para cambiar el look de la wiki — todo override vive dentro de `.wiki-shell`, porque el Studio depende de los valores originales.
+- **Don't** reintroducir hex sueltos (`bg-[#111827]`, `border-[#374151]`...) en vez de los tokens compartidos de `:root` — toda la app, wiki y Studio, lee del mismo sistema desde 2026-11-06.
+- **Don't** cambiar la estructura, navegación o controles de un editor de Studio para "encajar" en el mundo visual — el mundo aporta paleta/tipografía/radios/densidad, nunca el layout de un surface Operate.
 - **Don't** usar emoji como sustituto de un icono real (la librería del proyecto es `lucide-react`).
